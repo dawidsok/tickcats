@@ -388,7 +388,13 @@ func (m Model) renderColumn(index int, state store.State) string {
 		}
 	}
 
-	return lipgloss.NewStyle().Width(m.columnWidth()).PaddingRight(2).Render(b.String())
+	return lipgloss.NewStyle().
+		Width(m.columnWidth()).
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		Padding(0, 1).
+		MarginRight(1).
+		Render(b.String())
 }
 
 func (m Model) renderDetail() string {
@@ -407,19 +413,59 @@ func (m Model) renderDetail() string {
 		visible = visible[:maxBodyLines]
 	}
 
+	contentWidth, metadataWidth := m.detailWidths()
+	content := lipgloss.NewStyle().
+		Width(contentWidth).
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		Padding(0, 1).
+		MarginRight(1).
+		Render(strings.Join(visible, "\n"))
+	metadata := lipgloss.NewStyle().
+		Width(metadataWidth).
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		Padding(0, 1).
+		Render(m.renderDetailMetadata(*stored))
+
 	var b strings.Builder
 	b.WriteString(bannerStyle.Render(stored.Ticket.Title))
-	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf("State: %s  Priority: %s  File: %s\n", stored.State, stored.Ticket.Priority, stored.Name))
-	if len(stored.Ticket.ParsedTitle.Labels) > 0 {
-		b.WriteString(fmt.Sprintf("Labels: %s\n", strings.Join(stored.Ticket.ParsedTitle.Labels, ", ")))
-	}
-	b.WriteString("\n")
-	b.WriteString(strings.Join(visible, "\n"))
 	b.WriteString("\n\n")
+	b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, content, metadata))
+	b.WriteString("\n")
 	b.WriteString(mutedStyle.Render("j/k scroll  esc back  q quit"))
 	b.WriteString("\n")
 	return b.String()
+}
+
+func (m Model) renderDetailMetadata(stored store.StoredTicket) string {
+	var b strings.Builder
+	b.WriteString("Metadata\n")
+	b.WriteString(fmt.Sprintf("State: %s\n", stored.State))
+	b.WriteString(fmt.Sprintf("Priority: %s\n", stored.Ticket.Priority))
+	b.WriteString(fmt.Sprintf("File: %s\n", stored.Name))
+	if len(stored.Ticket.ParsedTitle.Labels) > 0 {
+		b.WriteString(fmt.Sprintf("Labels: %s\n", strings.Join(stored.Ticket.ParsedTitle.Labels, ", ")))
+	}
+	b.WriteString(fmt.Sprintf("Created: %s\n", stored.Ticket.Created.Format("2006-01-02 15:04")))
+	b.WriteString(fmt.Sprintf("Updated: %s", stored.Ticket.Updated.Format("2006-01-02 15:04")))
+	return b.String()
+}
+
+func (m Model) detailWidths() (int, int) {
+	width := m.Width
+	if width <= 0 {
+		width = 96
+	}
+	metadata := width / 3
+	content := width - metadata - 3
+	if metadata < 24 {
+		metadata = 24
+	}
+	if content < 40 {
+		content = 40
+	}
+	return content, metadata
 }
 
 func (m Model) detailLines() []string {

@@ -67,6 +67,44 @@ func TestWindowSizeUpdatesModel(t *testing.T) {
 	}
 }
 
+func TestBoardRendersColumnBorders(t *testing.T) {
+	model := NewModel(emptyBoard())
+	view := model.View()
+	if !strings.Contains(view, "┌") || !strings.Contains(view, "└") {
+		t.Fatalf("View() missing borders:\n%s", view)
+	}
+}
+
+func TestDetailViewRendersContentAndMetadataColumns(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{storedTicket("a.md", store.StateBacklog, "Task: a")}
+	model := NewModel(board)
+	updated, _ := model.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	model = updated.(Model)
+	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model = updated.(Model)
+
+	view := model.View()
+	if !strings.Contains(view, "Long body line 1") {
+		t.Fatalf("detail missing body:\n%s", view)
+	}
+	if !strings.Contains(view, "Metadata") || !strings.Contains(view, "State: backlog") || !strings.Contains(view, "File: a.md") {
+		t.Fatalf("detail missing metadata:\n%s", view)
+	}
+	if !strings.Contains(view, "┌") || !strings.Contains(view, "└") {
+		t.Fatalf("detail missing borders:\n%s", view)
+	}
+}
+
+func TestDetailWidthsSplitTwoThirdsOneThird(t *testing.T) {
+	model := NewModel(emptyBoard())
+	model.Width = 120
+	content, metadata := model.detailWidths()
+	if content != 77 || metadata != 40 {
+		t.Fatalf("widths = %d/%d, want 77/40", content, metadata)
+	}
+}
+
 func TestPickNextBanner(t *testing.T) {
 	board := emptyBoard()
 	model := NewModel(board)
