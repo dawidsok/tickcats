@@ -22,7 +22,7 @@ Support the simplified v1 markdown ticket schema.
   - `## Context`
   - `## Acceptance Criteria`
 - Parse enough markdown to detect whether Acceptance Criteria is non-empty.
-- Parse title labels such as `[blocked]`, `[to refine]`, `[idea]`.
+- Parse title labels from a comma-separated bracket list such as `[blocked, to refine]` or `[idea, to refine]`.
 
 ## Out of Scope
 

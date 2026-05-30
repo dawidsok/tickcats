@@ -31,7 +31,7 @@ Establish the Go package layout and core domain types used by the storage, parse
 - Valid/invalid state parsing.
 - Title parsing with no prefix defaults to task.
 - Title parsing with labels before prefix.
-- `[blocked] [to refine] Feat: example` parses labels + feature kind.
+- `[blocked, to refine] Feat: example` parses labels + feature kind.
 
 ## Acceptance Checks
 

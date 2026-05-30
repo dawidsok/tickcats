@@ -41,7 +41,7 @@ v1 supports only Private mode: `.tickcats/` is intended to be git-ignored. Repo 
 4. User creates or refines tickets using lightweight markdown files.
 5. Ticket detail includes title, priority, created, updated, acceptance notes, and body text. Workflow state is derived from the ticket's folder, not duplicated as a field inside the file.
 6. Ticket kind is inferred from the title prefix: `Feat:`, `Task:`, or `Bug:`. If no prefix is present, TickCats treats the ticket as a task.
-7. Title labels before the kind prefix carry lightweight status/filter meaning, e.g. `[blocked] [to refine] Feat: feature description`.
+7. Title labels before the kind prefix carry lightweight status/filter meaning, e.g. `[blocked, to refine] Feat: feature description`.
 8. v1 gives special behavior to `[blocked]` and `[to refine]`: either label excludes the ticket from pick-next.
 9. App identifies tickets that are ready to start based on hybrid readiness: the ticket is in `.tickcats/ready/`, has a clear title, has acceptance notes, and lacks `[blocked]` / `[to refine]`.
 10. App surfaces the highest-priority ready ticket as the next item to pick up.
@@ -64,10 +64,12 @@ Labels appear before the kind prefix:
 
 - `[blocked] Feat: add import validation`
 - `[to refine] Task: clean up parser errors`
-- `[blocked] [to refine] Bug: crash on empty backlog`
-- `[idea] [to refine] Feat: feature description`
+- `[blocked, to refine] Bug: crash on empty backlog`
+- `[idea, to refine] Feat: feature description`
 
-v1 only interprets `[blocked]` and `[to refine]`. Future versions may serialize/discover used labels to support filtering and add TUI-assisted label toggling, e.g. quickly add/remove `[blocked]`, `[to refine]`, or other discovered labels without manually editing the title text.
+v1 only interprets `blocked` and `to refine` labels. Future versions may serialize/discover used labels to support filtering and add TUI-assisted label toggling, e.g. quickly add/remove `blocked`, `to refine`, or other discovered labels without manually editing the title text.
+
+Future feature to explore: title-based status syntax such as `<ready> [blocked, to refine] Feat: feature description`, with known statuses and an `unknown` UI column for missing/malformed status. v1 keeps status folder-based.
 
 Minimal generated body:
 

@@ -14,14 +14,15 @@ Use the ticket title as the primary lightweight metadata surface.
   - `Bug:` → bug
   - `Task:` → task
   - missing kind prefix → task by default
-- Status/filter labels are written before the title prefix:
+- Status/filter labels are written as one comma-separated bracket list before the title prefix:
   - `[blocked] Feat: add import validation`
   - `[to refine] Task: clean up parser errors`
-  - `[blocked] [to refine] Bug: crash on empty backlog`
-- Labels are free-form enough to allow examples like `[idea] [to refine] Feat: feature description`.
+  - `[blocked, to refine] Bug: crash on empty backlog`
+- Labels are free-form enough to allow examples like `[idea, to refine] Feat: feature description`.
 - v1 only gives special behavior to `[blocked]` and `[to refine]`.
 - Future improvement: serialize/discover used labels to support filtering; not needed in v1.
-- Future improvement: TUI-assisted label toggling, e.g. quickly add/remove `[blocked]`, `[to refine]`, or other discovered labels without manually editing the title text.
+- Future improvement: TUI-assisted label toggling, e.g. quickly add/remove `blocked`, `to refine`, or other discovered labels without manually editing the title text.
+- Future feature to explore: title-based status syntax such as `<ready> [blocked, to refine] Feat: feature description`, with known statuses and an `unknown` UI column for missing/malformed status. v1 keeps status folder-based.
 - `created` and `updated` remain frontmatter fields. `updated` is only for content/metadata updates; folder moves do not change it. Since in-app markdown editing is out of scope, users may maintain `updated` manually for now.
 
 ## Slice 1 — Project Skeleton and Core Types

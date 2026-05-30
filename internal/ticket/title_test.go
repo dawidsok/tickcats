@@ -39,8 +39,8 @@ func TestParseTitle(t *testing.T) {
 			wantText: "write README",
 		},
 		{
-			name:          "labels before prefix",
-			raw:           "[blocked] [to refine] Feat: feature description",
+			name:          "array labels before prefix",
+			raw:           "[blocked, to refine] Feat: feature description",
 			wantKind:      KindFeature,
 			wantText:      "feature description",
 			wantLabels:    []string{"blocked", "to refine"},
@@ -48,10 +48,26 @@ func TestParseTitle(t *testing.T) {
 		},
 		{
 			name:          "free-form idea label",
-			raw:           "[idea] [to refine] Feat: feature description",
+			raw:           "[idea, to refine] Feat: feature description",
 			wantKind:      KindFeature,
 			wantText:      "feature description",
 			wantLabels:    []string{"idea", "to refine"},
+			wantHadPrefix: true,
+		},
+		{
+			name:          "label whitespace normalizes",
+			raw:           "[ Idea , To Refine ] Feat: feature description",
+			wantKind:      KindFeature,
+			wantText:      "feature description",
+			wantLabels:    []string{"idea", "to refine"},
+			wantHadPrefix: true,
+		},
+		{
+			name:          "empty label list ignored",
+			raw:           "[] Feat: feature description",
+			wantKind:      KindFeature,
+			wantText:      "feature description",
+			wantLabels:    nil,
 			wantHadPrefix: true,
 		},
 		{
@@ -87,7 +103,7 @@ func TestParseTitle(t *testing.T) {
 }
 
 func TestParsedTitleSpecialLabels(t *testing.T) {
-	title := ParseTitle("[blocked] [to refine] Feat: feature description")
+	title := ParseTitle("[blocked, to refine] Feat: feature description")
 	if !title.Blocked() {
 		t.Fatalf("Blocked() = false, want true")
 	}
@@ -109,8 +125,8 @@ func TestParsedTitleNormalizedTitle(t *testing.T) {
 		},
 		{
 			name: "missing prefix with labels adds task after labels",
-			raw:  "[idea] [to refine] write README",
-			want: "[idea] [to refine] Task: write README",
+			raw:  "[idea, to refine] write README",
+			want: "[idea, to refine] Task: write README",
 		},
 		{
 			name: "feature normalizes alias",
@@ -121,6 +137,11 @@ func TestParsedTitleNormalizedTitle(t *testing.T) {
 			name: "fix normalizes to bug",
 			raw:  "[blocked] Fix: crash on empty backlog",
 			want: "[blocked] Bug: crash on empty backlog",
+		},
+		{
+			name: "multiple labels normalize to one bracket",
+			raw:  "[blocked, to refine] Fix: crash on empty backlog",
+			want: "[blocked, to refine] Bug: crash on empty backlog",
 		},
 	}
 

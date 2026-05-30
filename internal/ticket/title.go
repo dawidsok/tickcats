@@ -25,23 +25,7 @@ type ParsedTitle struct {
 
 func ParseTitle(raw string) ParsedTitle {
 	rest := strings.TrimSpace(raw)
-	labels := make([]string, 0)
-
-	for {
-		if !strings.HasPrefix(rest, "[") {
-			break
-		}
-		end := strings.Index(rest, "]")
-		if end == -1 {
-			break
-		}
-
-		label := strings.ToLower(strings.TrimSpace(rest[1:end]))
-		if label != "" {
-			labels = append(labels, label)
-		}
-		rest = strings.TrimSpace(rest[end+1:])
-	}
+	labels, rest := splitLabels(rest)
 
 	kind, text, hadPrefix := splitKind(rest)
 	return ParsedTitle{
@@ -54,7 +38,7 @@ func ParseTitle(raw string) ParsedTitle {
 }
 
 func (t ParsedTitle) HasLabel(label string) bool {
-	needle := strings.ToLower(strings.TrimSpace(label))
+	needle := normalizeLabel(label)
 	for _, got := range t.Labels {
 		if got == needle {
 			return true
@@ -72,9 +56,9 @@ func (t ParsedTitle) ToRefine() bool {
 }
 
 func (t ParsedTitle) NormalizedTitle() string {
-	parts := make([]string, 0, len(t.Labels)+1)
-	for _, label := range t.Labels {
-		parts = append(parts, "["+label+"]")
+	parts := make([]string, 0, 2)
+	if len(t.Labels) > 0 {
+		parts = append(parts, "["+strings.Join(t.Labels, ", ")+"]")
 	}
 	parts = append(parts, string(t.Kind.Prefix())+":")
 
@@ -96,6 +80,34 @@ func (k Kind) Prefix() string {
 	default:
 		return "Task"
 	}
+}
+
+func splitLabels(raw string) ([]string, string) {
+	trimmed := strings.TrimSpace(raw)
+	if !strings.HasPrefix(trimmed, "[") {
+		return nil, trimmed
+	}
+
+	end := strings.Index(trimmed, "]")
+	if end == -1 {
+		return nil, trimmed
+	}
+
+	labelText := trimmed[1:end]
+	parts := strings.Split(labelText, ",")
+	labels := make([]string, 0, len(parts))
+	for _, part := range parts {
+		label := normalizeLabel(part)
+		if label != "" {
+			labels = append(labels, label)
+		}
+	}
+
+	return labels, strings.TrimSpace(trimmed[end+1:])
+}
+
+func normalizeLabel(raw string) string {
+	return strings.ToLower(strings.TrimSpace(raw))
 }
 
 func splitKind(raw string) (Kind, string, bool) {
