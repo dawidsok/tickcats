@@ -1,0 +1,157 @@
+package store
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+)
+
+func TestLoadBoardGroupsTicketsByState(t *testing.T) {
+	root := t.TempDir()
+	mustInit(t, root)
+	writeTicket(t, root, StateBacklog, "a.md", "Task: backlog item")
+	writeTicket(t, root, StateReady, "b.md", "Feat: ready item")
+	writeTicket(t, root, StateDoing, "c.md", "Bug: doing item")
+	writeTicket(t, root, StateDone, "d.md", "Task: done item")
+
+	board, err := LoadBoard(root)
+	if err != nil {
+		t.Fatalf("LoadBoard() error = %v", err)
+	}
+	if len(board.Warnings) != 0 {
+		t.Fatalf("Warnings = %#v, want none", board.Warnings)
+	}
+
+	assertColumnTitles(t, board, StateBacklog, []string{"Task: backlog item"})
+	assertColumnTitles(t, board, StateReady, []string{"Feat: ready item"})
+	assertColumnTitles(t, board, StateDoing, []string{"Bug: doing item"})
+	assertColumnTitles(t, board, StateDone, []string{"Task: done item"})
+}
+
+func TestLoadBoardSkipsMalformedTicketsWithWarning(t *testing.T) {
+	root := t.TempDir()
+	mustInit(t, root)
+	writeTicket(t, root, StateReady, "valid.md", "Task: valid")
+	malformedPath := filepath.Join(root, StateDir(StateReady), "bad.md")
+	if err := os.WriteFile(malformedPath, []byte("not frontmatter"), 0o644); err != nil {
+		t.Fatalf("write malformed ticket: %v", err)
+	}
+
+	board, err := LoadBoard(root)
+	if err != nil {
+		t.Fatalf("LoadBoard() error = %v", err)
+	}
+	assertColumnTitles(t, board, StateReady, []string{"Task: valid"})
+	if len(board.Warnings) != 1 {
+		t.Fatalf("Warnings count = %d, want 1", len(board.Warnings))
+	}
+	if board.Warnings[0].Path != malformedPath {
+		t.Fatalf("Warning path = %q, want %q", board.Warnings[0].Path, malformedPath)
+	}
+}
+
+func TestMoveTicketPreservesContentAndDoesNotUpdateTimestamp(t *testing.T) {
+	root := t.TempDir()
+	mustInit(t, root)
+	created := time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC)
+	updated := time.Date(2026, 5, 30, 11, 0, 0, 0, time.UTC)
+	content := ticketContent("Task: move me", created, updated)
+	source := filepath.Join(root, StateDir(StateReady), "move-me.md")
+	if err := os.WriteFile(source, []byte(content), 0o644); err != nil {
+		t.Fatalf("write source ticket: %v", err)
+	}
+
+	target, err := Move(root, "move-me.md", StateReady, StateDoing)
+	if err != nil {
+		t.Fatalf("Move() error = %v", err)
+	}
+	if target != filepath.Join(root, StateDir(StateDoing), "move-me.md") {
+		t.Fatalf("target = %q", target)
+	}
+	if _, err := os.Stat(source); !os.IsNotExist(err) {
+		t.Fatalf("source still exists or stat error = %v", err)
+	}
+	got, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatalf("read target ticket: %v", err)
+	}
+	if string(got) != content {
+		t.Fatalf("moved content changed:\n%s", got)
+	}
+}
+
+func TestMoveInvalidStateFails(t *testing.T) {
+	root := t.TempDir()
+	_, err := Move(root, "x.md", StateReady, State("later"))
+	if err == nil {
+		t.Fatalf("Move() expected error")
+	}
+	if !strings.Contains(err.Error(), "invalid state") {
+		t.Fatalf("error = %q, want invalid state", err)
+	}
+}
+
+func TestMoveMalformedTicketFails(t *testing.T) {
+	root := t.TempDir()
+	mustInit(t, root)
+	path := filepath.Join(root, StateDir(StateReady), "bad.md")
+	if err := os.WriteFile(path, []byte("not frontmatter"), 0o644); err != nil {
+		t.Fatalf("write malformed ticket: %v", err)
+	}
+
+	_, err := Move(root, "bad.md", StateReady, StateDoing)
+	if err == nil {
+		t.Fatalf("Move() expected error")
+	}
+	if !strings.Contains(err.Error(), "parse source ticket") {
+		t.Fatalf("error = %q, want parse source ticket", err)
+	}
+}
+
+func mustInit(t *testing.T, root string) {
+	t.Helper()
+	if err := Init(root); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+}
+
+func writeTicket(t *testing.T, root string, state State, name string, title string) {
+	t.Helper()
+	path := filepath.Join(root, StateDir(state), name)
+	content := ticketContent(title, time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC), time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC))
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write ticket %q: %v", path, err)
+	}
+}
+
+func ticketContent(title string, created time.Time, updated time.Time) string {
+	return `---
+title: ` + title + `
+priority: P2
+created: ` + created.Format(time.RFC3339) + `
+updated: ` + updated.Format(time.RFC3339) + `
+---
+
+## Context
+
+Context.
+
+## Acceptance Criteria
+- done
+`
+}
+
+func assertColumnTitles(t *testing.T, board Board, state State, want []string) {
+	t.Helper()
+	gotTickets := board.Columns[state]
+	if len(gotTickets) != len(want) {
+		t.Fatalf("column %s length = %d, want %d", state, len(gotTickets), len(want))
+	}
+	for i := range want {
+		if gotTickets[i].Ticket.Title != want[i] {
+			t.Fatalf("column %s title[%d] = %q, want %q", state, i, gotTickets[i].Ticket.Title, want[i])
+		}
+	}
+}
