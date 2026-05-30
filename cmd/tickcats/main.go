@@ -37,7 +37,7 @@ func run(args []string) error {
 	case "move":
 		return runMove(args[1:])
 	case "pick-next":
-		return runPickNext()
+		return runPickNext(args[1:])
 	case "tui":
 		return runTUI()
 	case "help", "--help", "-h":
@@ -125,7 +125,12 @@ func runMove(args []string) error {
 	return nil
 }
 
-func runPickNext() error {
+func runPickNext(args []string) error {
+	pathOnly, err := parsePickNextArgs(args)
+	if err != nil {
+		return err
+	}
+
 	board, err := store.LoadBoard(".")
 	if err != nil {
 		return err
@@ -133,6 +138,10 @@ func runPickNext() error {
 	printWarnings(board.Warnings)
 
 	result := store.PickNext(board)
+	if pathOnly {
+		return printPickNextPath(result)
+	}
+
 	if !result.HasPick {
 		fmt.Println("No ready ticket found")
 		return nil
@@ -147,6 +156,34 @@ func runPickNext() error {
 
 	picked := result.Ticket
 	fmt.Printf("%s  [%s] %s\n", picked.Name, picked.Ticket.Priority, picked.Ticket.Title)
+	return nil
+}
+
+func parsePickNextArgs(args []string) (bool, error) {
+	pathOnly := false
+	for _, arg := range args {
+		switch arg {
+		case "--path":
+			pathOnly = true
+		default:
+			return false, fmt.Errorf("usage: tickcats pick-next [--path]")
+		}
+	}
+	return pathOnly, nil
+}
+
+func printPickNextPath(result store.PickResult) error {
+	if !result.HasPick {
+		return fmt.Errorf("no ready ticket found")
+	}
+	if result.NeedsChoice {
+		fmt.Fprintln(os.Stderr, "Tie candidates:")
+		for _, tied := range result.Tied {
+			fmt.Fprintln(os.Stderr, tied.Path)
+		}
+		return fmt.Errorf("multiple ready tickets tied for next pick")
+	}
+	fmt.Println(result.Ticket.Path)
 	return nil
 }
 
@@ -214,6 +251,6 @@ func printHelp() {
 	fmt.Println("  new feat|task|bug <title> [--ac text]  create ticket in backlog")
 	fmt.Println("  list                         list tickets grouped by state")
 	fmt.Println("  move <ticket> <from> <to>    move ticket between states")
-	fmt.Println("  pick-next                    print next ready ticket")
+	fmt.Println("  pick-next [--path]           print next ready ticket")
 	fmt.Println("  tui                          open terminal board")
 }
