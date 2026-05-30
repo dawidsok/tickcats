@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -41,6 +42,8 @@ type Model struct {
 	InteractionMode InteractionMode
 	DetailScroll    int
 	Status          string
+	Width           int
+	Height          int
 }
 
 func NewModel(board store.Board) Model {
@@ -69,6 +72,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateMove(msg)
 		}
 		return m.updateBoard(msg)
+	case editorFinishedMsg:
+		m.handleEditorFinished(msg)
+		return m, nil
+	case tea.WindowSizeMsg:
+		m.Width = msg.Width
+		m.Height = msg.Height
+		return m, nil
 	}
 	return m, nil
 }
@@ -85,7 +95,7 @@ func (m Model) updateBoard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.moveRow(1)
 	case "k", "up":
 		m.moveRow(-1)
-	case "enter", "d":
+	case "enter", "o":
 		if m.selectedTicket() != nil {
 			m.Mode = ViewDetail
 			m.DetailScroll = 0
@@ -94,7 +104,7 @@ func (m Model) updateBoard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.InteractionMode = InteractionMove
 		m.Status = "Move mode: h left, l right, esc cancel"
 	case "e":
-		m.Status = "Edit mode not implemented yet; later opens $EDITOR"
+		return m.editSelected()
 	}
 	return m, nil
 }
@@ -153,7 +163,7 @@ func (m Model) footerText() string {
 	if m.InteractionMode == InteractionMove {
 		return "MOVE MODE: h left  l right  j/k reorder later  esc board  q quit"
 	}
-	return "BOARD MODE: h/l column  j/k ticket  m move mode  d/enter detail  e edit later  q quit"
+	return "BOARD MODE: h/l column  j/k ticket  m move mode  o/enter detail  e edit  q quit"
 }
 
 func (m *Model) moveColumn(delta int) {
@@ -176,6 +186,41 @@ func (m *Model) moveDetailScroll(delta int) {
 		maxScroll = 0
 	}
 	m.DetailScroll = clamp(m.DetailScroll+delta, 0, maxScroll)
+}
+
+func (m Model) editSelected() (tea.Model, tea.Cmd) {
+	stored := m.selectedTicket()
+	if stored == nil {
+		m.Status = "No ticket selected"
+		return m, nil
+	}
+
+	cmd := editorCommand(stored.Path)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return m, tea.ExecProcess(cmd, func(err error) tea.Msg {
+		return editorFinishedMsg{err: err}
+	})
+}
+
+type editorFinishedMsg struct {
+	err error
+}
+
+func (m *Model) handleEditorFinished(msg editorFinishedMsg) {
+	if msg.err != nil {
+		m.Status = "Edit failed: " + msg.err.Error()
+		return
+	}
+	board, err := store.LoadBoard(m.Root)
+	if err != nil {
+		m.Status = "Reload failed: " + err.Error()
+		return
+	}
+	m.Board = board
+	m.Status = "Edited ticket"
 }
 
 func (m *Model) moveSelectedRight() {
@@ -220,7 +265,6 @@ func (m *Model) moveSelected(delta int) {
 	m.SelectedCol = toIndex
 	m.SelectedRows[to] = findTicketRow(m.Board.Columns[to], stored.Name)
 	m.Status = fmt.Sprintf("Moved %s to %s", stored.Name, to)
-	m.InteractionMode = InteractionBoard
 }
 
 func (m Model) selectedTicket() *store.StoredTicket {
@@ -286,7 +330,7 @@ func (m Model) renderColumn(index int, state store.State) string {
 		}
 	}
 
-	return lipgloss.NewStyle().Width(32).PaddingRight(2).Render(b.String())
+	return lipgloss.NewStyle().Width(m.columnWidth()).PaddingRight(2).Render(b.String())
 }
 
 func (m Model) renderDetail() string {
@@ -297,8 +341,12 @@ func (m Model) renderDetail() string {
 
 	lines := m.detailLines()
 	visible := lines[m.DetailScroll:]
-	if len(visible) > 18 {
-		visible = visible[:18]
+	maxBodyLines := m.Height - 8
+	if maxBodyLines < 5 {
+		maxBodyLines = 5
+	}
+	if len(visible) > maxBodyLines {
+		visible = visible[:maxBodyLines]
 	}
 
 	var b strings.Builder
@@ -326,6 +374,17 @@ func (m Model) detailLines() []string {
 		return []string{mutedStyle.Render("empty body")}
 	}
 	return strings.Split(body, "\n")
+}
+
+func (m Model) columnWidth() int {
+	if m.Width <= 0 {
+		return 32
+	}
+	width := (m.Width / len(columnOrder)) - 2
+	if width < 20 {
+		return 20
+	}
+	return width
 }
 
 func (m Model) renderWarnings() string {

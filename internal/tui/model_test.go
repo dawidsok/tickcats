@@ -55,6 +55,18 @@ func TestEmptyColumnDoesNotPanic(t *testing.T) {
 	}
 }
 
+func TestWindowSizeUpdatesModel(t *testing.T) {
+	model := NewModel(emptyBoard())
+	updated, _ := model.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	got := updated.(Model)
+	if got.Width != 120 || got.Height != 40 {
+		t.Fatalf("size = %dx%d, want 120x40", got.Width, got.Height)
+	}
+	if got.columnWidth() != 28 {
+		t.Fatalf("columnWidth = %d, want 28", got.columnWidth())
+	}
+}
+
 func TestPickNextBanner(t *testing.T) {
 	board := emptyBoard()
 	model := NewModel(board)
@@ -92,11 +104,11 @@ func TestEnterOpensDetailForSelectedTicket(t *testing.T) {
 	}
 }
 
-func TestDOpensDetailForSelectedTicket(t *testing.T) {
+func TestOOpensDetailForSelectedTicket(t *testing.T) {
 	board := emptyBoard()
 	board.Columns[store.StateBacklog] = []store.StoredTicket{storedTicket("a.md", store.StateBacklog, "Task: a")}
 	model := NewModel(board)
-	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'o'}})
 	got := updated.(Model)
 	if got.Mode != ViewDetail {
 		t.Fatalf("Mode = %v, want ViewDetail", got.Mode)
@@ -155,8 +167,8 @@ func TestMoveSelectedRightMovesTicketOnDisk(t *testing.T) {
 	if !strings.Contains(got.Status, "Moved a.md to ready") {
 		t.Fatalf("Status = %q", got.Status)
 	}
-	if got.InteractionMode != InteractionBoard {
-		t.Fatalf("InteractionMode = %v, want board after move", got.InteractionMode)
+	if got.InteractionMode != InteractionMove {
+		t.Fatalf("InteractionMode = %v, want move after move", got.InteractionMode)
 	}
 }
 
@@ -245,14 +257,53 @@ func TestMoveModeReorderNotImplemented(t *testing.T) {
 	}
 }
 
-func TestEditKeyShowsMessage(t *testing.T) {
+func TestEditKeyNoSelectionShowsMessage(t *testing.T) {
 	model := NewModel(emptyBoard())
-	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e'}})
+	updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e'}})
 	got := updated.(Model)
-	if got.Status != "Edit mode not implemented yet; later opens $EDITOR" {
-		t.Fatalf("Status = %q, want edit message", got.Status)
+	if cmd != nil {
+		t.Fatalf("cmd = %v, want nil", cmd)
+	}
+	if got.Status != "No ticket selected" {
+		t.Fatalf("Status = %q, want no selection", got.Status)
 	}
 }
+
+func TestEditorFinishedReloadsBoard(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+	writeTUITestTicket(t, root, store.StateBacklog, "a.md", "Task: a")
+	board, err := store.LoadBoard(root)
+	if err != nil {
+		t.Fatalf("LoadBoard() error = %v", err)
+	}
+	model := NewModelWithRoot(root, board)
+	writeTUITestTicket(t, root, store.StateReady, "b.md", "Task: b")
+
+	updated, _ := model.Update(editorFinishedMsg{})
+	got := updated.(Model)
+	if got.Status != "Edited ticket" {
+		t.Fatalf("Status = %q, want edited", got.Status)
+	}
+	if len(got.Board.Columns[store.StateReady]) != 1 {
+		t.Fatalf("ready count = %d, want 1", len(got.Board.Columns[store.StateReady]))
+	}
+}
+
+func TestEditorFinishedError(t *testing.T) {
+	model := NewModel(emptyBoard())
+	updated, _ := model.Update(editorFinishedMsg{err: errFake("boom")})
+	got := updated.(Model)
+	if got.Status != "Edit failed: boom" {
+		t.Fatalf("Status = %q", got.Status)
+	}
+}
+
+type errFake string
+
+func (e errFake) Error() string { return string(e) }
 
 func TestDetailScrollClamps(t *testing.T) {
 	board := emptyBoard()
