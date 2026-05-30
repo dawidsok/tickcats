@@ -32,11 +32,11 @@ They reach for TickCats during planning to choose the next item to pick up, and 
 ### Primary
 
 - The user can open TickCats inside one repository and identify the next actionable ticket in under two minutes.
-- TickCats recommends the highest-priority unblocked ticket in `.tickcats/ready/` that has a non-empty title and non-empty acceptance criteria.
+- TickCats recommends the highest-priority unblocked, refined ticket in `.tickcats/ready/` that has a non-empty title and non-empty acceptance criteria.
 
 ### Secondary
 
-- The user can create Feature, Ticket, and Bug items from local templates.
+- The user can create tickets whose kind is inferred from a conventional title prefix: `Feat:`, `Task:`, or `Bug:`.
 - The user can move tickets through the v1 workflow folders: backlog, ready, doing, done.
 - The user can open a ticket in their external editor for full markdown editing.
 
@@ -53,12 +53,13 @@ They reach for TickCats during planning to choose the next item to pick up, and 
 
 - **Given** a repository with local TickCats tickets across backlog, ready, doing, and done folders
 - **When** the user opens TickCats and invokes pick-next
-- **Then** TickCats surfaces the highest-priority unblocked ticket in `.tickcats/ready/` that has a title and non-empty acceptance criteria
+- **Then** TickCats surfaces the highest-priority ticket in `.tickcats/ready/` that has a title, non-empty acceptance criteria, and no `[blocked]` or `[to refine]` title label
 
 #### Acceptance Criteria
 
 - Tickets outside `.tickcats/ready/` are not eligible for pick-next.
-- Tickets with non-empty `blocked_by` are not eligible for pick-next.
+- Tickets whose title contains `[blocked]` are not eligible for pick-next.
+- Tickets whose title contains `[to refine]` are not eligible for pick-next.
 - `P0` outranks `P1`, `P1` outranks `P2`, and `P2` outranks `P3`.
 - When multiple eligible tickets share the same priority, the oldest ticket by `created` metadata is preferred.
 - If manual choice is needed, TickCats can show tied candidates for selection.
@@ -75,17 +76,20 @@ They reach for TickCats during planning to choose the next item to pick up, and 
 - Moving a ticket between workflow states moves its markdown file between folders.
 - The board supports vim-like navigation with `h`/`l` between columns and `j`/`k` within a column.
 
-### US-03: Create tickets from templates
+### US-03: Create tickets with conventional title prefixes
 
 - **Given** the user is in the TickCats TUI
-- **When** they create a new Feature, Ticket, or Bug
-- **Then** TickCats creates a markdown ticket from the corresponding local template
+- **When** they create a new feature, task, or bug ticket
+- **Then** TickCats creates a markdown ticket whose kind is inferred from the title prefix
 
 #### Acceptance Criteria
 
-- New ticket commands exist for Feature, Ticket, and Bug.
-- Generated tickets include required metadata: `type`, `title`, `priority`, `created`, and `updated`.
-- Generated tickets include `blocked_by: # optional` as a self-documenting optional field.
+- New ticket commands exist for feature, task, and bug creation.
+- Generated feature titles start with `Feat:`.
+- Generated task titles start with `Task:`.
+- Generated bug titles start with `Bug:`.
+- A ticket without `Feat:`, `Task:`, or `Bug:` is treated as a task.
+- Generated tickets include required metadata: `title`, `priority`, `created`, and `updated`.
 - Generated tickets include an Acceptance Criteria section.
 
 ### US-04: Inspect and refine a ticket
@@ -109,38 +113,40 @@ They reach for TickCats during planning to choose the next item to pick up, and 
 - FR-002: User can store tickets as markdown files under `.tickcats/backlog/`, `.tickcats/ready/`, `.tickcats/doing/`, and `.tickcats/done/`. Priority: must-have
 - FR-003: User can keep `.tickcats/` private/local for v1. Priority: must-have
 
-### Ticket templates
+### Ticket creation and title labels
 
-- FR-004: User can create a Feature ticket from a local template. Priority: must-have
-- FR-005: User can create a Ticket ticket from a local template. Priority: must-have
-- FR-006: User can create a Bug ticket from a local template. Priority: must-have
-- FR-007: User can include required ticket metadata: `type`, `title`, `priority`, `created`, and `updated`. Priority: must-have
-- FR-008: User can include optional `blocked_by` metadata. Priority: must-have
+- FR-004: User can create a feature ticket whose title starts with `Feat:`. Priority: must-have
+- FR-005: User can create a task ticket whose title starts with `Task:`. Priority: must-have
+- FR-006: User can create a bug ticket whose title starts with `Bug:`. Priority: must-have
+- FR-007: User can omit a kind prefix and have TickCats treat the ticket as a task. Priority: must-have
+- FR-008: User can include required ticket metadata: `title`, `priority`, `created`, and `updated`. Priority: must-have
+- FR-009: User can add title labels before the kind prefix, such as `[blocked]`, `[to refine]`, or `[idea]`. Priority: must-have
 
 ### Board and workflow
 
-- FR-009: User can view a kanban board with Backlog, Ready, Doing, and Done columns. Priority: must-have
-- FR-010: User can move a ticket to Backlog, Ready, Doing, or Done. Priority: must-have
-- FR-011: User can navigate the board with vim-like keys. Priority: must-have
+- FR-010: User can view a kanban board with Backlog, Ready, Doing, and Done columns. Priority: must-have
+- FR-011: User can move a ticket to Backlog, Ready, Doing, or Done. Priority: must-have
+- FR-012: User can navigate the board with vim-like keys. Priority: must-have
 
 ### Pick-next
 
-- FR-012: User can ask TickCats to pick the next ticket. Priority: must-have
-- FR-013: User can see the recommended next ticket on the default board screen. Priority: must-have
-- FR-014: User can exclude blocked tickets from pick-next by setting non-empty `blocked_by`. Priority: must-have
+- FR-013: User can ask TickCats to pick the next ticket. Priority: must-have
+- FR-014: User can see the recommended next ticket on the default board screen. Priority: must-have
+- FR-015: User can exclude blocked tickets from pick-next by adding a `[blocked]` title label. Priority: must-have
+- FR-016: User can exclude unrefined tickets from pick-next by adding a `[to refine]` title label. Priority: must-have
 
 ### Search and detail
 
-- FR-015: User can basic-search/filter visible tickets by title/content. Priority: must-have
-- FR-016: User can open a full-screen ticket detail view. Priority: must-have
-- FR-017: User can scroll long ticket content in detail view with `j`/`k`. Priority: must-have
-- FR-018: User can edit selected ticket metadata in the TUI. Priority: must-have
-- FR-019: User can open a ticket in their external editor. Priority: must-have
+- FR-017: User can basic-search/filter visible tickets by title/content. Priority: must-have
+- FR-018: User can open a full-screen ticket detail view. Priority: must-have
+- FR-019: User can scroll long ticket content in detail view with `j`/`k`. Priority: must-have
+- FR-020: User can edit selected ticket metadata in the TUI. Priority: must-have
+- FR-021: User can open a ticket in their external editor. Priority: must-have
 
 ### Command palette
 
-- FR-020: User can open a command palette. Priority: must-have
-- FR-021: User can run New Feature, New Ticket, New Bug, Move to Backlog, Move to Ready, Move to Doing, Move to Done, Edit Metadata, Open in Editor, and Pick Next from the command palette. Priority: must-have
+- FR-022: User can open a command palette. Priority: must-have
+- FR-023: User can run New Feature, New Task, New Bug, Move to Backlog, Move to Ready, Move to Doing, Move to Done, Edit Metadata, Open in Editor, and Pick Next from the command palette. Priority: must-have
 
 ## Non-Functional Requirements
 
@@ -148,13 +154,13 @@ They reach for TickCats during planning to choose the next item to pick up, and 
 - The default planning screen allows a user with an existing `.tickcats/` backlog to identify the recommended next ticket in under two minutes.
 - The product supports keyboard-first operation for core v1 workflows without requiring pointer interaction.
 - Ticket data remains local/private in v1 unless the user explicitly chooses to manage it outside TickCats.
-- The product keeps v1 ticket creation lightweight: generated templates include only the required metadata, optional `blocked_by`, and type-specific markdown sections.
+- The product keeps v1 ticket creation lightweight: generated tickets use title prefixes and labels instead of separate `type` or `blocked_by` metadata.
 
 ## Business Logic
 
-TickCats recommends the next item by selecting the highest-priority unblocked ticket in `.tickcats/ready/` that has a non-empty title and non-empty Acceptance Criteria.
+TickCats recommends the next item by selecting the highest-priority ticket in `.tickcats/ready/` that has a non-empty title, non-empty Acceptance Criteria, and no `[blocked]` or `[to refine]` title label.
 
-The rule consumes user-maintained ticket metadata, folder-derived workflow state, blocker state, and acceptance detail. Its output is the single best next ticket to pick up, shown on the default board screen and available through both a hotkey and command palette action.
+The rule consumes user-maintained ticket metadata, folder-derived workflow state, title labels, and acceptance detail. Its output is the single best next ticket to pick up, shown on the default board screen and available through both a hotkey and command palette action.
 
 Priority order is `P0`, `P1`, `P2`, then `P3`. If multiple eligible tickets share the same priority, TickCats prefers the oldest ticket by `created` metadata; if manual choice is needed, it can show tied candidates for selection.
 
@@ -168,7 +174,7 @@ Single user; no auth; data lives on-device only.
 - No Repo mode in v1; committing/versioning `.tickcats/` in Git is a future feature.
 - No team collaboration, shared server, realtime sync, or multi-user workflow in v1.
 - No advanced scrum metrics such as velocity, burndown, or epics in v1.
-- No complex dependency graph or automatic unblocking in v1.
+- No complex dependency graph or automatic unblocking in v1; `[blocked]` is only a title label that excludes a ticket from pick-next.
 - No cross-project dashboard/overview in v1.
 - No built-in markdown editor in v1; users can edit markdown tickets manually outside TickCats.
 - No authentication/accounts in v1.

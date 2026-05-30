@@ -25,102 +25,73 @@ The narrow first use case is repo-local planning: open the TUI inside one reposi
 
 The core rule is:
 
-> Next item = the highest-priority unblocked ticket in `.tickcats/ready/` that has a clear title and acceptance notes.
+> Next item = the highest-priority ticket in `.tickcats/ready/` that has a clear title, acceptance notes, and no `[blocked]` or `[to refine]` title label.
 
-Status is folder-based: the filesystem is the board. Moving a ticket between workflow states means moving its markdown file between status folders. The v1 board folders are `.tickcats/backlog/`, `.tickcats/ready/`, `.tickcats/doing/`, and `.tickcats/done/`. This makes the app more than a TODO list: it supports a lightweight scrum workflow and nudges tickets toward enough refinement to be actionable.
+Status is folder-based: the filesystem is the board. Moving a ticket between workflow states means moving its markdown file between status folders. The v1 board folders are `.tickcats/backlog/`, `.tickcats/ready/`, `.tickcats/doing/`, and `.tickcats/done/`.
 
-Priority uses `P0` / `P1` / `P2` / `P3`, where `P0` is highest. A ticket with non-empty `blocked_by` is excluded from pick-next. If multiple ready unblocked tickets share the same priority, TickCats prefers the oldest ticket based on local filesystem metadata. If needed, it can show tied candidates for manual selection.
+Priority uses `P0` / `P1` / `P2` / `P3`, where `P0` is highest. If multiple eligible tickets share the same priority, TickCats prefers the oldest ticket by explicit `created` metadata. If needed, it can show tied candidates for manual selection.
 
-v1 supports only Private mode: `.tickcats/` is intended to be git-ignored. Repo mode, where `.tickcats/` is committed and portable with the repository, is a future feature. Even in Private mode, tickets include explicit `created` and `updated` frontmatter fields because filesystem metadata is too inconsistent for product behavior.
+v1 supports only Private mode: `.tickcats/` is intended to be git-ignored. Repo mode, where `.tickcats/` is committed and portable with the repository, is a future feature.
 
 ## 5. Smallest Valuable Version
 
 1. User opens the TUI inside a local repository.
 2. App loads that repository's local markdown ticket backlog from `.tickcats/`.
 3. User sees a scrum-style board/workflow.
-4. User uses a command palette and simple detail form to create or refine tickets.
-5. Ticket detail includes type, title, acceptance notes, and priority. Workflow state is derived from the ticket's folder, not duplicated as a field inside the file.
-6. Ticket type is selected from local templates: Feature, Ticket, or Bug.
-7. App identifies tickets that are ready to start based on hybrid readiness: the ticket is in `.tickcats/ready/` and has clear title + acceptance notes. The same readiness rule applies to Feature, Ticket, and Bug templates.
-8. Ticket files use YAML frontmatter for metadata, including `created` and `updated`, and markdown sections for human-readable details.
-9. Tickets may include an optional `blocked_by` field/section. If `blocked_by` is non-empty, the ticket is excluded from pick-next, but v1 does not implement complex dependency logic.
+4. User creates or refines tickets using lightweight markdown files.
+5. Ticket detail includes title, priority, created, updated, acceptance notes, and body text. Workflow state is derived from the ticket's folder, not duplicated as a field inside the file.
+6. Ticket kind is inferred from the title prefix: `Feat:`, `Task:`, or `Bug:`. If no prefix is present, TickCats treats the ticket as a task.
+7. Title labels before the kind prefix carry lightweight status/filter meaning, e.g. `[blocked] [to refine] Feat: feature description`.
+8. v1 gives special behavior to `[blocked]` and `[to refine]`: either label excludes the ticket from pick-next.
+9. App identifies tickets that are ready to start based on hybrid readiness: the ticket is in `.tickcats/ready/`, has a clear title, has acceptance notes, and lacks `[blocked]` / `[to refine]`.
 10. App surfaces the highest-priority ready ticket as the next item to pick up.
 11. User moves that ticket into the active/in-progress state.
 
-## Ticket Template Schema
+## Ticket Schema
 
-Ticket files use YAML frontmatter plus markdown sections. Required metadata fields are `type`, `title`, `priority`, `created`, and `updated`. `blocked_by` is optional but included in generated templates as a self-documenting empty field with an inline `# optional` comment.
+Ticket files use YAML frontmatter plus markdown sections. Required metadata fields are `title`, `priority`, `created`, and `updated`.
 
-Readiness is the same for all ticket types:
+No `type` metadata is stored. No `blocked_by` metadata is stored in v1.
 
-- file lives in `.tickcats/ready/`
-- `title` is non-empty
-- `blocked_by` is empty
-- `## Acceptance Criteria` is non-empty
+Ticket kind is inferred from the title:
 
-### Feature
+- `Feat:` → feature
+- `Task:` → task
+- `Bug:` → bug
+- missing prefix → task
 
-```md
----
-type: feature
-title:
-priority: P2
-created:
-updated:
-blocked_by: # optional
----
+Labels appear before the kind prefix:
 
-## Problem / Opportunity
+- `[blocked] Feat: add import validation`
+- `[to refine] Task: clean up parser errors`
+- `[blocked] [to refine] Bug: crash on empty backlog`
+- `[idea] [to refine] Feat: feature description`
 
-## Proposed Behavior
+v1 only interprets `[blocked]` and `[to refine]`. Future versions may serialize/discover used labels to support filtering and add TUI-assisted label toggling, e.g. quickly add/remove `[blocked]`, `[to refine]`, or other discovered labels without manually editing the title text.
 
-## Acceptance Criteria
--
-```
-
-### Ticket
+Minimal generated body:
 
 ```md
 ---
-type: ticket
-title:
+title: Task: describe the work
 priority: P2
 created:
 updated:
-blocked_by: # optional
 ---
 
 ## Context
 
-## Work Required
-
 ## Acceptance Criteria
 -
 ```
 
-### Bug
+Readiness:
 
-```md
----
-type: bug
-title:
-priority: P2
-created:
-updated:
-blocked_by: # optional
----
-
-## Observed Behavior
-
-## Expected Behavior
-
-## Reproduction
-
-## Acceptance Criteria
--
-```
-
-`## Reproduction` is included for bugs but does not affect v1 readiness.
+- file lives in `.tickcats/ready/`
+- `title` is non-empty
+- title has no `[blocked]` label
+- title has no `[to refine]` label
+- `## Acceptance Criteria` is non-empty
 
 ## TUI Design Notes
 
@@ -140,7 +111,7 @@ blocked_by: # optional
   - `q`: quit
 - Required command palette actions for the first implementation:
   - `New Feature`
-  - `New Ticket`
+  - `New Task`
   - `New Bug`
   - `Move to Backlog`
   - `Move to Ready`
@@ -155,11 +126,11 @@ blocked_by: # optional
 
 ## 6. What Is Explicitly Out of Scope
 
-- GitHub Issues sync is out of scope for v1; it is a next/future feature. Any issue templates in v1 are local markdown ticket templates, not GitHub Issue templates.
-- Repo mode is out of scope for v1: committing/versioning `.tickcats/` in Git is a future feature. v1 supports only Private mode, where `.tickcats/` is intended to be git-ignored.
+- GitHub Issues sync is out of scope for v1; it is a next/future feature.
+- Repo mode is out of scope for v1: committing/versioning `.tickcats/` in Git is a future feature.
 - Team collaboration, shared server, realtime sync, and multi-user workflows are out of scope.
 - Advanced scrum metrics such as velocity, burndown, and epics are out of scope.
-- Complex dependency/blocker logic is out of scope. A simple optional `blocked_by` field/section is allowed and excludes a ticket from pick-next when non-empty, but v1 does not need dependency graphs or automatic unblocking.
+- Complex dependency/blocker logic is out of scope. `[blocked]` is only a title label that excludes a ticket from pick-next.
 - Cross-project dashboard/overview is out of scope for v1.
 - Built-in markdown editor is out of scope. Tickets should be markdown files so users can edit them manually outside the app.
 - Authentication/accounts are not needed.
@@ -170,27 +141,23 @@ blocked_by: # optional
 | Assumption | Status | How to test |
 | --- | --- | --- |
 | The user will actually open and use a separate TUI during coding/planning. | High-risk unknown | Build a tiny prototype and dogfood it during real planning sessions for private projects. |
-| Tickets will contain enough title and acceptance-note detail for readiness detection to be useful. | High-risk unknown | Track whether the command palette + detail form makes refinement fast enough that tickets stay actionable. |
+| Tickets will contain enough title and acceptance-note detail for readiness detection to be useful. | High-risk unknown | Track whether lightweight markdown editing keeps tickets actionable. |
 | Highest-priority ready ticket is a meaningful improvement over a manually ordered TODO list. | Plausible but unproven | Compare planning sessions with the TUI against current notes/TODO workflow. |
-| Feature, Ticket, and Bug templates are enough structure for v1 without making ticket creation feel heavy. | Plausible but unproven | Dogfood each template during real work and remove fields that are not consistently useful. |
+| Conventional title prefixes and title labels are enough structure for v1 without making ticket creation feel heavy. | Plausible but unproven | Dogfood `Feat:`, `Task:`, `Bug:`, `[blocked]`, and `[to refine]` during real work. |
 | Repo-local planning is useful enough before cross-project overview exists. | Plausible but unproven | Limit v1 to one repo and observe whether the missing cross-project view blocks daily use. |
 | Other solo developers want a local-first OSS backlog TUI enough to install it. | Plausible but unproven | Publish early demo/readme and invite feedback from keyboard-first solo developers. |
 
 ## 8. Socratic Challenges
 
 - If this only stores tickets, it is too close to a TODO list. Resolution: the concept centers on the workflow/readiness rule: recommend the highest-priority ticket that is actually ready to start.
-- Manual priority alone may be too weak. Resolution: v1 combines priority with readiness based on clear title and acceptance notes.
+- Manual priority alone may be too weak. Resolution: v1 combines priority with readiness based on folder state, acceptance notes, and title labels.
 - A full board, cross-project overview, GitHub sync, markdown editor, and AI refinement would bloat the MVP. Resolution: v1 stays repo-local and proves the planning loop first.
-- Ticket readiness depends on capture/refinement behavior. Resolution: the UX should prioritize command palette + simple detail form, not a large editor experience.
+- Ticket readiness depends on capture/refinement behavior. Resolution: the UX should keep the ticket model lightweight and parse meaning from title conventions.
 
 ## 9. PRD Readiness
 
 Verdict: Ready for PRD
 
-Before PRD, resolve:
-
-- No blocking product-scope questions remain. The PRD should preserve the decisions above and avoid expanding v1 scope.
-
 Suggested next step:
 
-- Generate a PRD for the first real TickCats app foundation: local `.tickcats/` storage, markdown ticket templates, board + pick-next TUI, command palette, and detail view.
+- Implement the first real TickCats app foundation: local `.tickcats/` storage, simplified markdown ticket schema, board + pick-next engine, then TUI.

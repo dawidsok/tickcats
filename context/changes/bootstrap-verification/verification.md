@@ -56,13 +56,13 @@ Note: the registry template uses a placeholder module path. During this run, the
 
 ## Post-scaffold audit
 
-**Tool**: `govulncheck -json ./...`
-**Status**: failed to run
-**Reason**: `govulncheck` is not installed or not available on PATH.
-**Partial output (if any)**:
+**Tool**: `govulncheck ./...`
+**Status**: installed and executed after bootstrap
+**Reason**: `govulncheck` was installed with `go install golang.org/x/vuln/cmd/govulncheck@latest`, then executed via `$GOPATH/bin/govulncheck` because `$GOPATH/bin` was not on PATH.
+**Result**: audit could not inspect packages because the project currently has no Go packages yet.
 
 ```text
-govulncheck missing
+govulncheck: no packages matched the provided patterns
 ```
 
 ## Hints recorded but not acted on
