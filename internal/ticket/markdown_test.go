@@ -41,6 +41,18 @@ func TestNewMarkdownGeneratesParseableTickets(t *testing.T) {
 	}
 }
 
+func TestNewMarkdownWithAcceptanceCriteria(t *testing.T) {
+	now := time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC)
+	content := NewMarkdown(KindTask, "write README", PriorityP2, now, "README explains usage")
+	got, err := ParseMarkdown([]byte(content))
+	if err != nil {
+		t.Fatalf("ParseMarkdown() error = %v", err)
+	}
+	if !got.HasAcceptanceCriteria {
+		t.Fatalf("HasAcceptanceCriteria = false, want true")
+	}
+}
+
 func TestParseMarkdownParsesTitleLabelsAndDefaultsKind(t *testing.T) {
 	content := `---
 title: [idea, to refine] write README

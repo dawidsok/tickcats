@@ -18,9 +18,13 @@ type Ticket struct {
 	HasAcceptanceCriteria bool
 }
 
-func NewMarkdown(kind Kind, text string, priority Priority, now time.Time) string {
+func NewMarkdown(kind Kind, text string, priority Priority, now time.Time, acceptance ...string) string {
 	title := ParsedTitle{Kind: kind, Text: strings.TrimSpace(text), HadPrefix: true}.NormalizedTitle()
 	timestamp := now.UTC().Format(time.RFC3339)
+	acceptanceText := "-"
+	if len(acceptance) > 0 && strings.TrimSpace(acceptance[0]) != "" {
+		acceptanceText = "- " + strings.TrimSpace(acceptance[0])
+	}
 
 	return fmt.Sprintf(`---
 title: %s
@@ -32,8 +36,8 @@ updated: %s
 ## Context
 
 ## Acceptance Criteria
--
-`, title, priority, timestamp, timestamp)
+%s
+`, title, priority, timestamp, timestamp, acceptanceText)
 }
 
 func ParseMarkdown(data []byte) (Ticket, error) {
