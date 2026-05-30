@@ -8,8 +8,11 @@ import (
 	"strings"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/dawidsok/tickcats/internal/store"
 	"github.com/dawidsok/tickcats/internal/ticket"
+	"github.com/dawidsok/tickcats/internal/tui"
 )
 
 func main() {
@@ -21,8 +24,7 @@ func main() {
 
 func run(args []string) error {
 	if len(args) == 0 {
-		printHelp()
-		return nil
+		return runTUI()
 	}
 
 	switch args[0] {
@@ -36,6 +38,8 @@ func run(args []string) error {
 		return runMove(args[1:])
 	case "pick-next":
 		return runPickNext()
+	case "tui":
+		return runTUI()
 	case "help", "--help", "-h":
 		printHelp()
 		return nil
@@ -155,6 +159,16 @@ func splitTitleAndAcceptance(args []string) ([]string, string) {
 	return args, ""
 }
 
+func runTUI() error {
+	board, err := store.LoadBoard(".")
+	if err != nil {
+		return err
+	}
+	program := tea.NewProgram(tui.NewModel(board))
+	_, err = program.Run()
+	return err
+}
+
 func parseNewKind(raw string) (ticket.Kind, error) {
 	switch strings.ToLower(strings.TrimSpace(raw)) {
 	case "feat", "feature":
@@ -201,4 +215,5 @@ func printHelp() {
 	fmt.Println("  list                         list tickets grouped by state")
 	fmt.Println("  move <ticket> <from> <to>    move ticket between states")
 	fmt.Println("  pick-next                    print next ready ticket")
+	fmt.Println("  tui                          open terminal board")
 }
