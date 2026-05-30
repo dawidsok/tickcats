@@ -164,7 +164,7 @@ func runTUI() error {
 	if err != nil {
 		return err
 	}
-	program := tea.NewProgram(tui.NewModel(board))
+	program := tea.NewProgram(tui.NewModelWithRoot(".", board))
 	_, err = program.Run()
 	return err
 }

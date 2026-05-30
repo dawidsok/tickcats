@@ -25,16 +25,31 @@ const (
 	ViewDetail
 )
 
+type InteractionMode int
+
+const (
+	InteractionBoard InteractionMode = iota
+	InteractionMove
+)
+
 type Model struct {
-	Board        store.Board
-	SelectedCol  int
-	SelectedRows map[store.State]int
-	Mode         ViewMode
-	DetailScroll int
+	Root            string
+	Board           store.Board
+	SelectedCol     int
+	SelectedRows    map[store.State]int
+	Mode            ViewMode
+	InteractionMode InteractionMode
+	DetailScroll    int
+	Status          string
 }
 
 func NewModel(board store.Board) Model {
+	return NewModelWithRoot(".", board)
+}
+
+func NewModelWithRoot(root string, board store.Board) Model {
 	return Model{
+		Root:         root,
 		Board:        board,
 		SelectedRows: make(map[store.State]int),
 	}
@@ -49,6 +64,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		if m.Mode == ViewDetail {
 			return m.updateDetail(msg)
+		}
+		if m.InteractionMode == InteractionMove {
+			return m.updateMove(msg)
 		}
 		return m.updateBoard(msg)
 	}
@@ -67,11 +85,33 @@ func (m Model) updateBoard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.moveRow(1)
 	case "k", "up":
 		m.moveRow(-1)
-	case "enter":
+	case "enter", "d":
 		if m.selectedTicket() != nil {
 			m.Mode = ViewDetail
 			m.DetailScroll = 0
 		}
+	case "m":
+		m.InteractionMode = InteractionMove
+		m.Status = "Move mode: h left, l right, esc cancel"
+	case "e":
+		m.Status = "Edit mode not implemented yet; later opens $EDITOR"
+	}
+	return m, nil
+}
+
+func (m Model) updateMove(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "q", "ctrl+c":
+		return m, tea.Quit
+	case "esc":
+		m.InteractionMode = InteractionBoard
+		m.Status = "Board mode"
+	case "h", "left":
+		m.moveSelectedLeft()
+	case "l", "right":
+		m.moveSelectedRight()
+	case "j", "down", "k", "up":
+		m.Status = "Manual reorder not implemented yet"
 	}
 	return m, nil
 }
@@ -102,10 +142,18 @@ func (m Model) View() string {
 	b.WriteString(m.renderBoard())
 	b.WriteString("\n")
 	b.WriteString(m.renderWarnings())
+	b.WriteString(m.renderStatus())
 	b.WriteString("\n")
-	b.WriteString(mutedStyle.Render("h/l column  j/k ticket  enter detail  q quit"))
+	b.WriteString(mutedStyle.Render(m.footerText()))
 	b.WriteString("\n")
 	return b.String()
+}
+
+func (m Model) footerText() string {
+	if m.InteractionMode == InteractionMove {
+		return "MOVE MODE: h left  l right  j/k reorder later  esc board  q quit"
+	}
+	return "BOARD MODE: h/l column  j/k ticket  m move mode  d/enter detail  e edit later  q quit"
 }
 
 func (m *Model) moveColumn(delta int) {
@@ -130,6 +178,51 @@ func (m *Model) moveDetailScroll(delta int) {
 	m.DetailScroll = clamp(m.DetailScroll+delta, 0, maxScroll)
 }
 
+func (m *Model) moveSelectedRight() {
+	m.moveSelected(1)
+}
+
+func (m *Model) moveSelectedLeft() {
+	m.moveSelected(-1)
+}
+
+func (m *Model) moveSelected(delta int) {
+	stored := m.selectedTicket()
+	if stored == nil {
+		m.Status = "No ticket selected"
+		return
+	}
+
+	from := columnOrder[m.SelectedCol]
+	toIndex := m.SelectedCol + delta
+	if toIndex < 0 {
+		m.Status = "Ticket already in backlog"
+		return
+	}
+	if toIndex >= len(columnOrder) {
+		m.Status = "Ticket already done"
+		return
+	}
+	to := columnOrder[toIndex]
+
+	if _, err := store.Move(m.Root, stored.Name, from, to); err != nil {
+		m.Status = "Move failed: " + err.Error()
+		return
+	}
+
+	board, err := store.LoadBoard(m.Root)
+	if err != nil {
+		m.Status = "Reload failed: " + err.Error()
+		return
+	}
+
+	m.Board = board
+	m.SelectedCol = toIndex
+	m.SelectedRows[to] = findTicketRow(m.Board.Columns[to], stored.Name)
+	m.Status = fmt.Sprintf("Moved %s to %s", stored.Name, to)
+	m.InteractionMode = InteractionBoard
+}
+
 func (m Model) selectedTicket() *store.StoredTicket {
 	state := columnOrder[m.SelectedCol]
 	tickets := m.Board.Columns[state]
@@ -138,6 +231,15 @@ func (m Model) selectedTicket() *store.StoredTicket {
 	}
 	row := clamp(m.SelectedRows[state], 0, len(tickets)-1)
 	return &tickets[row]
+}
+
+func findTicketRow(tickets []store.StoredTicket, name string) int {
+	for i, stored := range tickets {
+		if stored.Name == name {
+			return i
+		}
+	}
+	return 0
 }
 
 func (m Model) renderPickNext() string {
@@ -231,6 +333,13 @@ func (m Model) renderWarnings() string {
 		return ""
 	}
 	return mutedStyle.Render(fmt.Sprintf("Warnings: %d malformed ticket(s) skipped", len(m.Board.Warnings))) + "\n"
+}
+
+func (m Model) renderStatus() string {
+	if m.Status == "" {
+		return ""
+	}
+	return mutedStyle.Render(m.Status) + "\n"
 }
 
 func clamp(value int, min int, max int) int {
