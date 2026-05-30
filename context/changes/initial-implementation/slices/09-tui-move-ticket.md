@@ -19,8 +19,8 @@ Move selected ticket between workflow columns from TUI.
   - ready → backlog
   - backlog → no-op message
 - In move mode, press `esc` to return to board mode.
-- In board mode, `e` shows an edit-not-implemented message; later it should open `$EDITOR`.
-- In board mode, `d` or `enter` opens ticket detail.
+- In board mode, `e` opens `$EDITOR`.
+- In board mode, `o` or `enter` opens ticket detail.
 - Use existing `store.Move` so filesystem remains source of truth.
 - Reload board after successful move.
 - Keep selection near moved ticket's new column.

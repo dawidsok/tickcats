@@ -305,6 +305,69 @@ type errFake string
 
 func (e errFake) Error() string { return string(e) }
 
+func TestDeleteConfirmCancel(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{storedTicket("a.md", store.StateBacklog, "Task: a")}
+	model := NewModel(board)
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	model = updated.(Model)
+	if model.InteractionMode != InteractionDeleteConfirm {
+		t.Fatalf("InteractionMode = %v, want delete confirm", model.InteractionMode)
+	}
+	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	model = updated.(Model)
+	if model.InteractionMode != InteractionBoard {
+		t.Fatalf("InteractionMode = %v, want board", model.InteractionMode)
+	}
+	if model.Status != "Delete cancelled" {
+		t.Fatalf("Status = %q, want cancelled", model.Status)
+	}
+}
+
+func TestDeleteConfirmMovesTicketToTrash(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+	writeTUITestTicket(t, root, store.StateReady, "a.md", "Task: a")
+	board, err := store.LoadBoard(root)
+	if err != nil {
+		t.Fatalf("LoadBoard() error = %v", err)
+	}
+	model := NewModelWithRoot(root, board)
+	model.SelectedCol = 1
+
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	model = updated.(Model)
+	updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	model = updated.(Model)
+
+	if model.InteractionMode != InteractionBoard {
+		t.Fatalf("InteractionMode = %v, want board", model.InteractionMode)
+	}
+	if len(model.Board.Columns[store.StateReady]) != 0 {
+		t.Fatalf("ready count = %d, want 0", len(model.Board.Columns[store.StateReady]))
+	}
+	if _, err := os.Stat(filepath.Join(root, store.TrashDir, "a.md")); err != nil {
+		t.Fatalf("trash file missing: %v", err)
+	}
+	if model.Status != "Deleted a.md" {
+		t.Fatalf("Status = %q, want deleted", model.Status)
+	}
+}
+
+func TestDeleteEmptyColumn(t *testing.T) {
+	model := NewModel(emptyBoard())
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	got := updated.(Model)
+	if got.InteractionMode != InteractionBoard {
+		t.Fatalf("InteractionMode = %v, want board", got.InteractionMode)
+	}
+	if got.Status != "No ticket selected" {
+		t.Fatalf("Status = %q, want no selection", got.Status)
+	}
+}
+
 func TestDetailScrollClamps(t *testing.T) {
 	board := emptyBoard()
 	board.Columns[store.StateBacklog] = []store.StoredTicket{storedTicket("a.md", store.StateBacklog, "Task: a")}

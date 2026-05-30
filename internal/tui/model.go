@@ -31,6 +31,7 @@ type InteractionMode int
 const (
 	InteractionBoard InteractionMode = iota
 	InteractionMove
+	InteractionDeleteConfirm
 )
 
 type Model struct {
@@ -67,6 +68,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		if m.Mode == ViewDetail {
 			return m.updateDetail(msg)
+		}
+		if m.InteractionMode == InteractionDeleteConfirm {
+			return m.updateDeleteConfirm(msg)
 		}
 		if m.InteractionMode == InteractionMove {
 			return m.updateMove(msg)
@@ -105,6 +109,8 @@ func (m Model) updateBoard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Status = "Move mode: h left, l right, esc cancel"
 	case "e":
 		return m.editSelected()
+	case "x":
+		m.enterDeleteConfirm()
 	}
 	return m, nil
 }
@@ -122,6 +128,19 @@ func (m Model) updateMove(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.moveSelectedRight()
 	case "j", "down", "k", "up":
 		m.Status = "Manual reorder not implemented yet"
+	}
+	return m, nil
+}
+
+func (m Model) updateDeleteConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "q", "ctrl+c":
+		return m, tea.Quit
+	case "n", "esc":
+		m.InteractionMode = InteractionBoard
+		m.Status = "Delete cancelled"
+	case "y":
+		m.deleteSelected()
 	}
 	return m, nil
 }
@@ -160,10 +179,13 @@ func (m Model) View() string {
 }
 
 func (m Model) footerText() string {
+	if m.InteractionMode == InteractionDeleteConfirm {
+		return "DELETE? y confirm  n/esc cancel  q quit"
+	}
 	if m.InteractionMode == InteractionMove {
 		return "MOVE MODE: h left  l right  j/k reorder later  esc board  q quit"
 	}
-	return "BOARD MODE: h/l column  j/k ticket  m move mode  o/enter detail  e edit  q quit"
+	return "BOARD MODE: h/l column  j/k ticket  m move  o/enter detail  e edit  x delete  q quit"
 }
 
 func (m *Model) moveColumn(delta int) {
@@ -186,6 +208,42 @@ func (m *Model) moveDetailScroll(delta int) {
 		maxScroll = 0
 	}
 	m.DetailScroll = clamp(m.DetailScroll+delta, 0, maxScroll)
+}
+
+func (m *Model) enterDeleteConfirm() {
+	stored := m.selectedTicket()
+	if stored == nil {
+		m.Status = "No ticket selected"
+		return
+	}
+	m.InteractionMode = InteractionDeleteConfirm
+	m.Status = fmt.Sprintf("Delete %s?", stored.Name)
+}
+
+func (m *Model) deleteSelected() {
+	stored := m.selectedTicket()
+	if stored == nil {
+		m.InteractionMode = InteractionBoard
+		m.Status = "No ticket selected"
+		return
+	}
+
+	if _, err := store.Trash(m.Root, stored.Name, stored.State); err != nil {
+		m.InteractionMode = InteractionBoard
+		m.Status = "Delete failed: " + err.Error()
+		return
+	}
+
+	board, err := store.LoadBoard(m.Root)
+	if err != nil {
+		m.InteractionMode = InteractionBoard
+		m.Status = "Reload failed: " + err.Error()
+		return
+	}
+
+	m.Board = board
+	m.InteractionMode = InteractionBoard
+	m.Status = fmt.Sprintf("Deleted %s", stored.Name)
 }
 
 func (m Model) editSelected() (tea.Model, tea.Cmd) {
