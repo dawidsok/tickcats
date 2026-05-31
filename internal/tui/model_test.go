@@ -207,6 +207,29 @@ func TestOOpensDetailForSelectedTicket(t *testing.T) {
 	}
 }
 
+func TestDetailModeEKeyOpensEditor(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	writeTUITestTicket(t, root, store.StateBacklog, "a.md", "Task: a")
+	board, _ := store.LoadBoard(root)
+	m := NewModelWithRoot(root, board)
+
+	// Enter detail mode
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m2 := got.(Model)
+	if m2.Mode != ViewDetail {
+		t.Fatalf("Mode = %v, want ViewDetail", m2.Mode)
+	}
+
+	// Press e — should return an editor cmd
+	_, cmd := m2.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e'}})
+	if cmd == nil {
+		t.Fatal("e in detail mode returned nil cmd, want editor command")
+	}
+}
+
 func TestEnterOnEmptyColumnStaysOnBoard(t *testing.T) {
 	model := NewModel(emptyBoard())
 	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyEnter})

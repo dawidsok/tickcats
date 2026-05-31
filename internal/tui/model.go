@@ -253,6 +253,8 @@ func (m Model) updateDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.moveDetailScroll(1)
 	case "k", "up":
 		m.moveDetailScroll(-1)
+	case "e":
+		return m.editSelected()
 	}
 	return m, nil
 }
@@ -288,6 +290,9 @@ func (m Model) footerText() string {
 	}
 	if m.InteractionMode == InteractionMove {
 		return "MOVE MODE: h left  l right  j/k reorder (manual)  esc board  q quit"
+	}
+	if m.Mode == ViewDetail {
+		return "DETAIL MODE: j/k scroll  e edit  esc board  q quit"
 	}
 	return fmt.Sprintf("BOARD MODE: h/l col  j/k ticket  m move  s sort(%s)  p ready  o/enter detail  e edit  n new  x del  r reload  q quit", m.SortMode)
 }
