@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -38,6 +39,7 @@ const (
 	InteractionMove
 	InteractionDeleteConfirm
 	InteractionPostCreate
+	InteractionSortPrompt
 )
 
 var createKinds = []ticket.Kind{ticket.KindFeature, ticket.KindTask, ticket.KindBug}
@@ -63,6 +65,9 @@ type Model struct {
 	createField    int
 	createPending  string
 
+	SortMode    store.SortMode
+	ManualOrder map[store.State][]string
+
 	watchCh <-chan struct{}
 }
 
@@ -77,6 +82,11 @@ func NewModelWithRoot(root string, board store.Board) Model {
 		SelectedRows: make(map[store.State]int),
 		ColumnScroll: make(map[store.State]int),
 	}
+	cfg, _ := store.LoadSortConfig(root)
+	m.SortMode = cfg.Mode
+	m.ManualOrder = cfg.ManualOrder
+	m.syncManualOrder()
+	m.applySortToBoard()
 	if fw, err := newFileWatcher(root); err == nil {
 		m.watchCh = fw.ch
 	}
@@ -114,6 +124,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.InteractionMode == InteractionDeleteConfirm {
 			return m.updateDeleteConfirm(msg)
+		}
+		if m.InteractionMode == InteractionSortPrompt {
+			return m.updateSortPrompt(msg)
 		}
 		if m.InteractionMode == InteractionMove {
 			return m.updateMove(msg)
@@ -163,6 +176,8 @@ func (m Model) updateBoard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.enterDeleteConfirm()
 	case "r":
 		m.reloadBoard()
+	case "s":
+		m.cycleSortMode()
 	}
 	return m, nil
 }
@@ -178,8 +193,38 @@ func (m Model) updateMove(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.moveSelectedLeft()
 	case "l", "right":
 		m.moveSelectedRight()
-	case "j", "down", "k", "up":
-		m.Status = "Manual reorder not implemented yet"
+	case "j", "down":
+		if m.SortMode == store.SortManual {
+			m.moveSelectedInColumn(1)
+		} else {
+			m.InteractionMode = InteractionSortPrompt
+			m.Status = "Switch to manual sort to reorder? y/n"
+		}
+	case "k", "up":
+		if m.SortMode == store.SortManual {
+			m.moveSelectedInColumn(-1)
+		} else {
+			m.InteractionMode = InteractionSortPrompt
+			m.Status = "Switch to manual sort to reorder? y/n"
+		}
+	}
+	return m, nil
+}
+
+func (m Model) updateSortPrompt(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "q", "ctrl+c":
+		return m, tea.Quit
+	case "y":
+		m.SortMode = store.SortManual
+		m.syncManualOrder()
+		m.applySortToBoard()
+		m.saveSortConfig()
+		m.InteractionMode = InteractionMove
+		m.Status = "Switched to manual sort. Use j/k to reorder."
+	case "n", "esc":
+		m.InteractionMode = InteractionMove
+		m.Status = "Move mode: h left, l right, esc cancel"
 	}
 	return m, nil
 }
@@ -238,10 +283,13 @@ func (m Model) footerText() string {
 	if m.InteractionMode == InteractionDeleteConfirm {
 		return "DELETE? y confirm  n/esc cancel  q quit"
 	}
-	if m.InteractionMode == InteractionMove {
-		return "MOVE MODE: h left  l right  j/k reorder later  esc board  q quit"
+	if m.InteractionMode == InteractionSortPrompt {
+		return "Switch to manual sort? y confirm  n/esc cancel  q quit"
 	}
-	return "BOARD MODE: h/l column  j/k ticket  m move  p ready  o/enter detail  e edit  n new  x delete  r reload  q quit"
+	if m.InteractionMode == InteractionMove {
+		return "MOVE MODE: h left  l right  j/k reorder (manual)  esc board  q quit"
+	}
+	return fmt.Sprintf("BOARD MODE: h/l col  j/k ticket  m move  s sort(%s)  p ready  o/enter detail  e edit  n new  x del  r reload  q quit", m.SortMode)
 }
 
 func (m *Model) moveColumn(delta int) {
@@ -396,6 +444,8 @@ func (m *Model) reloadBoard() {
 		return
 	}
 	m.Board = board
+	m.syncManualOrder()
+	m.applySortToBoard()
 
 	if focusedName == "" {
 		return
@@ -412,6 +462,132 @@ func (m *Model) reloadBoard() {
 		m.SelectedRows[state] = len(newTickets) - 1
 	}
 	m.ensureSelectedVisible(state)
+}
+
+func (m *Model) cycleSortMode() {
+	for i, mode := range store.SortModes {
+		if mode == m.SortMode {
+			m.SortMode = store.SortModes[(i+1)%len(store.SortModes)]
+			m.syncManualOrder()
+			m.applySortToBoard()
+			m.saveSortConfig()
+			m.Status = "Sort: " + string(m.SortMode)
+			return
+		}
+	}
+	m.SortMode = store.SortPriority
+}
+
+func (m *Model) saveSortConfig() {
+	_ = store.SaveSortConfig(m.Root, store.SortConfig{
+		Mode:        m.SortMode,
+		ManualOrder: m.ManualOrder,
+	})
+}
+
+func (m *Model) syncManualOrder() {
+	if m.ManualOrder == nil {
+		m.ManualOrder = make(map[store.State][]string)
+	}
+	for state, tickets := range m.Board.Columns {
+		existing := m.ManualOrder[state]
+		existingSet := make(map[string]bool, len(existing))
+		for _, name := range existing {
+			existingSet[name] = true
+		}
+		// Append new tickets not yet in manual order
+		for _, t := range tickets {
+			if !existingSet[t.Name] {
+				m.ManualOrder[state] = append(m.ManualOrder[state], t.Name)
+			}
+		}
+		// Remove tickets that no longer exist
+		ticketSet := make(map[string]bool, len(tickets))
+		for _, t := range tickets {
+			ticketSet[t.Name] = true
+		}
+		filtered := m.ManualOrder[state][:0]
+		for _, name := range m.ManualOrder[state] {
+			if ticketSet[name] {
+				filtered = append(filtered, name)
+			}
+		}
+		m.ManualOrder[state] = filtered
+	}
+}
+
+func (m *Model) applySortToBoard() {
+	for _, state := range columnOrder {
+		tickets := m.Board.Columns[state]
+		if len(tickets) <= 1 {
+			continue
+		}
+		sorted := make([]store.StoredTicket, len(tickets))
+		copy(sorted, tickets)
+		switch m.SortMode {
+		case store.SortPriority:
+			sort.SliceStable(sorted, func(i, j int) bool {
+				ri, rj := sorted[i].Ticket.Priority.Rank(), sorted[j].Ticket.Priority.Rank()
+				if ri != rj {
+					return ri < rj
+				}
+				return sorted[i].Name < sorted[j].Name
+			})
+		case store.SortTitle:
+			sort.SliceStable(sorted, func(i, j int) bool {
+				return sorted[i].Ticket.Title < sorted[j].Ticket.Title
+			})
+		case store.SortDate:
+			sort.SliceStable(sorted, func(i, j int) bool {
+				return sorted[i].Ticket.Created.Before(sorted[j].Ticket.Created)
+			})
+		case store.SortManual:
+			order := m.ManualOrder[state]
+			idx := make(map[string]int, len(order))
+			for i, name := range order {
+				idx[name] = i
+			}
+			sort.SliceStable(sorted, func(i, j int) bool {
+				ii, iok := idx[sorted[i].Name]
+				ji, jok := idx[sorted[j].Name]
+				if iok && jok {
+					return ii < ji
+				}
+				if iok {
+					return true
+				}
+				if jok {
+					return false
+				}
+				return sorted[i].Name < sorted[j].Name
+			})
+		}
+		m.Board.Columns[state] = sorted
+	}
+}
+
+func (m *Model) moveSelectedInColumn(delta int) {
+	state := columnOrder[m.SelectedCol]
+	stored := m.selectedTicket()
+	if stored == nil {
+		return
+	}
+	order := m.ManualOrder[state]
+	for i, name := range order {
+		if name == stored.Name {
+			newI := i + delta
+			if newI < 0 || newI >= len(order) {
+				return
+			}
+			order[i], order[newI] = order[newI], order[i]
+			m.ManualOrder[state] = order
+			m.applySortToBoard()
+			m.SelectedRows[state] = findTicketRow(m.Board.Columns[state], stored.Name)
+			m.ensureSelectedVisible(state)
+			m.saveSortConfig()
+			return
+		}
+	}
 }
 
 func (m Model) enterCreate() (tea.Model, tea.Cmd) {

@@ -340,12 +340,15 @@ func TestMoveModeEscReturnsToBoardMode(t *testing.T) {
 	}
 }
 
-func TestMoveModeReorderNotImplemented(t *testing.T) {
-	model := enterMoveMode(t, NewModel(emptyBoard()))
+func TestMoveModeJKInNonManualPromptsSortSwitch(t *testing.T) {
+	model := enterMoveMode(t, newModelForSort(t, emptyBoard()))
 	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
 	got := updated.(Model)
-	if got.Status != "Manual reorder not implemented yet" {
-		t.Fatalf("Status = %q, want reorder message", got.Status)
+	if got.InteractionMode != InteractionSortPrompt {
+		t.Fatalf("InteractionMode = %v, want InteractionSortPrompt", got.InteractionMode)
+	}
+	if !strings.Contains(got.Status, "manual sort") {
+		t.Fatalf("Status = %q, want sort prompt message", got.Status)
 	}
 }
 
@@ -941,5 +944,118 @@ func TestReloadPreservesFocus(t *testing.T) {
 	focused := m2.Board.Columns[store.StateBacklog][m2.SelectedRows[store.StateBacklog]]
 	if focused.Name != "b.md" {
 		t.Fatalf("focused = %q after reload, want b.md", focused.Name)
+	}
+}
+
+func newModelForSort(t *testing.T, board store.Board) Model {
+	t.Helper()
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	return NewModelWithRoot(root, board)
+}
+
+func TestDefaultSortIsPriority(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{
+		storedTicket("p3.md", store.StateBacklog, "Task: low"),
+		storedTicket("p0.md", store.StateBacklog, "Task: high"),
+		storedTicket("p1.md", store.StateBacklog, "Task: mid"),
+	}
+	board.Columns[store.StateBacklog][0].Ticket.Priority = ticket.PriorityP3
+	board.Columns[store.StateBacklog][1].Ticket.Priority = ticket.PriorityP0
+	board.Columns[store.StateBacklog][2].Ticket.Priority = ticket.PriorityP1
+
+	m := newModelForSort(t, board)
+	tickets := m.Board.Columns[store.StateBacklog]
+	if tickets[0].Name != "p0.md" || tickets[1].Name != "p1.md" || tickets[2].Name != "p3.md" {
+		t.Fatalf("priority sort wrong: %v %v %v", tickets[0].Name, tickets[1].Name, tickets[2].Name)
+	}
+}
+
+func TestSortByCycleTitle(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{
+		storedTicket("c.md", store.StateBacklog, "Task: Charlie"),
+		storedTicket("a.md", store.StateBacklog, "Task: Alpha"),
+		storedTicket("b.md", store.StateBacklog, "Task: Bravo"),
+	}
+	board.Columns[store.StateBacklog][0].Ticket.Title = "Task: Charlie"
+	board.Columns[store.StateBacklog][1].Ticket.Title = "Task: Alpha"
+	board.Columns[store.StateBacklog][2].Ticket.Title = "Task: Bravo"
+
+	m := newModelForSort(t, board)
+	// Cycle from priority → title
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	m2 := got.(Model)
+	if m2.SortMode != store.SortTitle {
+		t.Fatalf("SortMode = %v, want title", m2.SortMode)
+	}
+	tickets := m2.Board.Columns[store.StateBacklog]
+	if tickets[0].Name != "a.md" {
+		t.Fatalf("title sort: first = %q, want a.md", tickets[0].Name)
+	}
+}
+
+func TestSortPromptYSwitchesToManual(t *testing.T) {
+	model := enterMoveMode(t, newModelForSort(t, emptyBoard()))
+	// Trigger sort prompt with j
+	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m2 := got.(Model)
+	if m2.InteractionMode != InteractionSortPrompt {
+		t.Fatalf("expected InteractionSortPrompt, got %v", m2.InteractionMode)
+	}
+	// Confirm with y
+	got2, _ := m2.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	m3 := got2.(Model)
+	if m3.SortMode != store.SortManual {
+		t.Fatalf("SortMode = %v after y, want manual", m3.SortMode)
+	}
+	if m3.InteractionMode != InteractionMove {
+		t.Fatalf("InteractionMode = %v after y, want InteractionMove", m3.InteractionMode)
+	}
+}
+
+func TestSortPromptNCancels(t *testing.T) {
+	model := enterMoveMode(t, newModelForSort(t, emptyBoard()))
+	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m2 := got.(Model)
+	prevSort := m2.SortMode
+	got2, _ := m2.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	m3 := got2.(Model)
+	if m3.SortMode != prevSort {
+		t.Fatalf("SortMode changed to %v after n, want %v", m3.SortMode, prevSort)
+	}
+	if m3.InteractionMode != InteractionMove {
+		t.Fatalf("InteractionMode = %v after n, want InteractionMove", m3.InteractionMode)
+	}
+}
+
+func TestManualMoveReordersTickets(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	writeTUITestTicket(t, root, store.StateBacklog, "a.md", "Task: a")
+	writeTUITestTicket(t, root, store.StateBacklog, "b.md", "Task: b")
+	board, _ := store.LoadBoard(root)
+	m := NewModelWithRoot(root, board)
+	// Switch to manual
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	got, _ = got.(Model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	got, _ = got.(Model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	m2 := got.(Model)
+	if m2.SortMode != store.SortManual {
+		t.Fatalf("SortMode = %v, want manual", m2.SortMode)
+	}
+	// Enter move mode and press j to move first ticket down
+	got2, _ := m2.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	got3, _ := got2.(Model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m3 := got3.(Model)
+	// a.md should now be second
+	tickets := m3.Board.Columns[store.StateBacklog]
+	if tickets[0].Name != "b.md" || tickets[1].Name != "a.md" {
+		t.Fatalf("after j in manual: order = [%s, %s], want [b.md, a.md]", tickets[0].Name, tickets[1].Name)
 	}
 }
