@@ -8,17 +8,17 @@ import (
 	"strings"
 )
 
-const gitignoreEntry = RootDir + "/"
-
-func Init(root string) error {
+func Init(boardRoot string) error {
 	for _, state := range ValidStates {
-		path := filepath.Join(root, StateDir(state))
+		path := filepath.Join(boardRoot, string(state))
 		if err := os.MkdirAll(path, 0o755); err != nil {
 			return fmt.Errorf("create state directory %q: %w", path, err)
 		}
 	}
 
-	if err := ensureGitignoreEntry(filepath.Join(root, ".gitignore"), gitignoreEntry); err != nil {
+	gitignorePath := filepath.Join(filepath.Dir(boardRoot), ".gitignore")
+	entry := filepath.Base(boardRoot) + "/"
+	if err := ensureGitignoreEntry(gitignorePath, entry); err != nil {
 		return fmt.Errorf("ensure .gitignore entry: %w", err)
 	}
 

@@ -33,10 +33,3 @@ func TestParseState(t *testing.T) {
 	}
 }
 
-func TestStateDir(t *testing.T) {
-	got := StateDir(StateReady)
-	want := ".tickcats/ready"
-	if got != want {
-		t.Fatalf("StateDir() = %q, want %q", got, want)
-	}
-}

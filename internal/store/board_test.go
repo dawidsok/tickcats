@@ -34,7 +34,7 @@ func TestLoadBoardSkipsMalformedTicketsWithWarning(t *testing.T) {
 	root := t.TempDir()
 	mustInit(t, root)
 	writeTicket(t, root, StateReady, "valid.md", "Task: valid")
-	malformedPath := filepath.Join(root, StateDir(StateReady), "bad.md")
+	malformedPath := filepath.Join(root, string(StateReady), "bad.md")
 	if err := os.WriteFile(malformedPath, []byte("not frontmatter"), 0o644); err != nil {
 		t.Fatalf("write malformed ticket: %v", err)
 	}
@@ -58,7 +58,7 @@ func TestMoveTicketPreservesContentAndDoesNotUpdateTimestamp(t *testing.T) {
 	created := time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC)
 	updated := time.Date(2026, 5, 30, 11, 0, 0, 0, time.UTC)
 	content := ticketContent("Task: move me", created, updated)
-	source := filepath.Join(root, StateDir(StateReady), "move-me.md")
+	source := filepath.Join(root, string(StateReady), "move-me.md")
 	if err := os.WriteFile(source, []byte(content), 0o644); err != nil {
 		t.Fatalf("write source ticket: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestMoveTicketPreservesContentAndDoesNotUpdateTimestamp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Move() error = %v", err)
 	}
-	if target != filepath.Join(root, StateDir(StateDoing), "move-me.md") {
+	if target != filepath.Join(root, string(StateDoing), "move-me.md") {
 		t.Fatalf("target = %q", target)
 	}
 	if _, err := os.Stat(source); !os.IsNotExist(err) {
@@ -96,7 +96,7 @@ func TestMoveInvalidStateFails(t *testing.T) {
 func TestMoveMalformedTicketFails(t *testing.T) {
 	root := t.TempDir()
 	mustInit(t, root)
-	path := filepath.Join(root, StateDir(StateReady), "bad.md")
+	path := filepath.Join(root, string(StateReady), "bad.md")
 	if err := os.WriteFile(path, []byte("not frontmatter"), 0o644); err != nil {
 		t.Fatalf("write malformed ticket: %v", err)
 	}
@@ -119,7 +119,7 @@ func mustInit(t *testing.T, root string) {
 
 func writeTicket(t *testing.T, root string, state State, name string, title string) {
 	t.Helper()
-	path := filepath.Join(root, StateDir(state), name)
+	path := filepath.Join(root, string(state), name)
 	content := ticketContent(title, time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC), time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC))
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("write ticket %q: %v", path, err)

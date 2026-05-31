@@ -19,7 +19,7 @@ func TestTrashMovesTicketToTrash(t *testing.T) {
 	if target != filepath.Join(root, TrashDir, "a.md") {
 		t.Fatalf("target = %q", target)
 	}
-	if _, err := os.Stat(filepath.Join(root, StateDir(StateReady), "a.md")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(root, string(StateReady), "a.md")); !os.IsNotExist(err) {
 		t.Fatalf("source still exists or stat error = %v", err)
 	}
 	if _, err := os.Stat(target); err != nil {
@@ -37,7 +37,7 @@ func TestTrashInvalidStateFails(t *testing.T) {
 func TestTrashMalformedTicketFails(t *testing.T) {
 	root := t.TempDir()
 	mustInit(t, root)
-	path := filepath.Join(root, StateDir(StateReady), "bad.md")
+	path := filepath.Join(root, string(StateReady), "bad.md")
 	if err := os.WriteFile(path, []byte("not frontmatter"), 0o644); err != nil {
 		t.Fatalf("write malformed ticket: %v", err)
 	}

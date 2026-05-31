@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -23,23 +21,36 @@ func main() {
 }
 
 func run(args []string) error {
+	boardPath := store.RootDir
+
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--path" {
+			if i+1 >= len(args) {
+				return fmt.Errorf("--path requires an argument")
+			}
+			boardPath = args[i+1]
+			args = append(args[:i], args[i+2:]...)
+			break
+		}
+	}
+
 	if len(args) == 0 {
-		return runTUI()
+		return runTUI(boardPath)
 	}
 
 	switch args[0] {
 	case "init":
-		return runInit()
+		return runInit(boardPath)
 	case "new":
-		return runNew(args[1:])
+		return runNew(args[1:], boardPath)
 	case "list":
-		return runList()
+		return runList(boardPath)
 	case "move":
-		return runMove(args[1:])
+		return runMove(args[1:], boardPath)
 	case "pick-next":
-		return runPickNext(args[1:])
+		return runPickNext(args[1:], boardPath)
 	case "tui":
-		return runTUI()
+		return runTUI(boardPath)
 	case "help", "--help", "-h":
 		printHelp()
 		return nil
@@ -48,15 +59,15 @@ func run(args []string) error {
 	}
 }
 
-func runInit() error {
-	if err := store.Init("."); err != nil {
+func runInit(boardPath string) error {
+	if err := store.Init(boardPath); err != nil {
 		return err
 	}
-	fmt.Println("Initialized .tickcats")
+	fmt.Println("Initialized " + boardPath)
 	return nil
 }
 
-func runNew(args []string) error {
+func runNew(args []string, boardPath string) error {
 	if len(args) < 2 {
 		return fmt.Errorf("usage: tickcats new feat|task|bug <title>")
 	}
@@ -71,24 +82,16 @@ func runNew(args []string) error {
 		return fmt.Errorf("ticket title cannot be empty")
 	}
 
-	if err := store.Init("."); err != nil {
+	path, err := store.Create(boardPath, kind, titleText, nil, ticket.PriorityP2, time.Now().UTC(), acceptance)
+	if err != nil {
 		return err
 	}
-
-	now := time.Now().UTC()
-	content := ticket.NewMarkdown(kind, titleText, ticket.PriorityP2, now, acceptance)
-	name := filename(now, titleText)
-	path := filepath.Join(store.StateDir(store.StateBacklog), name)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		return fmt.Errorf("write ticket %q: %w", path, err)
-	}
-
 	fmt.Println(path)
 	return nil
 }
 
-func runList() error {
-	board, err := store.LoadBoard(".")
+func runList(boardPath string) error {
+	board, err := store.LoadBoard(boardPath)
 	if err != nil {
 		return err
 	}
@@ -103,7 +106,7 @@ func runList() error {
 	return nil
 }
 
-func runMove(args []string) error {
+func runMove(args []string, boardPath string) error {
 	if len(args) != 3 {
 		return fmt.Errorf("usage: tickcats move <ticket.md> <from-state> <to-state>")
 	}
@@ -117,7 +120,7 @@ func runMove(args []string) error {
 		return err
 	}
 
-	path, err := store.Move(".", args[0], from, to)
+	path, err := store.Move(boardPath, args[0], from, to)
 	if err != nil {
 		return err
 	}
@@ -125,13 +128,13 @@ func runMove(args []string) error {
 	return nil
 }
 
-func runPickNext(args []string) error {
+func runPickNext(args []string, boardPath string) error {
 	pathOnly, err := parsePickNextArgs(args)
 	if err != nil {
 		return err
 	}
 
-	board, err := store.LoadBoard(".")
+	board, err := store.LoadBoard(boardPath)
 	if err != nil {
 		return err
 	}
@@ -196,12 +199,12 @@ func splitTitleAndAcceptance(args []string) ([]string, string) {
 	return args, ""
 }
 
-func runTUI() error {
-	board, err := store.LoadBoard(".")
+func runTUI(boardPath string) error {
+	board, err := store.LoadBoard(boardPath)
 	if err != nil {
 		return err
 	}
-	program := tea.NewProgram(tui.NewModelWithRoot(".", board), tea.WithAltScreen())
+	program := tea.NewProgram(tui.NewModelWithRoot(boardPath, board), tea.WithAltScreen())
 	_, err = program.Run()
 	return err
 }
@@ -219,21 +222,6 @@ func parseNewKind(raw string) (ticket.Kind, error) {
 	}
 }
 
-func filename(now time.Time, title string) string {
-	return now.UTC().Format("20060102-1504") + "-" + slug(title) + ".md"
-}
-
-var nonSlugChars = regexp.MustCompile(`[^a-z0-9]+`)
-
-func slug(raw string) string {
-	lower := strings.ToLower(strings.TrimSpace(raw))
-	slug := nonSlugChars.ReplaceAllString(lower, "-")
-	slug = strings.Trim(slug, "-")
-	if slug == "" {
-		return "ticket"
-	}
-	return slug
-}
 
 func printWarnings(warnings []store.Warning) {
 	for _, warning := range warnings {
@@ -244,10 +232,13 @@ func printWarnings(warnings []store.Warning) {
 func printHelp() {
 	fmt.Println("TickCats")
 	fmt.Println()
-	fmt.Println("Usage: tickcats <command>")
+	fmt.Println("Usage: tickcats [--path <dir>] <command>")
+	fmt.Println()
+	fmt.Println("Options:")
+	fmt.Println("  --path <dir>                 board directory (default: .tickcats)")
 	fmt.Println()
 	fmt.Println("Commands:")
-	fmt.Println("  init                         create .tickcats board folders and ignore them in git")
+	fmt.Println("  init                         create board folders and ignore them in git")
 	fmt.Println("  new feat|task|bug <title> [--ac text]  create ticket in backlog")
 	fmt.Println("  list                         list tickets grouped by state")
 	fmt.Println("  move <ticket> <from> <to>    move ticket between states")

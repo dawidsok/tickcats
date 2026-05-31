@@ -37,7 +37,7 @@ func LoadBoard(root string) (Board, error) {
 	}
 
 	for _, state := range ValidStates {
-		dir := filepath.Join(root, StateDir(state))
+		dir := filepath.Join(root, string(state))
 		entries, err := os.ReadDir(dir)
 		if os.IsNotExist(err) {
 			continue
@@ -96,8 +96,8 @@ func Move(root string, name string, from State, to State) (string, error) {
 		return "", fmt.Errorf("ticket name must end with .md, got %q", name)
 	}
 
-	source := filepath.Join(root, StateDir(from), cleanName)
-	targetDir := filepath.Join(root, StateDir(to))
+	source := filepath.Join(root, string(from), cleanName)
+	targetDir := filepath.Join(root, string(to))
 	target := filepath.Join(targetDir, cleanName)
 
 	data, err := os.ReadFile(source)

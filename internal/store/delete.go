@@ -9,7 +9,7 @@ import (
 	"github.com/dawidsok/tickcats/internal/ticket"
 )
 
-const TrashDir = RootDir + "/.trash"
+const TrashDir = ".trash"
 
 func Trash(root string, name string, from State) (string, error) {
 	if _, err := ParseState(string(from)); err != nil {
@@ -24,7 +24,7 @@ func Trash(root string, name string, from State) (string, error) {
 		return "", fmt.Errorf("ticket name must end with .md, got %q", name)
 	}
 
-	source := filepath.Join(root, StateDir(from), cleanName)
+	source := filepath.Join(root, string(from), cleanName)
 	data, err := os.ReadFile(source)
 	if err != nil {
 		return "", fmt.Errorf("read source ticket %q: %w", source, err)

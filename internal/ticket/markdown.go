@@ -20,6 +20,15 @@ type Ticket struct {
 
 func NewMarkdown(kind Kind, text string, priority Priority, now time.Time, acceptance ...string) string {
 	title := ParsedTitle{Kind: kind, Text: strings.TrimSpace(text), HadPrefix: true}.NormalizedTitle()
+	return NewMarkdownFull(title, priority, now, acceptance...)
+}
+
+func NewMarkdownWithLabels(kind Kind, text string, labels []string, priority Priority, now time.Time, acceptance ...string) string {
+	title := ParsedTitle{Kind: kind, Text: strings.TrimSpace(text), Labels: labels, HadPrefix: true}.NormalizedTitle()
+	return NewMarkdownFull(title, priority, now, acceptance...)
+}
+
+func NewMarkdownFull(fullTitle string, priority Priority, now time.Time, acceptance ...string) string {
 	timestamp := now.UTC().Format(time.RFC3339)
 	acceptanceText := "-"
 	if len(acceptance) > 0 && strings.TrimSpace(acceptance[0]) != "" {
@@ -37,7 +46,7 @@ updated: %s
 
 ## Acceptance Criteria
 %s
-`, title, priority, timestamp, timestamp, acceptanceText)
+`, fullTitle, priority, timestamp, timestamp, acceptanceText)
 }
 
 func ParseMarkdown(data []byte) (Ticket, error) {

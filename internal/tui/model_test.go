@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,6 +47,43 @@ func TestNavigationClampsRows(t *testing.T) {
 	}
 }
 
+func TestColumnWrapsLongTicketsAndSeparatesTickets(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{
+		storedTicket("a.md", store.StateBacklog, "Task: a very long ticket title that should wrap instead of overflowing horizontally"),
+		storedTicket("b.md", store.StateBacklog, "Task: second ticket"),
+	}
+	model := NewModel(board)
+	model.Width = 80
+	view := model.View()
+	if !strings.Contains(view, "overflowing") || !strings.Contains(view, "horizontally") {
+		t.Fatalf("View() missing wrapped title text:\n%s", view)
+	}
+	if !strings.Contains(view, "────") {
+		t.Fatalf("View() missing ticket separator:\n%s", view)
+	}
+}
+
+func TestColumnScrollIndicators(t *testing.T) {
+	board := emptyBoard()
+	for i := 0; i < 8; i++ {
+		board.Columns[store.StateBacklog] = append(board.Columns[store.StateBacklog], storedTicket(fmt.Sprintf("%d.md", i), store.StateBacklog, fmt.Sprintf("Task: %d", i)))
+	}
+	model := NewModel(board)
+	model.Height = 12
+	view := model.View()
+	if !strings.Contains(view, "↓") || !strings.Contains(view, "below") {
+		t.Fatalf("View() missing below indicator:\n%s", view)
+	}
+	for range 7 {
+		model.moveRow(1)
+	}
+	view = model.View()
+	if !strings.Contains(view, "↑") || !strings.Contains(view, "above") {
+		t.Fatalf("View() missing above indicator:\n%s", view)
+	}
+}
+
 func TestEmptyColumnDoesNotPanic(t *testing.T) {
 	model := NewModel(emptyBoard())
 	model.moveRow(1)
@@ -88,7 +126,7 @@ func TestDetailViewRendersContentAndMetadataColumns(t *testing.T) {
 	if !strings.Contains(view, "Long body line 1") {
 		t.Fatalf("detail missing body:\n%s", view)
 	}
-	if !strings.Contains(view, "Metadata") || !strings.Contains(view, "State: backlog") || !strings.Contains(view, "File: a.md") {
+	if !strings.Contains(view, "Metadata") || !strings.Contains(view, "Title: Task: a") || !strings.Contains(view, "State: backlog") || !strings.Contains(view, "File: a.md") {
 		t.Fatalf("detail missing metadata:\n%s", view)
 	}
 	if !strings.Contains(view, "┌") || !strings.Contains(view, "└") {
@@ -102,6 +140,22 @@ func TestDetailWidthsSplitTwoThirdsOneThird(t *testing.T) {
 	content, metadata := model.detailWidths()
 	if content != 77 || metadata != 40 {
 		t.Fatalf("widths = %d/%d, want 77/40", content, metadata)
+	}
+}
+
+func TestPickNextBannerHasBorder(t *testing.T) {
+	model := NewModel(emptyBoard())
+	view := model.View()
+	if !strings.Contains(view, "┌") || !strings.Contains(view, "Next: none") {
+		t.Fatalf("View() missing bordered pick-next:\n%s", view)
+	}
+}
+
+func TestFooterHasSeparator(t *testing.T) {
+	model := NewModel(emptyBoard())
+	view := model.View()
+	if !strings.Contains(view, "────") || !strings.Contains(view, "BOARD MODE") {
+		t.Fatalf("View() missing footer separator:\n%s", view)
 	}
 }
 
@@ -199,7 +253,7 @@ func TestMoveSelectedRightMovesTicketOnDisk(t *testing.T) {
 	if len(got.Board.Columns[store.StateReady]) != 1 {
 		t.Fatalf("ready count = %d, want 1", len(got.Board.Columns[store.StateReady]))
 	}
-	if _, err := os.Stat(filepath.Join(root, store.StateDir(store.StateReady), "a.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(root, string(store.StateReady), "a.md")); err != nil {
 		t.Fatalf("ready ticket missing: %v", err)
 	}
 	if !strings.Contains(got.Status, "Moved a.md to ready") {
@@ -236,7 +290,7 @@ func TestMoveSelectedLeftMovesTicketOnDisk(t *testing.T) {
 	if len(got.Board.Columns[store.StateBacklog]) != 1 {
 		t.Fatalf("backlog count = %d, want 1", len(got.Board.Columns[store.StateBacklog]))
 	}
-	if _, err := os.Stat(filepath.Join(root, store.StateDir(store.StateBacklog), "a.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(root, string(store.StateBacklog), "a.md")); err != nil {
 		t.Fatalf("backlog ticket missing: %v", err)
 	}
 	if !strings.Contains(got.Status, "Moved a.md to backlog") {
@@ -406,6 +460,34 @@ func TestDeleteEmptyColumn(t *testing.T) {
 	}
 }
 
+func TestDetailScrollIndicators(t *testing.T) {
+	board := emptyBoard()
+	bodyLines := make([]string, 0, 20)
+	for i := 0; i < 20; i++ {
+		bodyLines = append(bodyLines, fmt.Sprintf("line %d", i))
+	}
+	stored := storedTicket("a.md", store.StateBacklog, "Task: a")
+	stored.Ticket.Body = strings.Join(bodyLines, "\n")
+	board.Columns[store.StateBacklog] = []store.StoredTicket{stored}
+	model := NewModel(board)
+	model.Height = 12
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model = updated.(Model)
+
+	view := model.View()
+	if !strings.Contains(view, "↓") || !strings.Contains(view, "lines below") {
+		t.Fatalf("detail missing below indicator:\n%s", view)
+	}
+	for range 10 {
+		updated, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+		model = updated.(Model)
+	}
+	view = model.View()
+	if !strings.Contains(view, "↑") || !strings.Contains(view, "lines above") {
+		t.Fatalf("detail missing above indicator:\n%s", view)
+	}
+}
+
 func TestDetailScrollClamps(t *testing.T) {
 	board := emptyBoard()
 	board.Columns[store.StateBacklog] = []store.StoredTicket{storedTicket("a.md", store.StateBacklog, "Task: a")}
@@ -454,7 +536,7 @@ Context.
 ## Acceptance Criteria
 - done
 `
-	path := filepath.Join(root, store.StateDir(state), name)
+	path := filepath.Join(root, string(state), name)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("write ticket: %v", err)
 	}
@@ -482,5 +564,282 @@ func storedTicket(name string, state store.State, title string) store.StoredTick
 			Body:                  "## Context\n\nLong body line 1\nLong body line 2\nLong body line 3\n",
 			HasAcceptanceCriteria: true,
 		},
+	}
+}
+
+func TestPromoteToReadyMovesTicket(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+	writeTUITestTicket(t, root, store.StateBacklog, "a.md", "Task: a")
+	board, err := store.LoadBoard(root)
+	if err != nil {
+		t.Fatalf("LoadBoard() error = %v", err)
+	}
+	model := NewModelWithRoot(root, board)
+
+	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
+	m := got.(Model)
+
+	if len(m.Board.Columns[store.StateReady]) != 1 {
+		t.Fatalf("ready count = %d, want 1", len(m.Board.Columns[store.StateReady]))
+	}
+	if len(m.Board.Columns[store.StateBacklog]) != 0 {
+		t.Fatalf("backlog count = %d, want 0", len(m.Board.Columns[store.StateBacklog]))
+	}
+	if m.SelectedCol != 1 {
+		t.Fatalf("SelectedCol = %d, want 1 (ready)", m.SelectedCol)
+	}
+	if !strings.Contains(m.Status, "Moved a.md to ready") {
+		t.Fatalf("Status = %q", m.Status)
+	}
+}
+
+func TestPromoteToReadyAlreadyReadyIsNoOp(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+	writeTUITestTicket(t, root, store.StateReady, "a.md", "Task: a")
+	board, _ := store.LoadBoard(root)
+	model := NewModelWithRoot(root, board)
+	model.SelectedCol = 1
+
+	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
+	m := got.(Model)
+
+	if len(m.Board.Columns[store.StateReady]) != 1 {
+		t.Fatalf("ready count changed unexpectedly")
+	}
+	if !strings.Contains(m.Status, "already in ready") {
+		t.Fatalf("Status = %q, want 'already in ready'", m.Status)
+	}
+}
+
+func TestEnterCreateModeOnN(t *testing.T) {
+	model := NewModel(emptyBoard())
+	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	m := got.(Model)
+	if m.Mode != ViewCreate {
+		t.Fatalf("Mode = %v, want ViewCreate", m.Mode)
+	}
+	if m.createKind != ticket.KindFeature {
+		t.Fatalf("createKind = %v, want KindFeature", m.createKind)
+	}
+	if m.createPriority != ticket.PriorityP2 {
+		t.Fatalf("createPriority = %v, want P2", m.createPriority)
+	}
+	if m.createField != 1 {
+		t.Fatalf("createField = %d, want 1 (title)", m.createField)
+	}
+}
+
+func TestCreateCancelReturnsToBoard(t *testing.T) {
+	model := NewModel(emptyBoard())
+	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	m := got.(Model)
+	got2, _ := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m2 := got2.(Model)
+	if m2.Mode != ViewBoard {
+		t.Fatalf("Mode = %v, want ViewBoard after esc", m2.Mode)
+	}
+	if m2.InteractionMode != InteractionBoard {
+		t.Fatalf("InteractionMode = %v, want InteractionBoard", m2.InteractionMode)
+	}
+}
+
+func TestCreateEmptyTitleShowsError(t *testing.T) {
+	model := NewModel(emptyBoard())
+	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	m := got.(Model)
+	got2, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m2 := got2.(Model)
+	if m2.Mode != ViewCreate {
+		t.Fatalf("Mode = %v, want ViewCreate after empty submit", m2.Mode)
+	}
+	if !strings.Contains(m2.Status, "Title required") {
+		t.Fatalf("Status = %q, want 'Title required'", m2.Status)
+	}
+}
+
+func TestCreateTicketWritesFile(t *testing.T) {
+	boardRoot := filepath.Join(t.TempDir(), ".tickcats")
+	if err := store.Init(boardRoot); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+	board, err := store.LoadBoard(boardRoot)
+	if err != nil {
+		t.Fatalf("LoadBoard() error = %v", err)
+	}
+
+	model := NewModelWithRoot(boardRoot, board)
+	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	m := got.(Model)
+
+	// Type "My Ticket" into the title field
+	for _, ch := range "My Ticket" {
+		got2, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
+		m = got2.(Model)
+	}
+
+	got3, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m3 := got3.(Model)
+
+	if m3.Mode != ViewBoard {
+		t.Fatalf("Mode = %v, want ViewBoard after create", m3.Mode)
+	}
+	if m3.InteractionMode != InteractionPostCreate {
+		t.Fatalf("InteractionMode = %v, want InteractionPostCreate", m3.InteractionMode)
+	}
+
+	backlogTickets := m3.Board.Columns[store.StateBacklog]
+	if len(backlogTickets) == 0 {
+		t.Fatalf("backlog empty after create")
+	}
+	if !strings.Contains(backlogTickets[0].Ticket.Title, "My Ticket") {
+		t.Fatalf("ticket title = %q, want My Ticket", backlogTickets[0].Ticket.Title)
+	}
+}
+
+func TestPostCreateNReturnsToBoard(t *testing.T) {
+	boardRoot := filepath.Join(t.TempDir(), ".tickcats")
+	if err := store.Init(boardRoot); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+	board, _ := store.LoadBoard(boardRoot)
+	model := NewModelWithRoot(boardRoot, board)
+
+	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	m := got.(Model)
+	for _, ch := range "Test" {
+		got2, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
+		m = got2.(Model)
+	}
+	got3, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m3 := got3.(Model)
+
+	got4, _ := m3.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	m4 := got4.(Model)
+	if m4.InteractionMode != InteractionBoard {
+		t.Fatalf("InteractionMode = %v, want InteractionBoard after n", m4.InteractionMode)
+	}
+	if !strings.Contains(m4.Status, "Created") {
+		t.Fatalf("Status = %q, want 'Created ...'", m4.Status)
+	}
+}
+
+func TestCreateToRefineCheckboxTogglesWithSpace(t *testing.T) {
+	boardRoot := filepath.Join(t.TempDir(), ".tickcats")
+	if err := store.Init(boardRoot); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+	board, _ := store.LoadBoard(boardRoot)
+	model := NewModelWithRoot(boardRoot, board)
+
+	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	m := got.(Model)
+
+	// Navigate to toRefine field (field 3) via tab x3 from title (field 1)
+	for range 2 {
+		got2, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
+		m = got2.(Model)
+	}
+	if m.createField != 3 {
+		t.Fatalf("createField = %d, want 3 (toRefine)", m.createField)
+	}
+	if m.createToRefine {
+		t.Fatalf("createToRefine = true initially, want false")
+	}
+
+	// Toggle with space
+	got3, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
+	m3 := got3.(Model)
+	if !m3.createToRefine {
+		t.Fatalf("createToRefine = false after space, want true")
+	}
+
+	// Toggle back
+	got4, _ := m3.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{' '}})
+	m4 := got4.(Model)
+	if m4.createToRefine {
+		t.Fatalf("createToRefine = true after second space, want false")
+	}
+}
+
+func TestCreateToRefineAddsLabel(t *testing.T) {
+	boardRoot := filepath.Join(t.TempDir(), ".tickcats")
+	if err := store.Init(boardRoot); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+	board, _ := store.LoadBoard(boardRoot)
+	model := NewModelWithRoot(boardRoot, board)
+
+	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	m := got.(Model)
+
+	// Type title
+	for _, ch := range "Needs Design" {
+		got2, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
+		m = got2.(Model)
+	}
+
+	// Tab x2 to get to toRefine (field 3)
+	for range 2 {
+		got3, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
+		m = got3.(Model)
+	}
+
+	// Toggle toRefine on with enter
+	got4, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = got4.(Model)
+	if !m.createToRefine {
+		t.Fatalf("createToRefine not set after enter on field 3")
+	}
+
+	// Tab back to title field and submit
+	got5, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	m = got5.(Model)
+	got6, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m5 := got6.(Model)
+
+	if m5.Mode != ViewBoard {
+		t.Fatalf("Mode = %v after create, want ViewBoard", m5.Mode)
+	}
+
+	tickets := m5.Board.Columns[store.StateBacklog]
+	if len(tickets) == 0 {
+		t.Fatalf("backlog empty after create")
+	}
+	if !tickets[0].Ticket.ParsedTitle.ToRefine() {
+		t.Fatalf("ticket does not have to-refine label: title = %q", tickets[0].Ticket.Title)
+	}
+}
+
+func TestCreateKindCyclesWithHL(t *testing.T) {
+	model := NewModel(emptyBoard())
+	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	m := got.(Model)
+
+	// Navigate to kind field (field 0) via shift+tab from title (field 1)
+	got2, _ := m.Update(tea.KeyMsg{Type: tea.KeyShiftTab})
+	m2 := got2.(Model)
+	if m2.createField != 0 {
+		t.Fatalf("createField = %d, want 0 (kind)", m2.createField)
+	}
+	if m2.createKind != ticket.KindFeature {
+		t.Fatalf("initial kind = %v, want KindFeature", m2.createKind)
+	}
+
+	got3, _ := m2.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+	m3 := got3.(Model)
+	if m3.createKind != ticket.KindTask {
+		t.Fatalf("kind after l = %v, want KindTask", m3.createKind)
+	}
+
+	got4, _ := m3.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+	m4 := got4.(Model)
+	if m4.createKind != ticket.KindFeature {
+		t.Fatalf("kind after h = %v, want KindFeature", m4.createKind)
 	}
 }

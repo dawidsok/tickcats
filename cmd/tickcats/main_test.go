@@ -64,19 +64,19 @@ func TestParsePickNextArgs(t *testing.T) {
 func TestPickNextPathPrintsOnlyPath(t *testing.T) {
 	root := t.TempDir()
 	withCwd(t, root, func() {
-		if err := store.Init("."); err != nil {
+		if err := store.Init(store.RootDir); err != nil {
 			t.Fatalf("Init() error = %v", err)
 		}
-		writeMainTestTicket(t, ".", store.StateReady, "a.md", "Task: a", "2026-05-30T10:00:00Z")
+		writeMainTestTicket(t, store.RootDir, store.StateReady, "a.md", "Task: a", "2026-05-30T10:00:00Z")
 
-		stdout, stderr, err := captureOutput(func() error { return runPickNext([]string{"--path"}) })
+		stdout, stderr, err := captureOutput(func() error { return runPickNext([]string{"--path"}, store.RootDir) })
 		if err != nil {
 			t.Fatalf("runPickNext() error = %v", err)
 		}
 		if stderr != "" {
 			t.Fatalf("stderr = %q, want empty", stderr)
 		}
-		want := filepath.Join(".", store.StateDir(store.StateReady), "a.md") + "\n"
+		want := filepath.Join(store.RootDir, string(store.StateReady), "a.md") + "\n"
 		if stdout != want {
 			t.Fatalf("stdout = %q, want %q", stdout, want)
 		}
@@ -86,11 +86,11 @@ func TestPickNextPathPrintsOnlyPath(t *testing.T) {
 func TestPickNextPathNoEligibleErrors(t *testing.T) {
 	root := t.TempDir()
 	withCwd(t, root, func() {
-		if err := store.Init("."); err != nil {
+		if err := store.Init(store.RootDir); err != nil {
 			t.Fatalf("Init() error = %v", err)
 		}
 
-		stdout, _, err := captureOutput(func() error { return runPickNext([]string{"--path"}) })
+		stdout, _, err := captureOutput(func() error { return runPickNext([]string{"--path"}, store.RootDir) })
 		if err == nil || !strings.Contains(err.Error(), "no ready ticket found") {
 			t.Fatalf("err = %v, want no ready ticket", err)
 		}
@@ -103,21 +103,21 @@ func TestPickNextPathNoEligibleErrors(t *testing.T) {
 func TestPickNextPathTieErrorsWithCandidatePaths(t *testing.T) {
 	root := t.TempDir()
 	withCwd(t, root, func() {
-		if err := store.Init("."); err != nil {
+		if err := store.Init(store.RootDir); err != nil {
 			t.Fatalf("Init() error = %v", err)
 		}
-		writeMainTestTicket(t, ".", store.StateReady, "a.md", "Task: a", "2026-05-30T10:00:00Z")
-		writeMainTestTicket(t, ".", store.StateReady, "b.md", "Task: b", "2026-05-30T10:00:00Z")
+		writeMainTestTicket(t, store.RootDir, store.StateReady, "a.md", "Task: a", "2026-05-30T10:00:00Z")
+		writeMainTestTicket(t, store.RootDir, store.StateReady, "b.md", "Task: b", "2026-05-30T10:00:00Z")
 
-		stdout, stderr, err := captureOutput(func() error { return runPickNext([]string{"--path"}) })
+		stdout, stderr, err := captureOutput(func() error { return runPickNext([]string{"--path"}, store.RootDir) })
 		if err == nil || !strings.Contains(err.Error(), "multiple ready tickets tied") {
 			t.Fatalf("err = %v, want tie", err)
 		}
 		if stdout != "" {
 			t.Fatalf("stdout = %q, want empty", stdout)
 		}
-		if !strings.Contains(stderr, filepath.Join(".", store.StateDir(store.StateReady), "a.md")) ||
-			!strings.Contains(stderr, filepath.Join(".", store.StateDir(store.StateReady), "b.md")) {
+		if !strings.Contains(stderr, filepath.Join(store.RootDir, string(store.StateReady), "a.md")) ||
+			!strings.Contains(stderr, filepath.Join(store.RootDir, string(store.StateReady), "b.md")) {
 			t.Fatalf("stderr = %q, want candidate paths", stderr)
 		}
 	})
@@ -126,12 +126,12 @@ func TestPickNextPathTieErrorsWithCandidatePaths(t *testing.T) {
 func TestPickNextHumanOutputUnchanged(t *testing.T) {
 	root := t.TempDir()
 	withCwd(t, root, func() {
-		if err := store.Init("."); err != nil {
+		if err := store.Init(store.RootDir); err != nil {
 			t.Fatalf("Init() error = %v", err)
 		}
-		writeMainTestTicket(t, ".", store.StateReady, "a.md", "Task: a", "2026-05-30T10:00:00Z")
+		writeMainTestTicket(t, store.RootDir, store.StateReady, "a.md", "Task: a", "2026-05-30T10:00:00Z")
 
-		stdout, _, err := captureOutput(func() error { return runPickNext(nil) })
+		stdout, _, err := captureOutput(func() error { return runPickNext(nil, store.RootDir) })
 		if err != nil {
 			t.Fatalf("runPickNext() error = %v", err)
 		}
@@ -141,25 +141,6 @@ func TestPickNextHumanOutputUnchanged(t *testing.T) {
 	})
 }
 
-func TestSlug(t *testing.T) {
-	tests := []struct {
-		raw  string
-		want string
-	}{
-		{raw: "Add Import Validation", want: "add-import-validation"},
-		{raw: "  crash on empty backlog!!! ", want: "crash-on-empty-backlog"},
-		{raw: "!!!", want: "ticket"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.raw, func(t *testing.T) {
-			got := slug(tt.raw)
-			if got != tt.want {
-				t.Fatalf("slug() = %q, want %q", got, tt.want)
-			}
-		})
-	}
-}
 
 func withCwd(t *testing.T, dir string, fn func()) {
 	t.Helper()
@@ -197,7 +178,7 @@ func captureOutput(fn func() error) (string, string, error) {
 	return string(stdoutBytes), string(stderrBytes), err
 }
 
-func writeMainTestTicket(t *testing.T, root string, state store.State, name string, title string, createdRaw string) {
+func writeMainTestTicket(t *testing.T, boardPath string, state store.State, name string, title string, createdRaw string) {
 	t.Helper()
 	created, err := time.Parse(time.RFC3339, createdRaw)
 	if err != nil {
@@ -217,7 +198,7 @@ Context.
 ## Acceptance Criteria
 - done
 `
-	path := filepath.Join(root, store.StateDir(state), name)
+	path := filepath.Join(boardPath, string(state), name)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("write ticket: %v", err)
 	}

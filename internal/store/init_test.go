@@ -8,14 +8,14 @@ import (
 )
 
 func TestInitCreatesBoardFolders(t *testing.T) {
-	root := t.TempDir()
+	boardRoot := filepath.Join(t.TempDir(), ".tickcats")
 
-	if err := Init(root); err != nil {
+	if err := Init(boardRoot); err != nil {
 		t.Fatalf("Init() error = %v", err)
 	}
 
 	for _, state := range ValidStates {
-		path := filepath.Join(root, StateDir(state))
+		path := filepath.Join(boardRoot, string(state))
 		info, err := os.Stat(path)
 		if err != nil {
 			t.Fatalf("expected state dir %q: %v", path, err)
@@ -27,18 +27,18 @@ func TestInitCreatesBoardFolders(t *testing.T) {
 }
 
 func TestInitIsIdempotentAndPreservesTickets(t *testing.T) {
-	root := t.TempDir()
-	if err := Init(root); err != nil {
+	boardRoot := filepath.Join(t.TempDir(), ".tickcats")
+	if err := Init(boardRoot); err != nil {
 		t.Fatalf("Init() first error = %v", err)
 	}
 
-	ticketPath := filepath.Join(root, StateDir(StateBacklog), "example.md")
+	ticketPath := filepath.Join(boardRoot, string(StateBacklog), "example.md")
 	content := []byte("hello")
 	if err := os.WriteFile(ticketPath, content, 0o644); err != nil {
 		t.Fatalf("write ticket fixture: %v", err)
 	}
 
-	if err := Init(root); err != nil {
+	if err := Init(boardRoot); err != nil {
 		t.Fatalf("Init() second error = %v", err)
 	}
 
@@ -52,27 +52,29 @@ func TestInitIsIdempotentAndPreservesTickets(t *testing.T) {
 }
 
 func TestInitCreatesGitignore(t *testing.T) {
-	root := t.TempDir()
+	tempDir := t.TempDir()
+	boardRoot := filepath.Join(tempDir, ".tickcats")
 
-	if err := Init(root); err != nil {
+	if err := Init(boardRoot); err != nil {
 		t.Fatalf("Init() error = %v", err)
 	}
 
-	assertGitignoreEntryCount(t, filepath.Join(root, ".gitignore"), 1)
+	assertGitignoreEntryCount(t, filepath.Join(tempDir, ".gitignore"), ".tickcats/", 1)
 }
 
 func TestInitAppendsGitignoreOnce(t *testing.T) {
-	root := t.TempDir()
-	gitignore := filepath.Join(root, ".gitignore")
+	tempDir := t.TempDir()
+	boardRoot := filepath.Join(tempDir, ".tickcats")
+	gitignore := filepath.Join(tempDir, ".gitignore")
 	initial := "dist/\nnode_modules/\n"
 	if err := os.WriteFile(gitignore, []byte(initial), 0o644); err != nil {
 		t.Fatalf("write .gitignore fixture: %v", err)
 	}
 
-	if err := Init(root); err != nil {
+	if err := Init(boardRoot); err != nil {
 		t.Fatalf("Init() first error = %v", err)
 	}
-	if err := Init(root); err != nil {
+	if err := Init(boardRoot); err != nil {
 		t.Fatalf("Init() second error = %v", err)
 	}
 
@@ -83,10 +85,28 @@ func TestInitAppendsGitignoreOnce(t *testing.T) {
 	if !strings.HasPrefix(string(data), initial) {
 		t.Fatalf(".gitignore = %q, want prefix %q", data, initial)
 	}
-	assertGitignoreEntryCount(t, gitignore, 1)
+	assertGitignoreEntryCount(t, gitignore, ".tickcats/", 1)
 }
 
-func assertGitignoreEntryCount(t *testing.T, path string, want int) {
+func TestInitAlternatePath(t *testing.T) {
+	tempDir := t.TempDir()
+	boardRoot := filepath.Join(tempDir, ".tickcats-test")
+
+	if err := Init(boardRoot); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+
+	for _, state := range ValidStates {
+		path := filepath.Join(boardRoot, string(state))
+		if info, err := os.Stat(path); err != nil || !info.IsDir() {
+			t.Fatalf("expected state dir %q", path)
+		}
+	}
+
+	assertGitignoreEntryCount(t, filepath.Join(tempDir, ".gitignore"), ".tickcats-test/", 1)
+}
+
+func assertGitignoreEntryCount(t *testing.T, path string, entry string, want int) {
 	t.Helper()
 
 	data, err := os.ReadFile(path)
@@ -96,11 +116,11 @@ func assertGitignoreEntryCount(t *testing.T, path string, want int) {
 
 	got := 0
 	for _, line := range strings.Split(string(data), "\n") {
-		if strings.TrimSpace(line) == gitignoreEntry {
+		if strings.TrimSpace(line) == entry {
 			got++
 		}
 	}
 	if got != want {
-		t.Fatalf("%q count = %d, want %d in .gitignore:\n%s", gitignoreEntry, got, want, data)
+		t.Fatalf("%q count = %d, want %d in .gitignore:\n%s", entry, got, want, data)
 	}
 }

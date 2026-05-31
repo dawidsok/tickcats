@@ -33,6 +33,3 @@ func IsValidState(raw string) bool {
 	return err == nil
 }
 
-func StateDir(state State) string {
-	return RootDir + "/" + string(state)
-}

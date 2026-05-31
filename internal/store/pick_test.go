@@ -128,7 +128,7 @@ func pickFromRoot(t *testing.T, root string) PickResult {
 
 func writeTicketWith(t *testing.T, root string, state State, name string, title string, priority string, created time.Time, acceptance string) {
 	t.Helper()
-	path := filepath.Join(root, StateDir(state), name)
+	path := filepath.Join(root, string(state), name)
 	content := `---
 title: ` + title + `
 priority: ` + priority + `
