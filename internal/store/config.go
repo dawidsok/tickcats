@@ -7,8 +7,9 @@ import (
 )
 
 type Config struct {
-	Editor string `json:"editor,omitempty"`
-	Theme  int    `json:"theme,omitempty"`
+	Editor           string `json:"editor,omitempty"`
+	Theme            int    `json:"theme,omitempty"`
+	SkipEditorPrompt bool   `json:"skip_editor_prompt,omitempty"`
 }
 
 func LoadConfig(boardRoot string) (Config, error) {

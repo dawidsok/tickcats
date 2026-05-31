@@ -793,6 +793,98 @@ func TestPostCreateNReturnsToBoard(t *testing.T) {
 	}
 }
 
+func enterPostCreateDialog(t *testing.T, root string) Model {
+	t.Helper()
+	board, _ := store.LoadBoard(root)
+	m := NewModelWithRoot(root, board)
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	m2 := got.(Model)
+	for _, ch := range "Test ticket" {
+		got2, _ := m2.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
+		m2 = got2.(Model)
+	}
+	got3, _ := m2.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	return got3.(Model)
+}
+
+func TestPostCreateDialogQDoesNotQuit(t *testing.T) {
+	root := filepath.Join(t.TempDir(), ".tickcats")
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	m := enterPostCreateDialog(t, root)
+	if m.InteractionMode != InteractionPostCreate {
+		t.Fatalf("InteractionMode = %v, want InteractionPostCreate", m.InteractionMode)
+	}
+
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	if cmd != nil {
+		t.Fatal("q during post-create dialog returned a cmd (should not quit)")
+	}
+}
+
+func TestPostCreateDialogDontAskAgain(t *testing.T) {
+	root := filepath.Join(t.TempDir(), ".tickcats")
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	m := enterPostCreateDialog(t, root)
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	m2 := got.(Model)
+	if m2.InteractionMode != InteractionBoard {
+		t.Fatalf("InteractionMode = %v after d, want InteractionBoard", m2.InteractionMode)
+	}
+	if !m2.Config.SkipEditorPrompt {
+		t.Fatal("SkipEditorPrompt not set after d")
+	}
+	cfg, _ := store.LoadConfig(root)
+	if !cfg.SkipEditorPrompt {
+		t.Fatal("SkipEditorPrompt not persisted to config")
+	}
+}
+
+func TestPostCreateSkipsDialogWhenPrefSet(t *testing.T) {
+	root := filepath.Join(t.TempDir(), ".tickcats")
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	if err := store.SaveConfig(root, store.Config{SkipEditorPrompt: true}); err != nil {
+		t.Fatalf("SaveConfig: %v", err)
+	}
+	board, _ := store.LoadBoard(root)
+	m := NewModelWithRoot(root, board)
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	m2 := got.(Model)
+	for _, ch := range "Skip test" {
+		got2, _ := m2.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
+		m2 = got2.(Model)
+	}
+	got3, _ := m2.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m3 := got3.(Model)
+	if m3.InteractionMode != InteractionBoard {
+		t.Fatalf("InteractionMode = %v, want InteractionBoard (dialog should be skipped)", m3.InteractionMode)
+	}
+}
+
+func TestPostCreateDialogRendered(t *testing.T) {
+	root := filepath.Join(t.TempDir(), ".tickcats")
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	m := enterPostCreateDialog(t, root)
+	view := m.View()
+	if !strings.Contains(view, "Ticket Created") {
+		t.Fatalf("dialog missing title:\n%s", view)
+	}
+	if !strings.Contains(view, "Open in external editor") {
+		t.Fatalf("dialog missing prompt text:\n%s", view)
+	}
+	if !strings.Contains(view, "don't ask again") {
+		t.Fatalf("dialog missing don't-ask-again option:\n%s", view)
+	}
+}
+
 func TestCreateToRefineCheckboxTogglesWithSpace(t *testing.T) {
 	boardRoot := filepath.Join(t.TempDir(), ".tickcats")
 	if err := store.Init(boardRoot); err != nil {

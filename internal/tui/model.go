@@ -304,6 +304,9 @@ func (m Model) View() string {
 	if m.Mode == ViewConfig {
 		return m.renderConfig()
 	}
+	if m.InteractionMode == InteractionPostCreate {
+		return m.renderPostCreateDialog()
+	}
 	if m.Mode == ViewDetail {
 		return m.renderDetail()
 	}
@@ -321,7 +324,7 @@ func (m Model) View() string {
 
 func (m Model) footerText() string {
 	if m.InteractionMode == InteractionPostCreate {
-		return "Open in editor? y yes  n/esc skip  q quit"
+		return "y open editor  n/esc stay  d don't ask again"
 	}
 	if m.InteractionMode == InteractionDeleteConfirm {
 		return "DELETE? y confirm  n/esc cancel  q quit"
@@ -769,16 +772,23 @@ func (m Model) submitCreate() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.Board = board
+	m.syncManualOrder()
+	m.applySortToBoard()
 	m.Mode = ViewBoard
-	m.InteractionMode = InteractionPostCreate
 	m.createPending = path
-	m.Status = filepath.Base(path) + " created. Open in editor? y/n"
+	if m.Config.SkipEditorPrompt {
+		m.InteractionMode = InteractionBoard
+		m.Status = "Created " + filepath.Base(path)
+		return m, nil
+	}
+	m.InteractionMode = InteractionPostCreate
+	m.Status = ""
 	return m, nil
 }
 
 func (m Model) updatePostCreate(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case "q", "ctrl+c":
+	case "ctrl+c":
 		return m, tea.Quit
 	case "y":
 		cmd := editorCommand(m.createPending, m.Config.Editor)
@@ -792,6 +802,11 @@ func (m Model) updatePostCreate(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "n", "esc":
 		m.InteractionMode = InteractionBoard
 		m.Status = "Created " + filepath.Base(m.createPending)
+	case "d":
+		m.Config.SkipEditorPrompt = true
+		_ = store.SaveConfig(m.Root, m.Config)
+		m.InteractionMode = InteractionBoard
+		m.Status = "Created " + filepath.Base(m.createPending) + " (won't ask again)"
 	}
 	return m, nil
 }
@@ -1564,4 +1579,35 @@ func (m Model) renderConfig() string {
 	}
 	return lipgloss.Place(m.fullWidth(), h, lipgloss.Center, lipgloss.Center,
 		selectedStyle.Render("Config")+"\n\n"+box+statusLine)
+}
+
+func (m Model) renderPostCreateDialog() string {
+	name := filepath.Base(m.createPending)
+
+	content := strings.Join([]string{
+		mutedStyle.Render("Created:"),
+		"",
+		selectedStyle.Render(name),
+		"",
+		"Open in external editor?",
+		"",
+		selectedStyle.Render("y") + "  open in editor",
+		mutedStyle.Render("n") + "  stay in TickCats",
+		mutedStyle.Render("d") + "  don't ask again",
+	}, "\n")
+
+	formWidth := 48
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("212")).
+		Padding(1, 3).
+		Width(formWidth).
+		Render(content)
+
+	h := m.Height
+	if h <= 0 {
+		h = 24
+	}
+	return lipgloss.Place(m.fullWidth(), h, lipgloss.Center, lipgloss.Center,
+		selectedStyle.Render("Ticket Created")+"\n\n"+box)
 }
