@@ -56,11 +56,11 @@ type colorTheme struct {
 }
 
 var colorThemes = []colorTheme{
-	{name: "mono",     colors: [4]lipgloss.Color{"#ff87d7", "#ff87d7", "#ff87d7", "#ff87d7"}},
-	{name: "gradient", colors: [4]lipgloss.Color{"#9e9e9e", "#5fff87", "#ff87ff", "#d787ff"}},
-	{name: "ocean",    colors: [4]lipgloss.Color{"#9e9e9e", "#00afff", "#00d7ff", "#00ffff"}},
-	{name: "fire",     colors: [4]lipgloss.Color{"#9e9e9e", "#ffaf00", "#ff8700", "#ff0000"}},
-	{name: "forest",   colors: [4]lipgloss.Color{"#9e9e9e", "#5fd787", "#00af00", "#008700"}},
+	{name: "mono", colors: [4]lipgloss.Color{"#679", "#f8d", "#f8d", "#f8d"}},
+	{name: "gradient", colors: [4]lipgloss.Color{"#679", "#5fd787", "#f8d", "#679"}},
+	{name: "ocean", colors: [4]lipgloss.Color{"#679", "#0ff", "#0af", "#14a"}},
+	{name: "fire", colors: [4]lipgloss.Color{"#679", "#fa0", "#f40", "#a00"}},
+	{name: "forest", colors: [4]lipgloss.Color{"#679", "#5fd787", "#5faf87", "#098a08"}},
 }
 
 type Model struct {
@@ -69,6 +69,7 @@ type Model struct {
 	SelectedCol     int
 	SelectedRows    map[store.State]int
 	ColumnScroll    map[store.State]int
+	MultiSelected   map[store.State]map[string]bool
 	Mode            ViewMode
 	InteractionMode InteractionMode
 	DetailScroll    int
@@ -103,10 +104,11 @@ func NewModel(board store.Board) Model {
 
 func NewModelWithRoot(root string, board store.Board) Model {
 	m := Model{
-		Root:         root,
-		Board:        board,
-		SelectedRows: make(map[store.State]int),
-		ColumnScroll: make(map[store.State]int),
+		Root:          root,
+		Board:         board,
+		SelectedRows:  make(map[store.State]int),
+		ColumnScroll:  make(map[store.State]int),
+		MultiSelected: make(map[store.State]map[string]bool),
 	}
 	cfg, _ := store.LoadSortConfig(root)
 	m.SortMode = cfg.Mode
@@ -207,9 +209,20 @@ func (m Model) updateBoard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Mode = ViewDetail
 			m.DetailScroll = 0
 		}
+	case "v":
+		m.toggleSelection()
+		if n := m.totalSelected(); n > 0 {
+			m.Status = fmt.Sprintf("%d selected", n)
+		} else {
+			m.Status = ""
+		}
 	case "m":
 		m.InteractionMode = InteractionMove
-		m.Status = "Move mode: h left, l right, esc cancel"
+		if n := m.totalSelected(); n > 0 {
+			m.Status = fmt.Sprintf("Move mode (%d selected): h/l col, H first, L last, esc cancel", n)
+		} else {
+			m.Status = "Move mode: h/l col, H first, L last, esc cancel"
+		}
 	case "n":
 		return m.enterCreate()
 	case "p":
@@ -236,9 +249,13 @@ func (m Model) updateMove(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.InteractionMode = InteractionBoard
 		m.Status = "Board mode"
 	case "h", "left":
-		m.moveSelectedLeft()
+		m.moveAllSelectedBy(-1)
 	case "l", "right":
-		m.moveSelectedRight()
+		m.moveAllSelectedBy(1)
+	case "H":
+		m.moveAllSelectedTo(0)
+	case "L":
+		m.moveAllSelectedTo(len(columnOrder) - 1)
 	case "j", "down":
 		if m.SortMode == store.SortManual {
 			m.moveSelectedInColumn(1)
@@ -368,12 +385,16 @@ func (m Model) footerText() string {
 		return "Switch to manual sort? y confirm  n/esc cancel  q quit"
 	}
 	if m.InteractionMode == InteractionMove {
-		return "MOVE MODE: h left  l right  j/k reorder (manual)  esc board  q quit"
+		sel := m.totalSelected()
+		if sel > 0 {
+			return fmt.Sprintf("MOVE MODE (%d selected): h/l col  H first  L last  j/k reorder  esc board  q quit", sel)
+		}
+		return "MOVE MODE: h/l col  H first  L last  j/k reorder (manual)  v select  esc board  q quit"
 	}
 	if m.Mode == ViewDetail {
 		return "DETAIL MODE: j/k scroll  d/u half-page  e edit  c config  esc board  q quit"
 	}
-	return fmt.Sprintf("BOARD MODE: h/l col  j/k/d/u ticket  m move  s sort(%s)  p ready  o/enter detail  e edit  n new  x del  r reload  c config  q quit", m.SortMode)
+	return fmt.Sprintf("BOARD MODE: h/l col  j/k/d/u ticket  v select  m move  s sort(%s)  p ready  o/enter detail  e edit  n new  x del  r reload  c config  q quit", m.SortMode)
 }
 
 func (m *Model) moveColumn(delta int) {
@@ -541,6 +562,7 @@ func (m *Model) reloadBoard() {
 	m.Board = board
 	m.syncManualOrder()
 	m.applySortToBoard()
+	m.syncMultiSelected()
 
 	if focusedName == "" {
 		return
@@ -682,6 +704,171 @@ func (m *Model) moveSelectedInColumn(delta int) {
 			m.saveSortConfig()
 			return
 		}
+	}
+}
+
+func (m Model) totalSelected() int {
+	n := 0
+	for _, s := range m.MultiSelected {
+		n += len(s)
+	}
+	return n
+}
+
+func (m *Model) toggleSelection() {
+	stored := m.selectedTicket()
+	if stored == nil {
+		return
+	}
+	state := columnOrder[m.SelectedCol]
+	if m.MultiSelected[state] == nil {
+		m.MultiSelected[state] = make(map[string]bool)
+	}
+	if m.MultiSelected[state][stored.Name] {
+		delete(m.MultiSelected[state], stored.Name)
+		if len(m.MultiSelected[state]) == 0 {
+			delete(m.MultiSelected, state)
+		}
+	} else {
+		m.MultiSelected[state][stored.Name] = true
+	}
+}
+
+func (m *Model) syncMultiSelected() {
+	for state, names := range m.MultiSelected {
+		ticketSet := make(map[string]bool, len(m.Board.Columns[state]))
+		for _, t := range m.Board.Columns[state] {
+			ticketSet[t.Name] = true
+		}
+		for name := range names {
+			if !ticketSet[name] {
+				delete(names, name)
+			}
+		}
+		if len(names) == 0 {
+			delete(m.MultiSelected, state)
+		}
+	}
+}
+
+type selectedRef struct {
+	name   string
+	state  store.State
+	colIdx int
+}
+
+func (m *Model) allSelectedRefs() []selectedRef {
+	var refs []selectedRef
+	for colIdx, state := range columnOrder {
+		for name := range m.MultiSelected[state] {
+			refs = append(refs, selectedRef{name, state, colIdx})
+		}
+	}
+	return refs
+}
+
+func (m *Model) moveAllSelectedBy(delta int) {
+	if m.totalSelected() == 0 {
+		m.moveSelected(delta)
+		return
+	}
+
+	refs := m.allSelectedRefs()
+	if delta > 0 {
+		sort.Slice(refs, func(i, j int) bool { return refs[i].colIdx > refs[j].colIdx })
+	} else {
+		sort.Slice(refs, func(i, j int) bool { return refs[i].colIdx < refs[j].colIdx })
+	}
+
+	moved := 0
+	for _, r := range refs {
+		toIdx := r.colIdx + delta
+		if toIdx < 0 || toIdx >= len(columnOrder) {
+			continue
+		}
+		if _, err := store.Move(m.Root, r.name, r.state, columnOrder[toIdx]); err != nil {
+			m.Status = "Move failed: " + err.Error()
+			return
+		}
+		moved++
+	}
+
+	board, err := store.LoadBoard(m.Root)
+	if err != nil {
+		m.Status = "Reload failed: " + err.Error()
+		return
+	}
+	m.Board = board
+	m.syncManualOrder()
+	m.applySortToBoard()
+
+	newSelected := make(map[store.State]map[string]bool)
+	for _, r := range refs {
+		newIdx := r.colIdx + delta
+		if newIdx < 0 || newIdx >= len(columnOrder) {
+			newIdx = r.colIdx
+		}
+		newState := columnOrder[newIdx]
+		if newSelected[newState] == nil {
+			newSelected[newState] = make(map[string]bool)
+		}
+		newSelected[newState][r.name] = true
+	}
+	m.MultiSelected = newSelected
+	m.SelectedCol = clamp(m.SelectedCol+delta, 0, len(columnOrder)-1)
+
+	if moved == 0 {
+		if delta > 0 {
+			m.Status = "Ticket(s) already at last column"
+		} else {
+			m.Status = "Ticket(s) already at first column"
+		}
+	} else {
+		m.Status = fmt.Sprintf("Moved %d ticket(s)", moved)
+	}
+}
+
+func (m *Model) moveAllSelectedTo(targetCol int) {
+	if m.totalSelected() == 0 {
+		m.moveSelected(targetCol - m.SelectedCol)
+		return
+	}
+
+	refs := m.allSelectedRefs()
+	moved := 0
+	for _, r := range refs {
+		if r.colIdx == targetCol {
+			continue
+		}
+		if _, err := store.Move(m.Root, r.name, r.state, columnOrder[targetCol]); err != nil {
+			m.Status = "Move failed: " + err.Error()
+			return
+		}
+		moved++
+	}
+
+	board, err := store.LoadBoard(m.Root)
+	if err != nil {
+		m.Status = "Reload failed: " + err.Error()
+		return
+	}
+	m.Board = board
+	m.syncManualOrder()
+	m.applySortToBoard()
+
+	newSelected := make(map[store.State]map[string]bool)
+	targetState := columnOrder[targetCol]
+	newSelected[targetState] = make(map[string]bool)
+	for _, r := range refs {
+		newSelected[targetState][r.name] = true
+	}
+	m.MultiSelected = newSelected
+	m.SelectedCol = targetCol
+
+	if moved == 0 {
+		m.Status = fmt.Sprintf("Ticket(s) already at %s", columnOrder[targetCol])
+	} else {
+		m.Status = fmt.Sprintf("Moved %d ticket(s) to %s", moved, columnOrder[targetCol])
 	}
 }
 
@@ -1089,14 +1276,28 @@ func (m Model) renderColumnLines(index int, state store.State) []string {
 	separator := mutedStyle.Render(strings.Repeat("─", innerWidth))
 	for row := scroll; row < end; row++ {
 		stored := tickets[row]
-		prefix := "  "
-		if index == m.SelectedCol && row == selectedRow {
+		isFocused := index == m.SelectedCol && row == selectedRow
+		isSelected := m.MultiSelected[state] != nil && m.MultiSelected[state][stored.Name]
+
+		var prefix string
+		switch {
+		case isFocused && isSelected:
+			prefix = ">*"
+		case isFocused:
 			prefix = "> "
+		case isSelected:
+			prefix = "* "
+		default:
+			prefix = "  "
 		}
+
 		wrapped := wrapText(fmt.Sprintf("%s[%s] %s", prefix, stored.Ticket.Priority, stored.Ticket.Title), innerWidth)
 		for _, line := range wrapped {
-			if index == m.SelectedCol && row == selectedRow {
+			switch {
+			case isFocused:
 				line = m.colStyle(index).Render(line)
+			case isSelected:
+				line = selectedStyle.Render(line)
 			}
 			if !appendLine(line) {
 				return appendColumnOverflow(lines, innerWidth, len(tickets)-row)

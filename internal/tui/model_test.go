@@ -1440,6 +1440,175 @@ func TestConfigThemeCyclesWithHL(t *testing.T) {
 	}
 }
 
+func TestVTogglesSelection(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{storedTicket("a.md", store.StateBacklog, "Task: a")}
+	m := NewModel(board)
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'v'}})
+	m2 := got.(Model)
+	if m2.totalSelected() != 1 {
+		t.Fatalf("totalSelected = %d after v, want 1", m2.totalSelected())
+	}
+	if !m2.MultiSelected[store.StateBacklog]["a.md"] {
+		t.Fatal("a.md not in MultiSelected after v")
+	}
+	if !strings.Contains(m2.Status, "1 selected") {
+		t.Fatalf("Status = %q, want '1 selected'", m2.Status)
+	}
+}
+
+func TestVDeselects(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{storedTicket("a.md", store.StateBacklog, "Task: a")}
+	m := NewModel(board)
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'v'}})
+	got2, _ := got.(Model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'v'}})
+	m2 := got2.(Model)
+	if m2.totalSelected() != 0 {
+		t.Fatalf("totalSelected = %d after second v, want 0", m2.totalSelected())
+	}
+}
+
+func TestMultiSelectMovesAllWithL(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	writeTUITestTicket(t, root, store.StateBacklog, "a.md", "Task: a")
+	writeTUITestTicket(t, root, store.StateBacklog, "b.md", "Task: b")
+	board, _ := store.LoadBoard(root)
+	m := NewModelWithRoot(root, board)
+
+	// Select both backlog tickets
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'v'}})
+	m = got.(Model)
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m = got.(Model)
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'v'}})
+	m = got.(Model)
+	if m.totalSelected() != 2 {
+		t.Fatalf("totalSelected = %d, want 2", m.totalSelected())
+	}
+
+	// Enter move mode and press l
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	m = got.(Model)
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+	m = got.(Model)
+
+	if len(m.Board.Columns[store.StateBacklog]) != 0 {
+		t.Fatalf("backlog len = %d, want 0", len(m.Board.Columns[store.StateBacklog]))
+	}
+	if len(m.Board.Columns[store.StateReady]) != 2 {
+		t.Fatalf("ready len = %d, want 2", len(m.Board.Columns[store.StateReady]))
+	}
+	if m.totalSelected() != 2 {
+		t.Fatalf("totalSelected after move = %d, want 2", m.totalSelected())
+	}
+	if !strings.Contains(m.Status, "Moved 2 ticket(s)") {
+		t.Fatalf("Status = %q, want 'Moved 2 ticket(s)'", m.Status)
+	}
+}
+
+func TestCapitalLMovesSelectedToLastColumn(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	writeTUITestTicket(t, root, store.StateBacklog, "a.md", "Task: a")
+	board, _ := store.LoadBoard(root)
+	m := NewModelWithRoot(root, board)
+
+	// Select the ticket then enter move mode and press L
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'v'}})
+	m = got.(Model)
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	m = got.(Model)
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'L'}})
+	m = got.(Model)
+
+	if len(m.Board.Columns[store.StateDone]) != 1 {
+		t.Fatalf("done len = %d, want 1", len(m.Board.Columns[store.StateDone]))
+	}
+	if m.SelectedCol != 3 {
+		t.Fatalf("SelectedCol = %d, want 3", m.SelectedCol)
+	}
+	if !strings.Contains(m.Status, "done") {
+		t.Fatalf("Status = %q, want mention of done", m.Status)
+	}
+}
+
+func TestCapitalHMovesSelectedToFirstColumn(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	writeTUITestTicket(t, root, store.StateDone, "a.md", "Task: a")
+	board, _ := store.LoadBoard(root)
+	m := NewModelWithRoot(root, board)
+	m.SelectedCol = 3
+
+	// Select the ticket then enter move mode and press H
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'v'}})
+	m = got.(Model)
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	m = got.(Model)
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'H'}})
+	m = got.(Model)
+
+	if len(m.Board.Columns[store.StateBacklog]) != 1 {
+		t.Fatalf("backlog len = %d, want 1", len(m.Board.Columns[store.StateBacklog]))
+	}
+	if m.SelectedCol != 0 {
+		t.Fatalf("SelectedCol = %d, want 0", m.SelectedCol)
+	}
+}
+
+func TestMultiSelectVisualIndicator(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{storedTicket("a.md", store.StateBacklog, "Task: a")}
+	m := NewModel(board)
+
+	// Before selection: no * indicator
+	view := m.View()
+	if strings.Contains(view, "* [") {
+		t.Fatal("view shows * before selection")
+	}
+
+	// After selection: * indicator present
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'v'}})
+	m2 := got.(Model)
+	view = m2.View()
+	if !strings.Contains(view, "*") {
+		t.Fatalf("view missing * indicator after selection:\n%s", view)
+	}
+}
+
+func TestCapitalLNoSelectionMovesToLastColumn(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	writeTUITestTicket(t, root, store.StateBacklog, "a.md", "Task: a")
+	board, _ := store.LoadBoard(root)
+	m := NewModelWithRoot(root, board)
+
+	// No selection — L should move focused ticket to done
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	m = got.(Model)
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'L'}})
+	m = got.(Model)
+
+	if len(m.Board.Columns[store.StateDone]) != 1 {
+		t.Fatalf("done len = %d, want 1", len(m.Board.Columns[store.StateDone]))
+	}
+	if m.SelectedCol != 3 {
+		t.Fatalf("SelectedCol = %d, want 3", m.SelectedCol)
+	}
+}
+
 func TestConfigThemePersistedOnSave(t *testing.T) {
 	root := t.TempDir()
 	if err := store.Init(root); err != nil {
