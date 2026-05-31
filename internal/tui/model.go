@@ -645,10 +645,6 @@ func (m Model) updateCreate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "enter":
-			if m.createField == 3 {
-				m.createToRefine = !m.createToRefine
-				return m, nil
-			}
 			if strings.TrimSpace(m.createInput.Value()) == "" {
 				m.Status = "Title required"
 				return m, nil
@@ -786,7 +782,7 @@ func (m Model) renderCreate() string {
 	titleRow := titleLabel + m.createInput.View()
 	priorityRow := priorityLabel + m.renderPriorityOptions()
 	refineRow := refineLabel + checkbox
-	helpRow := mutedStyle.Render("tab/shift-tab field  h/l change  enter create/toggle  esc cancel")
+	helpRow := mutedStyle.Render("tab/shift-tab field  h/l change  space toggle  enter create  esc cancel")
 
 	content := strings.Join([]string{kindRow, "", titleRow, "", priorityRow, "", refineRow, "", helpRow}, "\n")
 

@@ -770,6 +770,28 @@ func TestCreateToRefineCheckboxTogglesWithSpace(t *testing.T) {
 	}
 }
 
+func TestEnterOnToRefineFieldDoesNotToggle(t *testing.T) {
+	model := NewModel(emptyBoard())
+	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	m := got.(Model)
+	initial := m.createToRefine
+
+	// Navigate to toRefine field (field 3)
+	for range 2 {
+		got2, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
+		m = got2.(Model)
+	}
+	if m.createField != 3 {
+		t.Fatalf("createField = %d, want 3", m.createField)
+	}
+
+	got3, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m3 := got3.(Model)
+	if m3.createToRefine != initial {
+		t.Fatalf("enter on field 3 toggled createToRefine: was %v, now %v", initial, m3.createToRefine)
+	}
+}
+
 func TestCreateToRefineAddsLabel(t *testing.T) {
 	boardRoot := filepath.Join(t.TempDir(), ".tickcats")
 	if err := store.Init(boardRoot); err != nil {
