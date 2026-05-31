@@ -1104,3 +1104,86 @@ func TestManualMoveReordersTickets(t *testing.T) {
 		t.Fatalf("after j in manual: order = [%s, %s], want [b.md, a.md]", tickets[0].Name, tickets[1].Name)
 	}
 }
+
+func TestCKeyOpensConfigPage(t *testing.T) {
+	m := newModelForSort(t, emptyBoard())
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	m2 := got.(Model)
+	if m2.Mode != ViewConfig {
+		t.Fatalf("Mode = %v, want ViewConfig", m2.Mode)
+	}
+}
+
+func TestConfigEscReturnsToBoard(t *testing.T) {
+	m := newModelForSort(t, emptyBoard())
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	got2, _ := got.(Model).Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m3 := got2.(Model)
+	if m3.Mode != ViewBoard {
+		t.Fatalf("Mode = %v after esc, want ViewBoard", m3.Mode)
+	}
+}
+
+func TestConfigSelectPresetAndSave(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	board, _ := store.LoadBoard(root)
+	m := NewModelWithRoot(root, board)
+
+	// Open config, cycle to nvim (index 1), save
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	got2, _ := got.(Model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+	got3, _ := got2.(Model).Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m4 := got3.(Model)
+
+	if m4.Mode != ViewBoard {
+		t.Fatalf("Mode = %v after save, want ViewBoard", m4.Mode)
+	}
+	if m4.Config.Editor != "nvim" {
+		t.Fatalf("Config.Editor = %q, want nvim", m4.Config.Editor)
+	}
+
+	// Verify persisted
+	cfg, err := store.LoadConfig(root)
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if cfg.Editor != "nvim" {
+		t.Fatalf("persisted editor = %q, want nvim", cfg.Editor)
+	}
+}
+
+func TestConfigCustomEditor(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	board, _ := store.LoadBoard(root)
+	m := NewModelWithRoot(root, board)
+
+	// Open config, cycle to "custom" (past all presets)
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	mc := got.(Model)
+	for range len(editorPresets) {
+		got2, _ := mc.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+		mc = got2.(Model)
+	}
+	if mc.configEditorIdx != len(editorPresets) {
+		t.Fatalf("configEditorIdx = %d, want %d (custom)", mc.configEditorIdx, len(editorPresets))
+	}
+
+	// Type a custom editor
+	for _, ch := range "emacs" {
+		got2, _ := mc.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
+		mc = got2.(Model)
+	}
+
+	// Save
+	got3, _ := mc.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m4 := got3.(Model)
+	if m4.Config.Editor != "emacs" {
+		t.Fatalf("Config.Editor = %q, want emacs", m4.Config.Editor)
+	}
+}

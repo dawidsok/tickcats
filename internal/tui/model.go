@@ -30,6 +30,7 @@ const (
 	ViewBoard ViewMode = iota
 	ViewDetail
 	ViewCreate
+	ViewConfig
 )
 
 type InteractionMode int
@@ -44,6 +45,9 @@ const (
 
 var createKinds = []ticket.Kind{ticket.KindFeature, ticket.KindTask, ticket.KindBug}
 var createPriorities = []ticket.Priority{ticket.PriorityP0, ticket.PriorityP1, ticket.PriorityP2, ticket.PriorityP3}
+
+// editorPresets are the selectable preset editor commands; empty string means "use $EDITOR".
+var editorPresets = []string{"", "nvim", "vim", "nano", "code", "hx"}
 
 type Model struct {
 	Root            string
@@ -68,6 +72,10 @@ type Model struct {
 	SortMode    store.SortMode
 	ManualOrder map[store.State][]string
 
+	Config           store.Config
+	configEditorIdx  int
+	configEditorInput textinput.Model
+
 	watchCh <-chan struct{}
 }
 
@@ -87,6 +95,7 @@ func NewModelWithRoot(root string, board store.Board) Model {
 	m.ManualOrder = cfg.ManualOrder
 	m.syncManualOrder()
 	m.applySortToBoard()
+	m.Config, _ = store.LoadConfig(root)
 	if fw, err := newFileWatcher(root); err == nil {
 		m.watchCh = fw.ch
 	}
@@ -112,6 +121,9 @@ func (m Model) Init() tea.Cmd {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.Mode == ViewCreate {
 		return m.updateCreate(msg)
+	}
+	if m.Mode == ViewConfig {
+		return m.updateConfig(msg)
 	}
 
 	switch msg := msg.(type) {
@@ -178,6 +190,8 @@ func (m Model) updateBoard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.reloadBoard()
 	case "s":
 		m.cycleSortMode()
+	case "c":
+		return m.enterConfig()
 	}
 	return m, nil
 }
@@ -255,6 +269,8 @@ func (m Model) updateDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.moveDetailScroll(-1)
 	case "e":
 		return m.editSelected()
+	case "c":
+		return m.enterConfig()
 	}
 	return m, nil
 }
@@ -262,6 +278,9 @@ func (m Model) updateDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m Model) View() string {
 	if m.Mode == ViewCreate {
 		return m.renderCreate()
+	}
+	if m.Mode == ViewConfig {
+		return m.renderConfig()
 	}
 	if m.Mode == ViewDetail {
 		return m.renderDetail()
@@ -292,9 +311,9 @@ func (m Model) footerText() string {
 		return "MOVE MODE: h left  l right  j/k reorder (manual)  esc board  q quit"
 	}
 	if m.Mode == ViewDetail {
-		return "DETAIL MODE: j/k scroll  e edit  esc board  q quit"
+		return "DETAIL MODE: j/k scroll  e edit  c config  esc board  q quit"
 	}
-	return fmt.Sprintf("BOARD MODE: h/l col  j/k ticket  m move  s sort(%s)  p ready  o/enter detail  e edit  n new  x del  r reload  q quit", m.SortMode)
+	return fmt.Sprintf("BOARD MODE: h/l col  j/k ticket  m move  s sort(%s)  p ready  o/enter detail  e edit  n new  x del  r reload  c config  q quit", m.SortMode)
 }
 
 func (m *Model) moveColumn(delta int) {
@@ -413,7 +432,7 @@ func (m Model) editSelected() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	cmd := editorCommand(stored.Path)
+	cmd := editorCommand(stored.Path, m.Config.Editor)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -729,7 +748,7 @@ func (m Model) updatePostCreate(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "q", "ctrl+c":
 		return m, tea.Quit
 	case "y":
-		cmd := editorCommand(m.createPending)
+		cmd := editorCommand(m.createPending, m.Config.Editor)
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
@@ -1314,4 +1333,157 @@ func clamp(value int, min int, max int) int {
 		return max
 	}
 	return value
+}
+
+func (m Model) enterConfig() (tea.Model, tea.Cmd) {
+	// Find which preset matches the current config editor.
+	idx := len(editorPresets) // default to "custom"
+	for i, p := range editorPresets {
+		if p == m.Config.Editor {
+			idx = i
+			break
+		}
+	}
+	input := textinput.New()
+	input.Placeholder = "editor command"
+	input.CharLimit = 200
+	m.configEditorIdx = idx
+	m.configEditorInput = input
+	m.Mode = ViewConfig
+	m.Status = ""
+	if idx == len(editorPresets) {
+		m.configEditorInput.SetValue(m.Config.Editor)
+		cmd := m.configEditorInput.Focus()
+		return m, cmd
+	}
+	return m, nil
+}
+
+func (m Model) updateConfig(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		switch keyMsg.String() {
+		case "ctrl+c":
+			return m, tea.Quit
+		case "esc":
+			m.Mode = ViewBoard
+			m.Status = ""
+			return m, nil
+		case "h", "left":
+			if m.configEditorIdx > 0 {
+				m.configEditorIdx--
+			}
+			m.configEditorInput.Blur()
+			return m, nil
+		case "l", "right":
+			if m.configEditorIdx < len(editorPresets) {
+				m.configEditorIdx++
+			}
+			if m.configEditorIdx == len(editorPresets) {
+				cmd := m.configEditorInput.Focus()
+				return m, cmd
+			}
+			m.configEditorInput.Blur()
+			return m, nil
+		case "enter":
+			m.saveConfigEditor()
+			m.Mode = ViewBoard
+			m.Status = "Config saved"
+			return m, nil
+		default:
+			if m.configEditorIdx == len(editorPresets) {
+				var cmd tea.Cmd
+				m.configEditorInput, cmd = m.configEditorInput.Update(keyMsg)
+				return m, cmd
+			}
+		}
+		return m, nil
+	}
+	if m.configEditorIdx == len(editorPresets) {
+		var cmd tea.Cmd
+		m.configEditorInput, cmd = m.configEditorInput.Update(msg)
+		return m, cmd
+	}
+	return m, nil
+}
+
+func (m *Model) saveConfigEditor() {
+	if m.configEditorIdx == len(editorPresets) {
+		m.Config.Editor = strings.TrimSpace(m.configEditorInput.Value())
+	} else {
+		m.Config.Editor = editorPresets[m.configEditorIdx]
+	}
+	_ = store.SaveConfig(m.Root, m.Config)
+}
+
+func (m Model) renderConfig() string {
+	formWidth := m.fullWidth() - 4
+	if formWidth > 64 {
+		formWidth = 64
+	}
+	if formWidth < 44 {
+		formWidth = 44
+	}
+
+	labelW := 9
+	labelStyle := mutedStyle.Width(labelW)
+	activeLabel := selectedStyle.Width(labelW)
+
+	editorLabel := activeLabel.Render("Editor")
+	_ = labelStyle.Render("") // keep consistent
+
+	// Render preset options
+	presetNames := make([]string, 0, len(editorPresets)+1)
+	for _, p := range editorPresets {
+		name := p
+		if name == "" {
+			name = "$EDITOR"
+		}
+		presetNames = append(presetNames, name)
+	}
+	presetNames = append(presetNames, "custom")
+
+	parts := make([]string, 0, len(presetNames))
+	for i, name := range presetNames {
+		if i == m.configEditorIdx {
+			parts = append(parts, selectedStyle.Render("["+name+"]"))
+		} else {
+			parts = append(parts, mutedStyle.Render(name))
+		}
+	}
+	editorRow := editorLabel + strings.Join(parts, "  ")
+
+	var rows []string
+	rows = append(rows, editorRow)
+
+	// Show text input when custom is selected
+	if m.configEditorIdx == len(editorPresets) {
+		inputWidth := formWidth - labelW - 6
+		if inputWidth < 10 {
+			inputWidth = 10
+		}
+		m.configEditorInput.Width = inputWidth
+		rows = append(rows, "", labelStyle.Render("")+m.configEditorInput.View())
+	}
+
+	rows = append(rows, "", mutedStyle.Render("h/l select  enter save  esc cancel"))
+	content := strings.Join(rows, "\n")
+
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("212")).
+		Padding(1, 2).
+		Width(formWidth).
+		Render(content)
+
+	var statusLine string
+	if m.Status != "" {
+		statusLine = "\n" + mutedStyle.Render(m.Status)
+	}
+
+	h := m.Height
+	if h <= 0 {
+		h = 24
+	}
+	return lipgloss.Place(m.fullWidth(), h, lipgloss.Center, lipgloss.Center,
+		selectedStyle.Render("Config")+"\n\n"+box+statusLine)
 }

@@ -5,8 +5,11 @@ import (
 	"os/exec"
 )
 
-func editorCommand(path string) *exec.Cmd {
-	editor := os.Getenv("EDITOR")
+func editorCommand(path, preferred string) *exec.Cmd {
+	editor := preferred
+	if editor == "" {
+		editor = os.Getenv("EDITOR")
+	}
 	if editor == "" {
 		editor = "vi"
 	}

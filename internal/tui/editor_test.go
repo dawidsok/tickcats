@@ -4,7 +4,7 @@ import "testing"
 
 func TestEditorCommandUsesEditorEnv(t *testing.T) {
 	t.Setenv("EDITOR", "nano")
-	cmd := editorCommand("ticket.md")
+	cmd := editorCommand("ticket.md", "")
 	if cmd.Args[0] != "nano" {
 		t.Fatalf("Args[0] = %q, want nano", cmd.Args[0])
 	}
@@ -15,8 +15,16 @@ func TestEditorCommandUsesEditorEnv(t *testing.T) {
 
 func TestEditorCommandFallback(t *testing.T) {
 	t.Setenv("EDITOR", "")
-	cmd := editorCommand("ticket.md")
+	cmd := editorCommand("ticket.md", "")
 	if cmd.Args[0] != "vi" {
 		t.Fatalf("Args[0] = %q, want vi", cmd.Args[0])
+	}
+}
+
+func TestEditorCommandPreferredOverridesEnv(t *testing.T) {
+	t.Setenv("EDITOR", "nano")
+	cmd := editorCommand("ticket.md", "nvim")
+	if cmd.Args[0] != "nvim" {
+		t.Fatalf("Args[0] = %q, want nvim", cmd.Args[0])
 	}
 }
