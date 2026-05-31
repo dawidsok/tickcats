@@ -816,6 +816,41 @@ func TestCreateToRefineAddsLabel(t *testing.T) {
 	}
 }
 
+func TestCreateTitleFieldArrowKeysMovesCursor(t *testing.T) {
+	model := NewModel(emptyBoard())
+	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	m := got.(Model)
+
+	// Type "ab" into title
+	for _, ch := range "ab" {
+		got2, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
+		m = got2.(Model)
+	}
+	if m.createInput.Value() != "ab" {
+		t.Fatalf("value = %q, want ab", m.createInput.Value())
+	}
+
+	// left arrow should move cursor (cursor pos goes from 2 to 1)
+	posBefore := m.createInput.Position()
+	got3, _ := m.Update(tea.KeyMsg{Type: tea.KeyLeft})
+	m3 := got3.(Model)
+	if m3.createInput.Position() >= posBefore {
+		t.Fatalf("cursor did not move left: pos %d -> %d", posBefore, m3.createInput.Position())
+	}
+	// kind must not have changed
+	if m3.createKind != m.createKind {
+		t.Fatalf("left arrow changed kind on title field")
+	}
+
+	// right arrow should move cursor back
+	posAfterLeft := m3.createInput.Position()
+	got4, _ := m3.Update(tea.KeyMsg{Type: tea.KeyRight})
+	m4 := got4.(Model)
+	if m4.createInput.Position() <= posAfterLeft {
+		t.Fatalf("cursor did not move right: pos %d -> %d", posAfterLeft, m4.createInput.Position())
+	}
+}
+
 func TestCreateKindCyclesWithHL(t *testing.T) {
 	model := NewModel(emptyBoard())
 	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})

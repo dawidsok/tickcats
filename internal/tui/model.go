@@ -396,6 +396,11 @@ func (m Model) updateCreate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.createField = (m.createField + 3) % 4
 			return m, m.syncCreateFocus()
 		case "h", "left":
+			if m.createField == 1 {
+				var cmd tea.Cmd
+				m.createInput, cmd = m.createInput.Update(keyMsg)
+				return m, cmd
+			}
 			if m.createField == 0 {
 				m.cycleKind(-1)
 			} else if m.createField == 2 {
@@ -403,6 +408,11 @@ func (m Model) updateCreate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "l", "right":
+			if m.createField == 1 {
+				var cmd tea.Cmd
+				m.createInput, cmd = m.createInput.Update(keyMsg)
+				return m, cmd
+			}
 			if m.createField == 0 {
 				m.cycleKind(1)
 			} else if m.createField == 2 {
