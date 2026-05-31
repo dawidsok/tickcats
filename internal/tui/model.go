@@ -41,6 +41,7 @@ const (
 	InteractionDeleteConfirm
 	InteractionPostCreate
 	InteractionSortPrompt
+	InteractionQuitConfirm
 )
 
 var createKinds = []ticket.Kind{ticket.KindFeature, ticket.KindTask, ticket.KindBug}
@@ -81,6 +82,9 @@ type Model struct {
 	createToRefine bool
 	createField    int
 	createPending  string
+
+	prevMode            ViewMode
+	prevInteractionMode InteractionMode
 
 	SortMode    store.SortMode
 	ManualOrder map[store.State][]string
@@ -142,6 +146,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// Global exits — always honoured outside create/config views.
+		if msg.String() == "ctrl+c" {
+			return m, tea.Quit
+		}
+		if msg.String() == "q" && m.InteractionMode != InteractionQuitConfirm {
+			return m.enterQuitConfirm()
+		}
+		if m.InteractionMode == InteractionQuitConfirm {
+			return m.updateQuitConfirm(msg)
+		}
 		if m.Mode == ViewDetail {
 			return m.updateDetail(msg)
 		}
@@ -322,7 +336,28 @@ func (m Model) View() string {
 	return b.String()
 }
 
+func (m Model) enterQuitConfirm() (tea.Model, tea.Cmd) {
+	m.prevMode = m.Mode
+	m.prevInteractionMode = m.InteractionMode
+	m.InteractionMode = InteractionQuitConfirm
+	return m, nil
+}
+
+func (m Model) updateQuitConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "y", "q":
+		return m, tea.Quit
+	case "n", "esc":
+		m.Mode = m.prevMode
+		m.InteractionMode = m.prevInteractionMode
+	}
+	return m, nil
+}
+
 func (m Model) footerText() string {
+	if m.InteractionMode == InteractionQuitConfirm {
+		return "QUIT? y/q confirm  n/esc cancel"
+	}
 	if m.InteractionMode == InteractionPostCreate {
 		return "y open editor  n/esc stay  d don't ask again"
 	}

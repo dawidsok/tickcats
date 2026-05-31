@@ -211,11 +211,104 @@ func TestPickNextBanner(t *testing.T) {
 	}
 }
 
-func TestUpdateQuit(t *testing.T) {
+func TestQOpensQuitConfirm(t *testing.T) {
 	model := NewModel(emptyBoard())
-	_, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	got, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	m := got.(Model)
+	if cmd != nil {
+		t.Fatal("q should not quit immediately")
+	}
+	if m.InteractionMode != InteractionQuitConfirm {
+		t.Fatalf("InteractionMode = %v, want InteractionQuitConfirm", m.InteractionMode)
+	}
+}
+
+func TestQuitConfirmYQuits(t *testing.T) {
+	model := NewModel(emptyBoard())
+	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	_, cmd := got.(Model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
 	if cmd == nil {
-		t.Fatalf("quit command nil")
+		t.Fatal("y in quit confirm should issue quit cmd")
+	}
+}
+
+func TestQuitConfirmQQuits(t *testing.T) {
+	model := NewModel(emptyBoard())
+	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	_, cmd := got.(Model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	if cmd == nil {
+		t.Fatal("q in quit confirm should issue quit cmd")
+	}
+}
+
+func TestQuitConfirmNCancels(t *testing.T) {
+	model := NewModel(emptyBoard())
+	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	got2, cmd := got.(Model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	m := got2.(Model)
+	if cmd != nil {
+		t.Fatal("n in quit confirm should not quit")
+	}
+	if m.InteractionMode == InteractionQuitConfirm {
+		t.Fatal("still in quit confirm after n")
+	}
+}
+
+func TestCtrlCQuitsImmediately(t *testing.T) {
+	model := NewModel(emptyBoard())
+	_, cmd := model.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	if cmd == nil {
+		t.Fatal("ctrl+c should quit immediately")
+	}
+}
+
+func TestQFromDetailOpensQuitConfirm(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{storedTicket("a.md", store.StateBacklog, "Task: a")}
+	m := NewModel(board)
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter}) // enter detail
+	got2, _ := got.(Model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	m2 := got2.(Model)
+	if m2.InteractionMode != InteractionQuitConfirm {
+		t.Fatalf("InteractionMode = %v, want InteractionQuitConfirm", m2.InteractionMode)
+	}
+	if m2.prevMode != ViewDetail {
+		t.Fatalf("prevMode = %v, want ViewDetail", m2.prevMode)
+	}
+}
+
+func TestQFromDetailConfirmNRestoresDetail(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{storedTicket("a.md", store.StateBacklog, "Task: a")}
+	m := NewModel(board)
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	got2, _ := got.(Model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	got3, _ := got2.(Model).Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m3 := got3.(Model)
+	if m3.Mode != ViewDetail {
+		t.Fatalf("Mode = %v after esc, want ViewDetail", m3.Mode)
+	}
+}
+
+func TestQFromMoveOpensQuitConfirm(t *testing.T) {
+	m := enterMoveMode(t, newModelForSort(t, emptyBoard()))
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	m2 := got.(Model)
+	if m2.InteractionMode != InteractionQuitConfirm {
+		t.Fatalf("InteractionMode = %v, want InteractionQuitConfirm", m2.InteractionMode)
+	}
+	if m2.prevInteractionMode != InteractionMove {
+		t.Fatalf("prevInteractionMode = %v, want InteractionMove", m2.prevInteractionMode)
+	}
+}
+
+func TestQFromMoveConfirmNRestoresMove(t *testing.T) {
+	m := enterMoveMode(t, newModelForSort(t, emptyBoard()))
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	got2, _ := got.(Model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	m2 := got2.(Model)
+	if m2.InteractionMode != InteractionMove {
+		t.Fatalf("InteractionMode = %v after n, want InteractionMove", m2.InteractionMode)
 	}
 }
 
