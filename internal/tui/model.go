@@ -370,7 +370,7 @@ func (m Model) enterCreate() (tea.Model, tea.Cmd) {
 	input.Placeholder = "ticket title"
 	input.CharLimit = 200
 	m.createInput = input
-	m.createKind = ticket.KindFeature
+	m.createKind = ticket.KindTask
 	m.createPriority = ticket.PriorityP2
 	m.createToRefine = false
 	m.createField = 1

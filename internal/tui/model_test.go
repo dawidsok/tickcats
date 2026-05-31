@@ -624,8 +624,8 @@ func TestEnterCreateModeOnN(t *testing.T) {
 	if m.Mode != ViewCreate {
 		t.Fatalf("Mode = %v, want ViewCreate", m.Mode)
 	}
-	if m.createKind != ticket.KindFeature {
-		t.Fatalf("createKind = %v, want KindFeature", m.createKind)
+	if m.createKind != ticket.KindTask {
+		t.Fatalf("createKind = %v, want KindTask", m.createKind)
 	}
 	if m.createPriority != ticket.PriorityP2 {
 		t.Fatalf("createPriority = %v, want P2", m.createPriority)
@@ -862,19 +862,19 @@ func TestCreateKindCyclesWithHL(t *testing.T) {
 	if m2.createField != 0 {
 		t.Fatalf("createField = %d, want 0 (kind)", m2.createField)
 	}
-	if m2.createKind != ticket.KindFeature {
-		t.Fatalf("initial kind = %v, want KindFeature", m2.createKind)
+	if m2.createKind != ticket.KindTask {
+		t.Fatalf("initial kind = %v, want KindTask", m2.createKind)
 	}
 
 	got3, _ := m2.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
 	m3 := got3.(Model)
-	if m3.createKind != ticket.KindTask {
-		t.Fatalf("kind after l = %v, want KindTask", m3.createKind)
+	if m3.createKind != ticket.KindBug {
+		t.Fatalf("kind after l = %v, want KindBug", m3.createKind)
 	}
 
 	got4, _ := m3.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
 	m4 := got4.(Model)
-	if m4.createKind != ticket.KindFeature {
-		t.Fatalf("kind after h = %v, want KindFeature", m4.createKind)
+	if m4.createKind != ticket.KindTask {
+		t.Fatalf("kind after h = %v, want KindTask", m4.createKind)
 	}
 }
