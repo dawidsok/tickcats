@@ -84,6 +84,44 @@ func TestColumnScrollIndicators(t *testing.T) {
 	}
 }
 
+func TestDKeyScrollsHalfPageDown(t *testing.T) {
+	board := emptyBoard()
+	for i := range 10 {
+		board.Columns[store.StateBacklog] = append(board.Columns[store.StateBacklog],
+			storedTicket(fmt.Sprintf("%d.md", i), store.StateBacklog, fmt.Sprintf("Task: %d", i)))
+	}
+	m := NewModel(board)
+	m.Height = 20
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	m2 := got.(Model)
+	if m2.SelectedRows[store.StateBacklog] == 0 {
+		t.Fatal("d did not advance row selection")
+	}
+	if m2.SelectedRows[store.StateBacklog] <= 1 {
+		t.Fatalf("d moved only 1 row, expected half-page jump; row=%d", m2.SelectedRows[store.StateBacklog])
+	}
+}
+
+func TestUKeyScrollsHalfPageUp(t *testing.T) {
+	board := emptyBoard()
+	for i := range 10 {
+		board.Columns[store.StateBacklog] = append(board.Columns[store.StateBacklog],
+			storedTicket(fmt.Sprintf("%d.md", i), store.StateBacklog, fmt.Sprintf("Task: %d", i)))
+	}
+	m := NewModel(board)
+	m.Height = 20
+	// Move to bottom first
+	for range 9 {
+		m.moveRow(1)
+	}
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'u'}})
+	m2 := got.(Model)
+	if m2.SelectedRows[store.StateBacklog] >= 9 {
+		t.Fatal("u did not scroll up")
+	}
+}
+
 func TestEmptyColumnDoesNotPanic(t *testing.T) {
 	model := NewModel(emptyBoard())
 	model.moveRow(1)

@@ -170,6 +170,10 @@ func (m Model) updateBoard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.moveRow(1)
 	case "k", "up":
 		m.moveRow(-1)
+	case "d":
+		m.pageRows(1)
+	case "u":
+		m.pageRows(-1)
 	case "enter", "o":
 		if m.selectedTicket() != nil {
 			m.Mode = ViewDetail
@@ -267,6 +271,10 @@ func (m Model) updateDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.moveDetailScroll(1)
 	case "k", "up":
 		m.moveDetailScroll(-1)
+	case "d":
+		m.moveDetailScroll(m.detailHalfPage())
+	case "u":
+		m.moveDetailScroll(-m.detailHalfPage())
 	case "e":
 		return m.editSelected()
 	case "c":
@@ -311,9 +319,9 @@ func (m Model) footerText() string {
 		return "MOVE MODE: h left  l right  j/k reorder (manual)  esc board  q quit"
 	}
 	if m.Mode == ViewDetail {
-		return "DETAIL MODE: j/k scroll  e edit  c config  esc board  q quit"
+		return "DETAIL MODE: j/k scroll  d/u half-page  e edit  c config  esc board  q quit"
 	}
-	return fmt.Sprintf("BOARD MODE: h/l col  j/k ticket  m move  s sort(%s)  p ready  o/enter detail  e edit  n new  x del  r reload  c config  q quit", m.SortMode)
+	return fmt.Sprintf("BOARD MODE: h/l col  j/k/d/u ticket  m move  s sort(%s)  p ready  o/enter detail  e edit  n new  x del  r reload  c config  q quit", m.SortMode)
 }
 
 func (m *Model) moveColumn(delta int) {
@@ -357,6 +365,17 @@ func (m *Model) moveDetailScroll(delta int) {
 		maxScroll = 0
 	}
 	m.DetailScroll = clamp(m.DetailScroll+delta, 0, maxScroll)
+}
+
+func (m *Model) pageRows(dir int) {
+	half := max(1, m.visibleTicketRows()/2)
+	for range half {
+		m.moveRow(dir)
+	}
+}
+
+func (m Model) detailHalfPage() int {
+	return max(1, m.detailPanelInnerHeight()/2)
 }
 
 func (m *Model) enterDeleteConfirm() {
