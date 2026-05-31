@@ -8,6 +8,7 @@ import (
 
 type Config struct {
 	Editor string `json:"editor,omitempty"`
+	Theme  int    `json:"theme,omitempty"`
 }
 
 func LoadConfig(boardRoot string) (Config, error) {

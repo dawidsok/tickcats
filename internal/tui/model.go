@@ -49,6 +49,19 @@ var createPriorities = []ticket.Priority{ticket.PriorityP0, ticket.PriorityP1, t
 // editorPresets are the selectable preset editor commands; empty string means "use $EDITOR".
 var editorPresets = []string{"", "nvim", "vim", "nano", "code", "hx"}
 
+type colorTheme struct {
+	name   string
+	colors [4]lipgloss.Color // indexed by columnOrder: backlog, ready, doing, done
+}
+
+var colorThemes = []colorTheme{
+	{name: "mono",     colors: [4]lipgloss.Color{"212", "212", "212", "212"}},
+	{name: "gradient", colors: [4]lipgloss.Color{"247", "86", "213", "177"}},
+	{name: "ocean",    colors: [4]lipgloss.Color{"247", "39", "45", "51"}},
+	{name: "fire",     colors: [4]lipgloss.Color{"247", "214", "208", "196"}},
+	{name: "forest",   colors: [4]lipgloss.Color{"247", "78", "34", "28"}},
+}
+
 type Model struct {
 	Root            string
 	Board           store.Board
@@ -72,8 +85,9 @@ type Model struct {
 	SortMode    store.SortMode
 	ManualOrder map[store.State][]string
 
-	Config           store.Config
-	configEditorIdx  int
+	Config            store.Config
+	configField       int // 0=editor, 1=theme
+	configEditorIdx   int
 	configEditorInput textinput.Model
 
 	watchCh <-chan struct{}
@@ -975,7 +989,7 @@ func (m Model) renderColumn(index int, state store.State) string {
 	var b strings.Builder
 	header := strings.ToUpper(string(state))
 	if index == m.SelectedCol {
-		header = selectedStyle.Render(header)
+		header = m.colStyle(index).Render(header)
 	}
 	b.WriteString(header)
 	b.WriteString("\n")
@@ -1032,7 +1046,7 @@ func (m Model) renderColumnLines(index int, state store.State) []string {
 		wrapped := wrapText(fmt.Sprintf("%s[%s] %s", prefix, stored.Ticket.Priority, stored.Ticket.Title), innerWidth)
 		for _, line := range wrapped {
 			if index == m.SelectedCol && row == selectedRow {
-				line = selectedStyle.Render(line)
+				line = m.colStyle(index).Render(line)
 			}
 			if !appendLine(line) {
 				return appendColumnOverflow(lines, innerWidth, len(tickets)-row)
@@ -1354,8 +1368,13 @@ func clamp(value int, min int, max int) int {
 	return value
 }
 
+func (m Model) colStyle(colIndex int) lipgloss.Style {
+	themeIdx := clamp(m.Config.Theme, 0, len(colorThemes)-1)
+	color := colorThemes[themeIdx].colors[clamp(colIndex, 0, 3)]
+	return lipgloss.NewStyle().Bold(true).Foreground(color)
+}
+
 func (m Model) enterConfig() (tea.Model, tea.Cmd) {
-	// Find which preset matches the current config editor.
 	idx := len(editorPresets) // default to "custom"
 	for i, p := range editorPresets {
 		if p == m.Config.Editor {
@@ -1366,6 +1385,7 @@ func (m Model) enterConfig() (tea.Model, tea.Cmd) {
 	input := textinput.New()
 	input.Placeholder = "editor command"
 	input.CharLimit = 200
+	m.configField = 0
 	m.configEditorIdx = idx
 	m.configEditorInput = input
 	m.Mode = ViewConfig
@@ -1387,29 +1407,45 @@ func (m Model) updateConfig(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Mode = ViewBoard
 			m.Status = ""
 			return m, nil
-		case "h", "left":
-			if m.configEditorIdx > 0 {
-				m.configEditorIdx--
-			}
-			m.configEditorInput.Blur()
-			return m, nil
-		case "l", "right":
-			if m.configEditorIdx < len(editorPresets) {
-				m.configEditorIdx++
-			}
-			if m.configEditorIdx == len(editorPresets) {
+		case "tab", "shift+tab":
+			m.configField = (m.configField + 1) % 2
+			if m.configField == 0 && m.configEditorIdx == len(editorPresets) {
 				cmd := m.configEditorInput.Focus()
 				return m, cmd
 			}
 			m.configEditorInput.Blur()
 			return m, nil
+		case "h", "left":
+			if m.configField == 1 {
+				m.Config.Theme = clamp(m.Config.Theme-1, 0, len(colorThemes)-1)
+			} else {
+				if m.configEditorIdx > 0 {
+					m.configEditorIdx--
+				}
+				m.configEditorInput.Blur()
+			}
+			return m, nil
+		case "l", "right":
+			if m.configField == 1 {
+				m.Config.Theme = clamp(m.Config.Theme+1, 0, len(colorThemes)-1)
+			} else {
+				if m.configEditorIdx < len(editorPresets) {
+					m.configEditorIdx++
+				}
+				if m.configEditorIdx == len(editorPresets) {
+					cmd := m.configEditorInput.Focus()
+					return m, cmd
+				}
+				m.configEditorInput.Blur()
+			}
+			return m, nil
 		case "enter":
-			m.saveConfigEditor()
+			m.saveConfig()
 			m.Mode = ViewBoard
 			m.Status = "Config saved"
 			return m, nil
 		default:
-			if m.configEditorIdx == len(editorPresets) {
+			if m.configField == 0 && m.configEditorIdx == len(editorPresets) {
 				var cmd tea.Cmd
 				m.configEditorInput, cmd = m.configEditorInput.Update(keyMsg)
 				return m, cmd
@@ -1417,7 +1453,7 @@ func (m Model) updateConfig(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
-	if m.configEditorIdx == len(editorPresets) {
+	if m.configField == 0 && m.configEditorIdx == len(editorPresets) {
 		var cmd tea.Cmd
 		m.configEditorInput, cmd = m.configEditorInput.Update(msg)
 		return m, cmd
@@ -1425,7 +1461,7 @@ func (m Model) updateConfig(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *Model) saveConfigEditor() {
+func (m *Model) saveConfig() {
 	if m.configEditorIdx == len(editorPresets) {
 		m.Config.Editor = strings.TrimSpace(m.configEditorInput.Value())
 	} else {
@@ -1445,12 +1481,15 @@ func (m Model) renderConfig() string {
 
 	labelW := 9
 	labelStyle := mutedStyle.Width(labelW)
-	activeLabel := selectedStyle.Width(labelW)
+	activeStyle := func(active bool) lipgloss.Style {
+		if active {
+			return selectedStyle.Width(labelW)
+		}
+		return labelStyle
+	}
 
-	editorLabel := activeLabel.Render("Editor")
-	_ = labelStyle.Render("") // keep consistent
-
-	// Render preset options
+	// Editor row
+	editorLabel := activeStyle(m.configField == 0).Render("Editor")
 	presetNames := make([]string, 0, len(editorPresets)+1)
 	for _, p := range editorPresets {
 		name := p
@@ -1460,22 +1499,41 @@ func (m Model) renderConfig() string {
 		presetNames = append(presetNames, name)
 	}
 	presetNames = append(presetNames, "custom")
-
-	parts := make([]string, 0, len(presetNames))
+	editorParts := make([]string, 0, len(presetNames))
 	for i, name := range presetNames {
 		if i == m.configEditorIdx {
-			parts = append(parts, selectedStyle.Render("["+name+"]"))
+			if m.configField == 0 {
+				editorParts = append(editorParts, selectedStyle.Render("["+name+"]"))
+			} else {
+				editorParts = append(editorParts, lipgloss.NewStyle().Bold(true).Render("["+name+"]"))
+			}
 		} else {
-			parts = append(parts, mutedStyle.Render(name))
+			editorParts = append(editorParts, mutedStyle.Render(name))
 		}
 	}
-	editorRow := editorLabel + strings.Join(parts, "  ")
+	editorRow := editorLabel + strings.Join(editorParts, "  ")
+
+	// Theme row
+	themeLabel := activeStyle(m.configField == 1).Render("Theme")
+	themeParts := make([]string, 0, len(colorThemes))
+	for i, t := range colorThemes {
+		if i == m.Config.Theme {
+			if m.configField == 1 {
+				themeParts = append(themeParts, selectedStyle.Render("["+t.name+"]"))
+			} else {
+				themeParts = append(themeParts, lipgloss.NewStyle().Bold(true).Render("["+t.name+"]"))
+			}
+		} else {
+			themeParts = append(themeParts, mutedStyle.Render(t.name))
+		}
+	}
+	themeRow := themeLabel + strings.Join(themeParts, "  ")
 
 	var rows []string
 	rows = append(rows, editorRow)
 
 	// Show text input when custom is selected
-	if m.configEditorIdx == len(editorPresets) {
+	if m.configField == 0 && m.configEditorIdx == len(editorPresets) {
 		inputWidth := formWidth - labelW - 6
 		if inputWidth < 10 {
 			inputWidth = 10
@@ -1484,7 +1542,8 @@ func (m Model) renderConfig() string {
 		rows = append(rows, "", labelStyle.Render("")+m.configEditorInput.View())
 	}
 
-	rows = append(rows, "", mutedStyle.Render("h/l select  enter save  esc cancel"))
+	rows = append(rows, "", themeRow)
+	rows = append(rows, "", mutedStyle.Render("tab field  h/l select  enter save  esc cancel"))
 	content := strings.Join(rows, "\n")
 
 	box := lipgloss.NewStyle().

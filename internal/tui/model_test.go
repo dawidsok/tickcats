@@ -1225,3 +1225,57 @@ func TestConfigCustomEditor(t *testing.T) {
 		t.Fatalf("Config.Editor = %q, want emacs", m4.Config.Editor)
 	}
 }
+
+func TestConfigThemeCyclesWithHL(t *testing.T) {
+	m := newModelForSort(t, emptyBoard())
+
+	// Open config, tab to theme field
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	got2, _ := got.(Model).Update(tea.KeyMsg{Type: tea.KeyTab})
+	mc := got2.(Model)
+	if mc.configField != 1 {
+		t.Fatalf("configField = %d after tab, want 1", mc.configField)
+	}
+	if mc.Config.Theme != 0 {
+		t.Fatalf("initial theme = %d, want 0", mc.Config.Theme)
+	}
+
+	// Cycle right
+	got3, _ := mc.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+	m3 := got3.(Model)
+	if m3.Config.Theme != 1 {
+		t.Fatalf("theme after l = %d, want 1", m3.Config.Theme)
+	}
+
+	// Cycle left
+	got4, _ := m3.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+	m4 := got4.(Model)
+	if m4.Config.Theme != 0 {
+		t.Fatalf("theme after h = %d, want 0", m4.Config.Theme)
+	}
+}
+
+func TestConfigThemePersistedOnSave(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	board, _ := store.LoadBoard(root)
+	m := NewModelWithRoot(root, board)
+
+	// Open config, tab to theme, cycle to theme 2, save
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	got, _ = got.(Model).Update(tea.KeyMsg{Type: tea.KeyTab})
+	got, _ = got.(Model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+	got, _ = got.(Model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+	got, _ = got.(Model).Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m2 := got.(Model)
+
+	if m2.Config.Theme != 2 {
+		t.Fatalf("Config.Theme = %d after save, want 2", m2.Config.Theme)
+	}
+	cfg, _ := store.LoadConfig(root)
+	if cfg.Theme != 2 {
+		t.Fatalf("persisted theme = %d, want 2", cfg.Theme)
+	}
+}
