@@ -62,6 +62,8 @@ type Model struct {
 	createToRefine bool
 	createField    int
 	createPending  string
+
+	watchCh <-chan struct{}
 }
 
 func NewModel(board store.Board) Model {
@@ -69,16 +71,32 @@ func NewModel(board store.Board) Model {
 }
 
 func NewModelWithRoot(root string, board store.Board) Model {
-	return Model{
+	m := Model{
 		Root:         root,
 		Board:        board,
 		SelectedRows: make(map[store.State]int),
 		ColumnScroll: make(map[store.State]int),
 	}
+	if fw, err := newFileWatcher(root); err == nil {
+		m.watchCh = fw.ch
+	}
+	return m
+}
+
+type msgFileChanged struct{}
+
+func waitForWatchEvent(ch <-chan struct{}) tea.Cmd {
+	if ch == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		<-ch
+		return msgFileChanged{}
+	}
 }
 
 func (m Model) Init() tea.Cmd {
-	return nil
+	return waitForWatchEvent(m.watchCh)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -101,6 +119,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateMove(msg)
 		}
 		return m.updateBoard(msg)
+	case msgFileChanged:
+		m.reloadBoard()
+		return m, waitForWatchEvent(m.watchCh)
 	case editorFinishedMsg:
 		m.handleEditorFinished(msg)
 		return m, nil
@@ -140,6 +161,8 @@ func (m Model) updateBoard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.editSelected()
 	case "x":
 		m.enterDeleteConfirm()
+	case "r":
+		m.reloadBoard()
 	}
 	return m, nil
 }
@@ -218,7 +241,7 @@ func (m Model) footerText() string {
 	if m.InteractionMode == InteractionMove {
 		return "MOVE MODE: h left  l right  j/k reorder later  esc board  q quit"
 	}
-	return "BOARD MODE: h/l column  j/k ticket  m move  p ready  o/enter detail  e edit  n new  x delete  q quit"
+	return "BOARD MODE: h/l column  j/k ticket  m move  p ready  o/enter detail  e edit  n new  x delete  r reload  q quit"
 }
 
 func (m *Model) moveColumn(delta int) {
@@ -356,13 +379,39 @@ func (m *Model) handleEditorFinished(msg editorFinishedMsg) {
 		m.Status = "Edit failed: " + msg.err.Error()
 		return
 	}
+	m.reloadBoard()
+	m.Status = "Edited ticket"
+}
+
+func (m *Model) reloadBoard() {
+	state := columnOrder[m.SelectedCol]
+	focusedName := ""
+	if tickets := m.Board.Columns[state]; m.SelectedRows[state] < len(tickets) {
+		focusedName = tickets[m.SelectedRows[state]].Name
+	}
+
 	board, err := store.LoadBoard(m.Root)
 	if err != nil {
 		m.Status = "Reload failed: " + err.Error()
 		return
 	}
 	m.Board = board
-	m.Status = "Edited ticket"
+
+	if focusedName == "" {
+		return
+	}
+	newTickets := m.Board.Columns[state]
+	for i, t := range newTickets {
+		if t.Name == focusedName {
+			m.SelectedRows[state] = i
+			m.ensureSelectedVisible(state)
+			return
+		}
+	}
+	if m.SelectedRows[state] >= len(newTickets) && len(newTickets) > 0 {
+		m.SelectedRows[state] = len(newTickets) - 1
+	}
+	m.ensureSelectedVisible(state)
 }
 
 func (m Model) enterCreate() (tea.Model, tea.Cmd) {

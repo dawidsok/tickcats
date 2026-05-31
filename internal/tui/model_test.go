@@ -875,3 +875,71 @@ func TestCreateKindCyclesWithHL(t *testing.T) {
 		t.Fatalf("kind after h = %v, want KindFeature", m4.createKind)
 	}
 }
+
+func TestRKeyReloadsBoard(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+	writeTUITestTicket(t, root, store.StateBacklog, "a.md", "Task: a")
+	board, err := store.LoadBoard(root)
+	if err != nil {
+		t.Fatalf("LoadBoard() error = %v", err)
+	}
+	m := NewModelWithRoot(root, board)
+
+	// Write a second ticket directly to disk (simulating external change)
+	writeTUITestTicket(t, root, store.StateBacklog, "b.md", "Task: b")
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+	m2 := got.(Model)
+	if len(m2.Board.Columns[store.StateBacklog]) != 2 {
+		t.Fatalf("backlog len = %d after r, want 2", len(m2.Board.Columns[store.StateBacklog]))
+	}
+}
+
+func TestWatcherMsgReloadsBoard(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+	writeTUITestTicket(t, root, store.StateBacklog, "a.md", "Task: a")
+	board, err := store.LoadBoard(root)
+	if err != nil {
+		t.Fatalf("LoadBoard() error = %v", err)
+	}
+	m := NewModelWithRoot(root, board)
+
+	writeTUITestTicket(t, root, store.StateBacklog, "b.md", "Task: b")
+
+	got, cmd := m.Update(msgFileChanged{})
+	m2 := got.(Model)
+	if len(m2.Board.Columns[store.StateBacklog]) != 2 {
+		t.Fatalf("backlog len = %d after watcher msg, want 2", len(m2.Board.Columns[store.StateBacklog]))
+	}
+	if cmd == nil {
+		t.Fatal("Update(msgFileChanged) returned nil cmd — watcher not re-subscribed")
+	}
+}
+
+func TestReloadPreservesFocus(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+	writeTUITestTicket(t, root, store.StateBacklog, "a.md", "Task: a")
+	writeTUITestTicket(t, root, store.StateBacklog, "b.md", "Task: b")
+	board, err := store.LoadBoard(root)
+	if err != nil {
+		t.Fatalf("LoadBoard() error = %v", err)
+	}
+	m := NewModelWithRoot(root, board)
+	m.SelectedRows[store.StateBacklog] = 1 // focus b.md
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+	m2 := got.(Model)
+	focused := m2.Board.Columns[store.StateBacklog][m2.SelectedRows[store.StateBacklog]]
+	if focused.Name != "b.md" {
+		t.Fatalf("focused = %q after reload, want b.md", focused.Name)
+	}
+}
