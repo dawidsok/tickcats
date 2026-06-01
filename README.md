@@ -17,7 +17,8 @@ BOARD MODE: h/l col  j/k/d/u ticket  v select  m move  s sort  n new  q quit
 ### Homebrew (macOS and Linux)
 
 ```sh
-brew install dawidsok/tickcats/tickcats
+brew tap dawidsok/tickcats
+brew install tickcats
 ```
 
 ### Direct download
