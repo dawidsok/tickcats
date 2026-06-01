@@ -1,3 +1,6 @@
+// movement.go handles single-ticket column moves triggered by the p/b keys in
+// board mode and the h/l keys in move mode. For bulk moves see moveAllSelectedBy
+// and moveAllSelectedTo in actions.go.
 package tui
 
 import (

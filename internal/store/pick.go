@@ -1,3 +1,12 @@
+// pick.go implements the "pick next" algorithm that identifies which Ready
+// ticket should be worked on next. A ticket is eligible only when it has a
+// non-empty title, an "## Acceptance Criteria" section with real content, and
+// none of the "[blocked]" or "[to refine]" labels.
+//
+// Eligible tickets are ranked by priority (P0 first) then creation date
+// (oldest first), then filename as a stable tiebreaker. When two or more
+// tickets share the same priority and creation timestamp exactly, NeedsChoice
+// is set to true so the caller can present the tie candidates to the user.
 package store
 
 import (
@@ -6,6 +15,9 @@ import (
 	"github.com/dawidsok/tickcats/internal/ticket"
 )
 
+// PickResult is the outcome of PickNext. HasPick indicates whether any eligible
+// ticket was found. NeedsChoice is true when multiple tickets are tied at the
+// top rank and the user must choose between them.
 type PickResult struct {
 	Ticket      StoredTicket
 	Tied        []StoredTicket
@@ -50,6 +62,9 @@ func PickNext(board Board) PickResult {
 	}
 }
 
+// IsReadyForPick reports whether a ticket meets all eligibility criteria for
+// the pick-next algorithm: in the Ready column, non-empty title, acceptance
+// criteria present, not blocked, not marked "to refine".
 func IsReadyForPick(stored StoredTicket) bool {
 	parsedTitle := stored.Ticket.ParsedTitle
 	return stored.State == StateReady &&

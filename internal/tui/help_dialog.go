@@ -1,11 +1,38 @@
+// help_dialog.go implements the full-screen help overlay (triggered by ?).
+// The dialog renders a scrollable list of keyboard shortcuts grouped by mode.
+// Scroll state is reset to zero each time the dialog opens.
 package tui
 
 import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	tea "github.com/charmbracelet/bubbletea"
 )
+
+func (m Model) enterHelp() (tea.Model, tea.Cmd) {
+	m2 := m.enterInteraction(InteractionHelp)
+	m2.HelpScroll = 0
+	return m2, nil
+}
+
+func (m Model) updateHelp(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "?", "esc", "enter":
+		m = m.dismissInteraction()
+		m.HelpScroll = 0
+		return m, nil
+	case "j", "down":
+		m.moveHelpScroll(1)
+	case "k", "up":
+		m.moveHelpScroll(-1)
+	case "d":
+		m.moveHelpScroll(m.helpPageSize())
+	case "u":
+		m.moveHelpScroll(-m.helpPageSize())
+	}
+	return m, nil
+}
 
 func (m Model) renderHelpDialog() string {
 	lines := helpLines()
@@ -26,20 +53,9 @@ func (m Model) renderHelpDialog() string {
 	content := strings.Join(contentLines, "\n")
 
 	width := min(72, max(48, m.fullWidth()-8))
-	box := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("212")).
-		Padding(1, 2).
-		Width(width).
-		Height(m.helpBoxHeight()).
-		Render(content)
-
-	height := m.Height
-	if height <= 0 {
-		height = 36
-	}
-	return lipgloss.Place(m.fullWidth(), height, lipgloss.Center, lipgloss.Center,
-		selectedStyle.Render("Keyboard Shortcuts")+"\n\n"+box+"\n"+mutedStyle.Render("j/k scroll  d/u half-page  ?/enter/esc close  q quit"))
+	box := dialogBoxStyle(width, m.helpBoxHeight()).Render(content)
+	footer := "\n" + mutedStyle.Render("j/k scroll  d/u half-page  ?/enter/esc close  q quit")
+	return m.placeDialog("Keyboard Shortcuts", box, footer, m.safeHeight(36))
 }
 
 func helpLines() []string {
@@ -100,8 +116,5 @@ func (m Model) helpVisibleLineCount() int {
 }
 
 func (m Model) helpScreenHeight() int {
-	if m.Height <= 0 {
-		return 36
-	}
-	return m.Height
+	return m.safeHeight(36)
 }

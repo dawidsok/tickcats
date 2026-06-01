@@ -1,3 +1,7 @@
+// init.go sets up a new board directory structure. Init is idempotent — it is
+// safe to call on an already-initialised board. It also ensures the board root
+// directory is gitignored by appending an entry to the nearest .gitignore if
+// the entry is not already present.
 package store
 
 import (

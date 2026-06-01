@@ -1,3 +1,8 @@
+// navigation.go handles cursor movement within the board: switching columns,
+// moving the row cursor within a column, and maintaining scroll offsets so the
+// focused ticket is always visible. Column scroll uses a line-budget algorithm
+// rather than a simple row count because each ticket can wrap across multiple
+// terminal lines depending on the title length and column width.
 package tui
 
 import "github.com/dawidsok/tickcats/internal/store"
@@ -31,6 +36,11 @@ func (m *Model) moveRow(delta int) {
 	m.ensureSelectedVisible(state)
 }
 
+// ensureSelectedVisible adjusts ColumnScroll so that the selected row is
+// visible given the column's line budget. The algorithm first tries to scroll
+// up (reduce scroll) to keep the selection on screen, then tries to scroll
+// down only as far as needed. This ensures the selection is always rendered
+// as close to the top as possible while staying in view.
 func (m *Model) ensureSelectedVisible(state store.State) {
 	rows := len(m.Board.Columns[state])
 	if rows == 0 {

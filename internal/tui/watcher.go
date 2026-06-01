@@ -1,3 +1,12 @@
+// watcher.go watches the board state directories for external file changes
+// (e.g. the user editing a ticket in their editor while the TUI is open) and
+// sends a signal on a channel so the TUI can reload the board.
+//
+// Debouncing: rapid filesystem events (common during saves) are collapsed into
+// a single notification by resetting a timer on each event. Only after the
+// debounce period has elapsed with no further events is the signal sent.
+// The channel is buffered with capacity 1; if a signal is already pending the
+// new event is silently dropped rather than blocking the watcher goroutine.
 package tui
 
 import (

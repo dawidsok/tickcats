@@ -1,3 +1,6 @@
+// config_view.go implements the Config settings form (ViewConfig). It exposes
+// two settings: the editor command (preset list + custom text input) and the
+// colour theme. Changes are written to config.json on Enter.
 package tui
 
 import (
@@ -181,22 +184,12 @@ func (m Model) renderConfig() string {
 	rows = append(rows, "", mutedStyle.Render("tab field  h/l select  enter save  esc cancel"))
 	content := strings.Join(rows, "\n")
 
-	box := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("212")).
-		Padding(1, 2).
-		Width(formWidth).
-		Render(content)
+	box := dialogBoxStyle(formWidth, 0).Render(content)
 
 	var statusLine string
 	if m.Status != "" {
 		statusLine = "\n" + mutedStyle.Render(m.Status)
 	}
 
-	h := m.Height
-	if h <= 0 {
-		h = 24
-	}
-	return lipgloss.Place(m.fullWidth(), h, lipgloss.Center, lipgloss.Center,
-		selectedStyle.Render("Config")+"\n\n"+box+statusLine)
+	return m.placeDialog("Config", box, statusLine, m.safeHeight(24))
 }

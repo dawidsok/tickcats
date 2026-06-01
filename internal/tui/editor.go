@@ -1,3 +1,5 @@
+// editor.go builds the exec.Cmd used to open a ticket file in an external
+// editor. The editor is resolved in order: user config → $EDITOR env var → vi.
 package tui
 
 import (

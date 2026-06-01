@@ -1,3 +1,8 @@
+// create.go implements the "New Ticket" form view (ViewCreate). The form has
+// four tab-navigable fields: Kind (feature/task/bug), Title (text input),
+// Priority (P0–P3), and a "To Refine" checkbox. On submit the ticket is
+// written to the backlog and the post-create dialog is shown (unless the user
+// has opted out of the editor prompt).
 package tui
 
 import (
@@ -8,7 +13,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 
 	"github.com/dawidsok/tickcats/internal/store"
 	"github.com/dawidsok/tickcats/internal/ticket"
@@ -213,64 +217,20 @@ func (m Model) renderCreate() string {
 		checkbox = selectedStyle.Render("[x]")
 	}
 
-	kindRow := kindLabel + m.renderKindOptions()
+	kindRow := kindLabel + renderSelectOptions(createKinds, m.createKind, m.createField == 0)
 	titleRow := titleLabel + m.createInput.View()
-	priorityRow := priorityLabel + m.renderPriorityOptions()
+	priorityRow := priorityLabel + renderSelectOptions(createPriorities, m.createPriority, m.createField == 2)
 	refineRow := refineLabel + checkbox
 	helpRow := mutedStyle.Render("tab/shift-tab field  h/l change  space toggle  enter create  esc cancel")
 
 	content := strings.Join([]string{kindRow, "", titleRow, "", priorityRow, "", refineRow, "", helpRow}, "\n")
 
-	box := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("212")).
-		Padding(1, 2).
-		Width(formWidth).
-		Render(content)
+	box := dialogBoxStyle(formWidth, 0).Render(content)
 
 	var statusLine string
 	if m.Status != "" {
 		statusLine = "\n" + mutedStyle.Render(m.Status)
 	}
 
-	h := m.Height
-	if h <= 0 {
-		h = 24
-	}
-	return lipgloss.Place(m.fullWidth(), h, lipgloss.Center, lipgloss.Center,
-		selectedStyle.Render("New Ticket")+"\n\n"+box+statusLine)
-}
-
-func (m Model) renderKindOptions() string {
-	parts := make([]string, 0, len(createKinds))
-	for _, k := range createKinds {
-		name := string(k)
-		if k == m.createKind {
-			if m.createField == 0 {
-				parts = append(parts, selectedStyle.Render("["+name+"]"))
-			} else {
-				parts = append(parts, lipgloss.NewStyle().Bold(true).Render("["+name+"]"))
-			}
-		} else {
-			parts = append(parts, mutedStyle.Render(name))
-		}
-	}
-	return strings.Join(parts, "  ")
-}
-
-func (m Model) renderPriorityOptions() string {
-	parts := make([]string, 0, len(createPriorities))
-	for _, p := range createPriorities {
-		name := string(p)
-		if p == m.createPriority {
-			if m.createField == 2 {
-				parts = append(parts, selectedStyle.Render("["+name+"]"))
-			} else {
-				parts = append(parts, lipgloss.NewStyle().Bold(true).Render("["+name+"]"))
-			}
-		} else {
-			parts = append(parts, mutedStyle.Render(name))
-		}
-	}
-	return strings.Join(parts, "  ")
+	return m.placeDialog("New Ticket", box, statusLine, m.safeHeight(24))
 }

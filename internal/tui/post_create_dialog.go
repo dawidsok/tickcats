@@ -1,10 +1,11 @@
+// post_create_dialog.go renders the "open in editor?" prompt shown immediately
+// after a ticket is created. The user can open the file in their configured
+// editor (y), dismiss the prompt (n/esc), or permanently suppress it (d).
 package tui
 
 import (
 	"path/filepath"
 	"strings"
-
-	"github.com/charmbracelet/lipgloss"
 )
 
 func (m Model) renderPostCreateDialog() string {
@@ -22,18 +23,6 @@ func (m Model) renderPostCreateDialog() string {
 		mutedStyle.Render("d") + "  don't ask again",
 	}, "\n")
 
-	formWidth := 48
-	box := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("212")).
-		Padding(1, 3).
-		Width(formWidth).
-		Render(content)
-
-	h := m.Height
-	if h <= 0 {
-		h = 24
-	}
-	return lipgloss.Place(m.fullWidth(), h, lipgloss.Center, lipgloss.Center,
-		selectedStyle.Render("Ticket Created")+"\n\n"+box)
+	box := dialogBoxStyle(48, 0).Render(content)
+	return m.placeDialog("Ticket Created", box, "", m.safeHeight(24))
 }

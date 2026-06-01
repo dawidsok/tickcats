@@ -1,3 +1,7 @@
+// render_detail.go renders the full-screen detail view for a single ticket.
+// The view is split into two side-by-side panels: a scrollable content panel
+// on the left showing the ticket body, and a fixed metadata panel on the right
+// showing frontmatter fields (ID, state, priority, dates, labels, deadline).
 package tui
 
 import (
@@ -84,10 +88,7 @@ func displayTicketID(id string) string {
 }
 
 func (m Model) detailWidths() (int, int) {
-	width := m.Width
-	if width <= 0 {
-		width = 96
-	}
+	width := m.safeWidth(96)
 	metadata := width / 3
 	content := width - metadata - 3
 	if metadata < 24 {

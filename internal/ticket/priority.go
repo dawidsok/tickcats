@@ -1,3 +1,7 @@
+// priority.go defines the Priority type and its numeric ordering.
+// P0 is highest urgency (rank 0), P3 is lowest (rank 3).
+// The Rank method provides a stable integer ordering used for sorting and
+// pick-next comparisons.
 package ticket
 
 import (
@@ -5,6 +9,7 @@ import (
 	"strings"
 )
 
+// Priority is the urgency level of a ticket, stored as "P0"–"P3" in frontmatter.
 type Priority string
 
 const (
@@ -24,6 +29,8 @@ func ParsePriority(raw string) (Priority, error) {
 	}
 }
 
+// Rank returns the numeric sort position (0 = most urgent). Unknown priorities
+// return 99 so they sort to the bottom rather than panicking.
 func (p Priority) Rank() int {
 	switch p {
 	case PriorityP0:

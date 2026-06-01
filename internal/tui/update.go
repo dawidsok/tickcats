@@ -1,3 +1,8 @@
+// update.go contains the top-level Update dispatcher and the View function.
+// Update routes each incoming message to the correct mode-specific handler,
+// with global keys (ctrl+c, ?, q) intercepted before mode dispatch.
+// View selects which render function to call based on the current Mode and
+// InteractionMode.
 package tui
 
 import (

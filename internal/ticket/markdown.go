@@ -1,3 +1,8 @@
+// Package ticket defines the core domain types for TickCats tickets.
+// Each ticket is stored as a markdown file with YAML frontmatter (title, id,
+// priority, created, updated) followed by a body with ## sections.
+// This file contains the Ticket type, markdown template generators, and the
+// parser that reads a .md file back into a Ticket value.
 package ticket
 
 import (
@@ -8,6 +13,9 @@ import (
 	"time"
 )
 
+// Ticket is the in-memory representation of a single .md ticket file.
+// HasAcceptanceCriteria is true when the "## Acceptance Criteria" section
+// contains at least one non-empty, non-placeholder line.
 type Ticket struct {
 	ID                    string
 	Title                 string
@@ -20,20 +28,30 @@ type Ticket struct {
 	HasAcceptanceCriteria bool
 }
 
+// NewMarkdown generates a markdown ticket file from kind, text, priority, and
+// an optional acceptance-criteria line. The title is normalized to include the
+// kind prefix (e.g. "Feat: …").
 func NewMarkdown(kind Kind, text string, priority Priority, now time.Time, acceptance ...string) string {
 	title := ParsedTitle{Kind: kind, Text: strings.TrimSpace(text), HadPrefix: true}.NormalizedTitle()
 	return NewMarkdownFull(title, priority, now, acceptance...)
 }
 
+// NewMarkdownWithLabels is like NewMarkdown but also includes label prefixes
+// (e.g. "[blocked, to refine]") in the normalized title.
 func NewMarkdownWithLabels(kind Kind, text string, labels []string, priority Priority, now time.Time, acceptance ...string) string {
 	title := ParsedTitle{Kind: kind, Text: strings.TrimSpace(text), Labels: labels, HadPrefix: true}.NormalizedTitle()
 	return NewMarkdownFull(title, priority, now, acceptance...)
 }
 
+// NewMarkdownFull generates a markdown ticket file from a pre-formatted title
+// string (already including kind prefix and labels).
 func NewMarkdownFull(fullTitle string, priority Priority, now time.Time, acceptance ...string) string {
 	return NewMarkdownFullWithID("", fullTitle, priority, now, acceptance...)
 }
 
+// NewMarkdownFullWithID is like NewMarkdownFull but also writes an "id:" line
+// in the frontmatter. If id is empty the field is omitted (used when creating
+// tickets that will get IDs assigned separately via MigrateIDs).
 func NewMarkdownFullWithID(id string, fullTitle string, priority Priority, now time.Time, acceptance ...string) string {
 	timestamp := now.UTC().Format(time.RFC3339)
 	acceptanceText := "-"
@@ -60,6 +78,10 @@ updated: %s
 `, fullTitle, idLine, priority, timestamp, timestamp, acceptanceText)
 }
 
+// ParseMarkdown parses a ticket .md file from raw bytes. It expects YAML
+// frontmatter fenced by "---" delimiters followed by a markdown body.
+// Required frontmatter fields: title, priority, created, updated.
+// Optional: id, deadline (YYYY-MM-DD).
 func ParseMarkdown(data []byte) (Ticket, error) {
 	frontmatter, body, err := splitFrontmatter(data)
 	if err != nil {
@@ -189,6 +211,9 @@ func parseOptionalDate(fields map[string]string, key string) (*time.Time, error)
 	return &parsed, nil
 }
 
+// hasNonEmptySection reports whether a level-2 markdown section (## heading)
+// exists and contains at least one meaningful line. A line is meaningful if it
+// is non-empty and not a bare "-" bullet placeholder.
 func hasNonEmptySection(markdown string, heading string) bool {
 	wanted := "## " + heading
 	lines := strings.Split(strings.ReplaceAll(markdown, "\r\n", "\n"), "\n")

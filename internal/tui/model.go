@@ -1,3 +1,12 @@
+// Package tui implements the interactive terminal UI for TickCats using the
+// Bubble Tea framework (github.com/charmbracelet/bubbletea). The UI follows
+// Bubble Tea's Model-View-Update (MVU) pattern: a single Model value holds all
+// UI state, Update handles incoming events and returns a new Model, and View
+// renders the current state to a string.
+//
+// model.go defines the Model struct and its constructors, global style
+// variables, enum types for view and interaction modes, and per-create/config
+// working state fields.
 package tui
 
 import (
@@ -39,25 +48,29 @@ type notification struct {
 
 type clearNotificationMsg struct{ gen int }
 
+// ViewMode controls which full-screen view is rendered.
 type ViewMode int
 
 const (
-	ViewBoard ViewMode = iota
-	ViewDetail
-	ViewCreate
-	ViewConfig
+	ViewBoard  ViewMode = iota // kanban column layout
+	ViewDetail                 // single-ticket detail panel
+	ViewCreate                 // new ticket form
+	ViewConfig                 // settings form
 )
 
+// InteractionMode is an overlay state layered on top of the current ViewMode.
+// Most overlays (dialogs, move mode) keep the underlying board visible in the
+// footer but suspend normal board key bindings.
 type InteractionMode int
 
 const (
-	InteractionBoard InteractionMode = iota
-	InteractionMove
-	InteractionDeleteConfirm
-	InteractionPostCreate
-	InteractionSortPrompt
-	InteractionQuitConfirm
-	InteractionHelp
+	InteractionBoard         InteractionMode = iota // normal board navigation
+	InteractionMove                                 // moving ticket(s) between columns
+	InteractionDeleteConfirm                        // "delete?" prompt
+	InteractionPostCreate                           // "open in editor?" prompt after create
+	InteractionSortPrompt                           // "switch to manual sort?" prompt
+	InteractionQuitConfirm                          // "quit?" prompt
+	InteractionHelp                                 // help dialog overlay
 )
 
 var createKinds = []ticket.Kind{ticket.KindFeature, ticket.KindTask, ticket.KindBug}
@@ -79,18 +92,22 @@ var colorThemes = []colorTheme{
 	{name: "forest", colors: []lipgloss.Color{"#679", "#5fd787", "#5faf87", "#098a08", "#6b7d68"}},
 }
 
+// Model is the complete UI state passed through every Update/View cycle.
+// It is a value type — Update returns a new copy rather than mutating in place,
+// except for pointer-receiver helpers that modify fields directly as a
+// performance optimisation within the same cycle.
 type Model struct {
-	Root            string
-	Board           store.Board
-	SelectedCol     int
-	ColScrollOffset int
-	SelectedRows    map[store.State]int
-	ColumnScroll    map[store.State]int
-	MultiSelected   map[store.State]map[string]bool
+	Root            string          // absolute path to the board root directory
+	Board           store.Board     // last loaded board snapshot
+	SelectedCol     int             // index into columnOrder for the focused column
+	ColScrollOffset int             // first visible column index when board is wider than terminal
+	SelectedRows    map[store.State]int            // focused row per column
+	ColumnScroll    map[store.State]int            // scroll offset per column
+	MultiSelected   map[store.State]map[string]bool // ticket filenames selected for batch move
 	Mode            ViewMode
 	InteractionMode InteractionMode
-	DetailScroll    int
-	HelpScroll      int
+	DetailScroll    int // scroll offset in the detail body view
+	HelpScroll      int // scroll offset in the help dialog
 	Status          string
 	Width           int
 	Height          int
@@ -119,10 +136,13 @@ type Model struct {
 	notifGen     int
 }
 
+// NewModel creates a Model with the current working directory as the board root.
 func NewModel(board store.Board) Model {
 	return NewModelWithRoot(".", board)
 }
 
+// NewModelWithRoot creates a Model with an explicit board root path. It loads
+// sort config and user config from disk and starts the file watcher goroutine.
 func NewModelWithRoot(root string, board store.Board) Model {
 	m := Model{
 		Root:          root,

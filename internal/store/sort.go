@@ -1,10 +1,9 @@
+// sort.go manages the active sort mode and manual ticket order for each column.
+// SortConfig is persisted to "sort.json" so the user's sort preference and
+// manual ordering survive TUI restarts.
+// Manual sort stores an ordered list of ticket filenames per column; tickets
+// not in the list (e.g. newly created) are appended at the end.
 package store
-
-import (
-	"encoding/json"
-	"os"
-	"path/filepath"
-)
 
 type SortMode string
 
@@ -18,23 +17,16 @@ const (
 var SortModes = []SortMode{SortPriority, SortTitle, SortDate, SortManual}
 
 type SortConfig struct {
-	Mode        SortMode            `json:"mode"`
-	ManualOrder map[State][]string  `json:"manual_order,omitempty"`
+	Mode        SortMode           `json:"mode"`
+	ManualOrder map[State][]string `json:"manual_order,omitempty"`
 }
 
 func LoadSortConfig(boardRoot string) (SortConfig, error) {
-	cfg := SortConfig{
+	cfg, err := loadJSON(boardRoot, "sort.json", SortConfig{
 		Mode:        SortPriority,
 		ManualOrder: make(map[State][]string),
-	}
-	data, err := os.ReadFile(filepath.Join(boardRoot, "sort.json"))
-	if os.IsNotExist(err) {
-		return cfg, nil
-	}
+	})
 	if err != nil {
-		return cfg, err
-	}
-	if err := json.Unmarshal(data, &cfg); err != nil {
 		return cfg, err
 	}
 	if cfg.ManualOrder == nil {
@@ -44,9 +36,5 @@ func LoadSortConfig(boardRoot string) (SortConfig, error) {
 }
 
 func SaveSortConfig(boardRoot string, cfg SortConfig) error {
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(filepath.Join(boardRoot, "sort.json"), data, 0o644)
+	return saveJSON(boardRoot, "sort.json", cfg)
 }

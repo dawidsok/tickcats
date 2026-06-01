@@ -1,3 +1,12 @@
+// Package store is the data layer for TickCats. It owns all file system
+// operations: creating, moving, and deleting ticket files, loading the full
+// board into memory, and persisting configuration. Business logic that depends
+// on board state (pick-next, ID migration) also lives here.
+//
+// state.go defines the State type for the five ticket columns and the
+// input-normalisation logic that makes CLI state arguments case/punctuation
+// insensitive (e.g. "wont-do", "WONT DO", and "won't-do" all parse to
+// StateWontDo).
 package store
 
 import (
@@ -5,8 +14,10 @@ import (
 	"strings"
 )
 
+// RootDir is the default board directory relative to the working directory.
 const RootDir = ".tickcats"
 
+// State is the name of a kanban column, stored as the subdirectory name on disk.
 type State string
 
 const (
@@ -19,6 +30,8 @@ const (
 
 var ValidStates = []State{StateBacklog, StateReady, StateDoing, StateDone, StateWontDo}
 
+// ParseState parses a user-supplied state string with normalisation: lowercase,
+// trim, collapse whitespace to hyphens, strip smart-quotes.
 func ParseState(raw string) (State, error) {
 	state := State(normalizeStateInput(raw))
 	for _, valid := range ValidStates {

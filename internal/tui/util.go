@@ -1,3 +1,7 @@
+// util.go provides stateless helper functions used across the tui package:
+// integer arithmetic (min/max/clamp), terminal-safe text wrapping and
+// truncation, safe terminal-dimension accessors (safeHeight/safeWidth), and a
+// generic option-list renderer used by the create and config forms.
 package tui
 
 import (
@@ -108,6 +112,41 @@ func clamp(value int, min int, max int) int {
 		return max
 	}
 	return value
+}
+
+func (m Model) safeHeight(fallback int) int {
+	if m.Height <= 0 {
+		return fallback
+	}
+	return m.Height
+}
+
+func (m Model) safeWidth(fallback int) int {
+	if m.Width <= 0 {
+		return fallback
+	}
+	return m.Width
+}
+
+// renderSelectOptions renders a horizontal list of selectable string-based
+// options. The selected option is highlighted (bold+colour when focused,
+// bold-only when not), and unselected options are muted. Used by the Kind and
+// Priority fields in the create form and by the editor/theme pickers in config.
+func renderSelectOptions[T ~string](options []T, selected T, isFocused bool) string {
+	parts := make([]string, 0, len(options))
+	for _, opt := range options {
+		name := string(opt)
+		if opt == selected {
+			if isFocused {
+				parts = append(parts, selectedStyle.Render("["+name+"]"))
+			} else {
+				parts = append(parts, lipgloss.NewStyle().Bold(true).Render("["+name+"]"))
+			}
+		} else {
+			parts = append(parts, mutedStyle.Render(name))
+		}
+	}
+	return strings.Join(parts, "  ")
 }
 
 func priorityStyle(p ticket.Priority) lipgloss.Style {

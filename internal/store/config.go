@@ -1,11 +1,10 @@
+// config.go persists user-level board preferences (editor command, colour
+// theme, skip-editor-prompt flag) to "config.json" in the board root.
+// Missing file is treated as an empty config (all zero values / defaults).
 package store
 
-import (
-	"encoding/json"
-	"os"
-	"path/filepath"
-)
-
+// Config holds user preferences that are saved between TUI sessions.
+// SkipEditorPrompt suppresses the "open in editor?" dialog after ticket creation.
 type Config struct {
 	Editor           string `json:"editor,omitempty"`
 	Theme            int    `json:"theme,omitempty"`
@@ -13,22 +12,9 @@ type Config struct {
 }
 
 func LoadConfig(boardRoot string) (Config, error) {
-	var cfg Config
-	data, err := os.ReadFile(filepath.Join(boardRoot, "config.json"))
-	if os.IsNotExist(err) {
-		return cfg, nil
-	}
-	if err != nil {
-		return cfg, err
-	}
-	err = json.Unmarshal(data, &cfg)
-	return cfg, err
+	return loadJSON(boardRoot, "config.json", Config{})
 }
 
 func SaveConfig(boardRoot string, cfg Config) error {
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(filepath.Join(boardRoot, "config.json"), data, 0o644)
+	return saveJSON(boardRoot, "config.json", cfg)
 }

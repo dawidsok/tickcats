@@ -1,36 +1,31 @@
+// delete.go implements soft-deletion by moving ticket files into a .trash
+// subdirectory rather than permanently removing them. The source file is
+// validated before the move to prevent trashing corrupted files.
 package store
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
-
-	"github.com/dawidsok/tickcats/internal/ticket"
 )
 
 const TrashDir = ".trash"
 
+// Trash moves a ticket file from its state directory into the .trash
+// subdirectory. Returns the destination path on success.
 func Trash(root string, name string, from State) (string, error) {
 	if _, err := ParseState(string(from)); err != nil {
 		return "", err
 	}
 
-	cleanName := filepath.Base(name)
-	if cleanName != name {
-		return "", fmt.Errorf("ticket name must be a file name, got %q", name)
-	}
-	if !strings.HasSuffix(cleanName, ".md") {
-		return "", fmt.Errorf("ticket name must end with .md, got %q", name)
+	cleanName, err := validateTicketFilename(name)
+	if err != nil {
+		return "", err
 	}
 
 	source := filepath.Join(root, string(from), cleanName)
-	data, err := os.ReadFile(source)
-	if err != nil {
-		return "", fmt.Errorf("read source ticket %q: %w", source, err)
-	}
-	if _, err := ticket.ParseMarkdown(data); err != nil {
-		return "", fmt.Errorf("parse source ticket %q: %w", source, err)
+	if _, _, err := readAndParseTicket(source); err != nil {
+		return "", err
 	}
 
 	trashDir := filepath.Join(root, TrashDir)

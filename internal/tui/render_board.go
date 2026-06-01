@@ -1,3 +1,11 @@
+// render_board.go renders the kanban board view: the pick-next banner, the
+// horizontal scroll indicator, and each visible column with its tickets.
+//
+// Deadline SLA bar: tickets with a deadline show a compact progress indicator
+// "SLA |||::." where each segment represents a state (ready=|||, doing=::,
+// done=.). Active segments are coloured with the column's theme colour; inactive
+// segments are muted. The number of active segments encodes time remaining:
+// 6 = overdue, 5 = ≤1 day, 4 = ≤3 days, 3 = ≤7 days, 2 = ≤14 days, 1 = >14 days.
 package tui
 
 import (
@@ -130,6 +138,8 @@ func (m Model) renderColumnLines(index int, state store.State) []string {
 	return lines
 }
 
+// ticketColumnLines returns the plain (unstyled) wrapped lines for a ticket,
+// used by the layout engine to measure how many lines a ticket occupies.
 func (m Model) ticketColumnLines(state store.State, row int, innerWidth int) []string {
 	tickets := m.Board.Columns[state]
 	if row < 0 || row >= len(tickets) {
@@ -183,6 +193,10 @@ func (m Model) styledTicketColumnLines(index int, state store.State, row int, in
 	return wrapped
 }
 
+// appendColumnOverflow replaces the last rendered line with a "↓ N below"
+// indicator when the column content overflows the available height. The
+// replacement is skipped when the last rendered row is the selected one,
+// because hiding the selected ticket would be confusing.
 func appendColumnOverflow(lines []string, width int, below int, lastRenderedRow int, selectedRow int) []string {
 	if below <= 0 || len(lines) == 0 || lastRenderedRow == selectedRow {
 		return lines

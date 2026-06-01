@@ -1,3 +1,8 @@
+// Package main is the CLI entry point for TickCats.
+// It parses the optional --path flag and dispatches to subcommand handlers.
+// When invoked without arguments it opens the interactive TUI; all other
+// subcommands (init, new, list, move, pick-next, ids) are scriptable and
+// print results to stdout.
 package main
 
 import (
@@ -74,7 +79,7 @@ func runNew(args []string, boardPath string) error {
 		return fmt.Errorf("usage: tickcats new feat|task|bug <title>")
 	}
 
-	kind, err := parseNewKind(args[0])
+	kind, err := ticket.ParseKind(args[0])
 	if err != nil {
 		return err
 	}
@@ -214,6 +219,9 @@ func printPickNextPath(result store.PickResult) error {
 	return nil
 }
 
+// splitTitleAndAcceptance splits CLI args at the "--ac" / "--acceptance" flag.
+// Everything before the flag is the title words; everything after is joined as
+// the acceptance-criteria string.
 func splitTitleAndAcceptance(args []string) ([]string, string) {
 	for i, arg := range args {
 		if arg == "--ac" || arg == "--acceptance" {
@@ -233,18 +241,6 @@ func runTUI(boardPath string) error {
 	return err
 }
 
-func parseNewKind(raw string) (ticket.Kind, error) {
-	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case "feat", "feature":
-		return ticket.KindFeature, nil
-	case "task":
-		return ticket.KindTask, nil
-	case "bug", "fix":
-		return ticket.KindBug, nil
-	default:
-		return "", fmt.Errorf("unknown ticket kind %q", raw)
-	}
-}
 
 func printWarnings(warnings []store.Warning) {
 	for _, warning := range warnings {

@@ -1,3 +1,10 @@
+// ids.go provides the MigrateIDs command that back-fills stable TC-XXXXXX IDs
+// into existing ticket files that were created before IDs were introduced.
+// For each ticket without an id frontmatter field, it: generates a unique ID,
+// injects an "id: TC-XXXXXX" line directly after the "title:" line in the raw
+// file bytes, and renames the file to include the ID as a prefix.
+// The migration aborts if any duplicate IDs already exist in the board to
+// avoid silently overwriting data.
 package store
 
 import (
@@ -77,6 +84,10 @@ func duplicateIDWarnings(warnings []Warning) int {
 	return count
 }
 
+// addIDToMarkdown injects "id: <id>" into the frontmatter immediately after
+// the "title:" line, operating on raw bytes to avoid round-tripping through
+// the full YAML parser (which would lose comments and field ordering).
+// Returns the original data unchanged if an id field is already present.
 func addIDToMarkdown(data []byte, id string) ([]byte, error) {
 	data = bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))
 	lines := strings.Split(string(data), "\n")

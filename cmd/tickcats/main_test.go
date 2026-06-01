@@ -9,9 +9,10 @@ import (
 	"time"
 
 	"github.com/dawidsok/tickcats/internal/store"
+	"github.com/dawidsok/tickcats/internal/ticket"
 )
 
-func TestParseNewKind(t *testing.T) {
+func TestParseKind(t *testing.T) {
 	tests := []struct {
 		raw string
 		ok  bool
@@ -26,12 +27,12 @@ func TestParseNewKind(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.raw, func(t *testing.T) {
-			_, err := parseNewKind(tt.raw)
+			_, err := ticket.ParseKind(tt.raw)
 			if tt.ok && err != nil {
-				t.Fatalf("parseNewKind() error = %v", err)
+				t.Fatalf("ticket.ParseKind() error = %v", err)
 			}
 			if !tt.ok && err == nil {
-				t.Fatalf("parseNewKind() expected error")
+				t.Fatalf("ticket.ParseKind() expected error")
 			}
 		})
 	}

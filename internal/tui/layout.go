@@ -1,3 +1,9 @@
+// layout.go computes derived dimensions from the terminal size (m.Width,
+// m.Height) used by render functions throughout the TUI. All dimension helpers
+// return sensible fallback values when the terminal reports zero size (e.g.
+// during tests or before the first WindowSizeMsg).
+// renderFooter and footerText also live here because the footer is tightly
+// coupled to layout dimensions and interaction mode display strings.
 package tui
 
 import (
@@ -100,6 +106,35 @@ func (m Model) columnInnerWidth() int {
 func (m Model) renderFooter() string {
 	line := m.renderFooterSeparator()
 	return line + "\n" + mutedStyle.Render(m.footerText()) + "\n"
+}
+
+func (m Model) footerText() string {
+	if m.InteractionMode == InteractionQuitConfirm {
+		return "QUIT? y/q confirm  n/esc cancel"
+	}
+	if m.InteractionMode == InteractionHelp {
+		return "HELP: ?/enter/esc close  q quit"
+	}
+	if m.InteractionMode == InteractionPostCreate {
+		return "y open editor  n/esc stay  d don't ask again"
+	}
+	if m.InteractionMode == InteractionDeleteConfirm {
+		return "DELETE? y confirm  n/esc cancel  q quit"
+	}
+	if m.InteractionMode == InteractionSortPrompt {
+		return "Switch to manual sort? y confirm  n/esc cancel  q quit"
+	}
+	if m.InteractionMode == InteractionMove {
+		sel := m.totalSelected()
+		if sel > 0 {
+			return fmt.Sprintf("MOVE (%d): h/l move  H/L ends  ? help  esc board  q quit", sel)
+		}
+		return "MOVE: h/l move  H/L ends  j/k reorder  ? help  esc board  q quit"
+	}
+	if m.Mode == ViewDetail {
+		return "DETAIL: j/k scroll  e edit  ? help  esc board  q quit"
+	}
+	return "BOARD: h/l columns  j/k tickets  enter detail  m move  n new  ? help  q quit"
 }
 
 func (m Model) renderFooterSeparator() string {

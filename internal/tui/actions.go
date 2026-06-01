@@ -1,3 +1,11 @@
+// actions.go implements user-triggered operations that modify board state:
+// deleting a ticket, editing in an external editor, moving selected tickets
+// in bulk, reordering within a column, and cycling the sort mode.
+//
+// The reload pattern used throughout this file: after any store mutation the
+// board must be reloaded from disk, the manual order synced to the new state,
+// and the sort applied. loadAndResortBoard encapsulates this sequence;
+// reloadBoard extends it with cursor preservation and multi-select cleanup.
 package tui
 
 import (
@@ -78,13 +86,9 @@ func (m *Model) handleEditorFinished(msg editorFinishedMsg) tea.Cmd {
 	return m.notify("Edited ticket", notifSuccess)
 }
 
-func (m *Model) reloadBoard() bool {
-	state := columnOrder[m.SelectedCol]
-	focusedName := ""
-	if tickets := m.Board.Columns[state]; m.SelectedRows[state] < len(tickets) {
-		focusedName = tickets[m.SelectedRows[state]].Name
-	}
-
+// loadAndResortBoard reloads the board from disk and re-applies sort.
+// It is the base reload step; reloadBoard extends this with cursor restoration.
+func (m *Model) loadAndResortBoard() bool {
 	board, err := store.LoadBoard(m.Root)
 	if err != nil {
 		m.Status = "Reload failed: " + err.Error()
@@ -93,6 +97,23 @@ func (m *Model) reloadBoard() bool {
 	m.Board = board
 	m.syncManualOrder()
 	m.applySortToBoard()
+	return true
+}
+
+// reloadBoard reloads the board and attempts to restore the cursor to the same
+// ticket it was on before the reload. Used for file-watch events and the manual
+// reload key so the cursor does not jump unexpectedly when tickets are added or
+// removed externally.
+func (m *Model) reloadBoard() bool {
+	state := columnOrder[m.SelectedCol]
+	focusedName := ""
+	if tickets := m.Board.Columns[state]; m.SelectedRows[state] < len(tickets) {
+		focusedName = tickets[m.SelectedRows[state]].Name
+	}
+
+	if !m.loadAndResortBoard() {
+		return false
+	}
 	m.syncMultiSelected()
 
 	if focusedName == "" {
@@ -134,6 +155,9 @@ func (m *Model) saveSortConfig() {
 	})
 }
 
+// syncManualOrder reconciles the persisted ManualOrder map with the current
+// board state: new tickets are appended to the end of the order list, and
+// tickets that no longer exist in the board are removed.
 func (m *Model) syncManualOrder() {
 	if m.ManualOrder == nil {
 		m.ManualOrder = make(map[store.State][]string)
@@ -324,14 +348,9 @@ func (m *Model) moveAllSelectedBy(delta int) tea.Cmd {
 		moved++
 	}
 
-	board, err := store.LoadBoard(m.Root)
-	if err != nil {
-		m.Status = "Reload failed: " + err.Error()
+	if !m.loadAndResortBoard() {
 		return nil
 	}
-	m.Board = board
-	m.syncManualOrder()
-	m.applySortToBoard()
 
 	newSelected := make(map[store.State]map[string]bool)
 	for _, r := range refs {
@@ -378,14 +397,9 @@ func (m *Model) moveAllSelectedTo(targetCol int) tea.Cmd {
 		moved++
 	}
 
-	board, err := store.LoadBoard(m.Root)
-	if err != nil {
-		m.Status = "Reload failed: " + err.Error()
+	if !m.loadAndResortBoard() {
 		return nil
 	}
-	m.Board = board
-	m.syncManualOrder()
-	m.applySortToBoard()
 
 	newSelected := make(map[store.State]map[string]bool)
 	targetState := columnOrder[targetCol]

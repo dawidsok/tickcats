@@ -1,3 +1,6 @@
+// board.go provides LoadBoard, which scans every state directory and builds
+// the in-memory Board representation, and Move, which atomically relocates a
+// ticket file from one state directory to another.
 package store
 
 import (
@@ -10,11 +13,17 @@ import (
 	"github.com/dawidsok/tickcats/internal/ticket"
 )
 
+// Board holds the full in-memory state of a TickCats board.
+// Columns maps each State to its sorted slice of tickets.
+// Warnings records non-fatal parse errors encountered during LoadBoard so the
+// TUI can surface them without blocking the rest of the board from loading.
 type Board struct {
 	Columns  map[State][]StoredTicket
 	Warnings []Warning
 }
 
+// StoredTicket couples a parsed Ticket with the on-disk location details
+// needed to move or delete it without re-scanning the board.
 type StoredTicket struct {
 	Path   string
 	Name   string
@@ -22,11 +31,16 @@ type StoredTicket struct {
 	Ticket ticket.Ticket
 }
 
+// Warning records a non-fatal error encountered while loading a ticket file.
 type Warning struct {
 	Path string
 	Err  error
 }
 
+// LoadBoard scans every state directory under root and returns a Board with
+// all valid tickets. Unreadable or unparseable files are added to Board.Warnings
+// rather than causing a hard failure. Tickets with missing or duplicate IDs
+// also produce warnings. Each column is sorted by filename for stable ordering.
 func LoadBoard(root string) (Board, error) {
 	board := Board{
 		Columns:  make(map[State][]StoredTicket, len(ValidStates)),
@@ -94,6 +108,9 @@ func LoadBoard(root string) (Board, error) {
 	return board, nil
 }
 
+// Move relocates a ticket file from one state directory to another using an
+// atomic rename. It validates the filename, parses the source file to confirm
+// it is a valid ticket, and checks for conflicts before moving.
 func Move(root string, name string, from State, to State) (string, error) {
 	if _, err := ParseState(string(from)); err != nil {
 		return "", err
@@ -102,24 +119,17 @@ func Move(root string, name string, from State, to State) (string, error) {
 		return "", err
 	}
 
-	cleanName := filepath.Base(name)
-	if cleanName != name {
-		return "", fmt.Errorf("ticket name must be a file name, got %q", name)
-	}
-	if !strings.HasSuffix(cleanName, ".md") {
-		return "", fmt.Errorf("ticket name must end with .md, got %q", name)
+	cleanName, err := validateTicketFilename(name)
+	if err != nil {
+		return "", err
 	}
 
 	source := filepath.Join(root, string(from), cleanName)
 	targetDir := filepath.Join(root, string(to))
 	target := filepath.Join(targetDir, cleanName)
 
-	data, err := os.ReadFile(source)
-	if err != nil {
-		return "", fmt.Errorf("read source ticket %q: %w", source, err)
-	}
-	if _, err := ticket.ParseMarkdown(data); err != nil {
-		return "", fmt.Errorf("parse source ticket %q: %w", source, err)
+	if _, _, err := readAndParseTicket(source); err != nil {
+		return "", err
 	}
 
 	if err := os.MkdirAll(targetDir, 0o755); err != nil {

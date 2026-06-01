@@ -1,3 +1,6 @@
+// create.go handles new ticket creation. It initialises the board if needed,
+// generates a unique ID, builds the markdown content, and writes the file into
+// the backlog directory. Filename format is "<id-lowercase>-<slug>.md".
 package store
 
 import (
@@ -11,6 +14,9 @@ import (
 	"github.com/dawidsok/tickcats/internal/ticket"
 )
 
+// Create writes a new ticket file into the backlog directory and returns its
+// absolute path. ac is an optional acceptance-criteria string included in the
+// generated markdown template.
 func Create(boardRoot string, kind ticket.Kind, title string, labels []string, priority ticket.Priority, now time.Time, ac ...string) (string, error) {
 	if err := Init(boardRoot); err != nil {
 		return "", fmt.Errorf("init board: %w", err)
