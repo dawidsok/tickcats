@@ -138,8 +138,8 @@ func TestWindowSizeUpdatesModel(t *testing.T) {
 	if got.Width != 120 || got.Height != 40 {
 		t.Fatalf("size = %dx%d, want 120x40", got.Width, got.Height)
 	}
-	if got.columnWidth() != 28 {
-		t.Fatalf("columnWidth = %d, want 28", got.columnWidth())
+	if got.columnWidth() != 58 {
+		t.Fatalf("columnWidth = %d, want 58", got.columnWidth())
 	}
 }
 
@@ -1617,19 +1617,19 @@ func TestVisibleColumnCountNarrowWide(t *testing.T) {
 		t.Fatalf("width=0: visibleColumnCount = %d, want %d", m.visibleColumnCount(), len(columnOrder))
 	}
 
-	m.Width = 120
+	m.Width = 240
 	if m.visibleColumnCount() != 4 {
-		t.Fatalf("width=120: visibleColumnCount = %d, want 4", m.visibleColumnCount())
+		t.Fatalf("width=240: visibleColumnCount = %d, want 4", m.visibleColumnCount())
+	}
+
+	m.Width = 120
+	if m.visibleColumnCount() != 2 {
+		t.Fatalf("width=120: visibleColumnCount = %d, want 2", m.visibleColumnCount())
 	}
 
 	m.Width = 60
-	if m.visibleColumnCount() != 2 {
-		t.Fatalf("width=60: visibleColumnCount = %d, want 2", m.visibleColumnCount())
-	}
-
-	m.Width = 28
 	if m.visibleColumnCount() != 1 {
-		t.Fatalf("width=28: visibleColumnCount = %d, want 1", m.visibleColumnCount())
+		t.Fatalf("width=60: visibleColumnCount = %d, want 1", m.visibleColumnCount())
 	}
 }
 
@@ -1679,7 +1679,7 @@ func TestHScrollIndicatorShownOnNarrowTerminal(t *testing.T) {
 
 func TestHScrollIndicatorNotShownWhenAllFit(t *testing.T) {
 	m := NewModel(emptyBoard())
-	m.Width = 120
+	m.Width = 240
 
 	if m.renderHScrollIndicator() != "" {
 		t.Fatal("hscroll indicator shown when all columns fit")

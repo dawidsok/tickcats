@@ -18,7 +18,7 @@ import (
 
 var columnOrder = []store.State{store.StateBacklog, store.StateReady, store.StateDoing, store.StateDone}
 
-const minColumnWidth = 28 // minimum total width per column (including borders/margin)
+const minColumnWidth = 60 // minimum total width per column (including borders/margin)
 
 var (
 	selectedStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212"))
