@@ -30,7 +30,7 @@ cd your-project
 tickcats init          # create .tickcats/ and add it to .gitignore
 tickcats new feat "Add dark mode support"
 tickcats new task "Write tests" --ac "All handlers covered"
-tickcats tui           # open the board
+tickcats                # open the board (no command defaults to tui)
 ```
 
 ## Commands
@@ -42,7 +42,8 @@ tickcats tui           # open the board
 | `tickcats list` | List tickets grouped by state |
 | `tickcats move <ticket> <from> <to>` | Move a ticket between states |
 | `tickcats pick-next` | Print the next recommended ready ticket |
-| `tickcats tui` | Open the terminal board |
+| `tickcats` | Open the terminal board (default when no command given) |
+| `tickcats tui` | Open the terminal board (explicit) |
 
 All commands accept `--path <dir>` to target a board other than `.tickcats`.
 
