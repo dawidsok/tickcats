@@ -1,3 +1,4 @@
 .tickcats/
 /.tickcats-test
 /tickcats
+/.env
