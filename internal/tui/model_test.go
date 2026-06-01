@@ -267,6 +267,21 @@ func TestDetailMetadataHeaderAndColors(t *testing.T) {
 	if !strings.Contains(meta, "Priority:") || !strings.Contains(meta, "P0") {
 		t.Fatalf("missing priority value: %s", meta)
 	}
+	if strings.Contains(meta, "Deadline:") {
+		t.Fatalf("unexpected deadline line for ticket without deadline: %s", meta)
+	}
+}
+
+func TestDetailMetadataShowsDeadlineWhenPresent(t *testing.T) {
+	stored := storedTicket("a.md", store.StateReady, "Task: a")
+	deadline := time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC)
+	stored.Ticket.Deadline = &deadline
+	m := NewModel(emptyBoard())
+
+	meta := m.renderDetailMetadata(stored)
+	if !strings.Contains(meta, "Deadline: 2026-06-15") {
+		t.Fatalf("missing deadline line: %s", meta)
+	}
 }
 
 func TestDetailWidthsSplitTwoThirdsOneThird(t *testing.T) {

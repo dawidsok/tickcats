@@ -55,6 +55,9 @@ func TestCreateWritesTicketInBacklog(t *testing.T) {
 	if !strings.Contains(string(data), "P2") {
 		t.Fatalf("content missing priority: %s", data)
 	}
+	if strings.Contains(string(data), "deadline:") {
+		t.Fatalf("content includes deadline by default: %s", data)
+	}
 }
 
 func TestCreateFilenameContainsSlug(t *testing.T) {

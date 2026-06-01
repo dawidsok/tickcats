@@ -140,6 +140,7 @@ classDiagram
         Priority Priority
         time Created
         time Updated
+        optional date Deadline
         string Body
         bool HasAcceptanceCriteria
     }

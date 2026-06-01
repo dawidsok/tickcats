@@ -116,6 +116,7 @@ title: "Feat: Add dark mode support [to refine]"
 priority: P1
 created: 2026-05-30T10:00:00Z
 updated: 2026-05-31T14:22:00Z
+deadline: 2026-06-15
 ---
 
 ## Context
@@ -128,7 +129,7 @@ Users have requested a dark mode option for the dashboard.
 - Preference is persisted across sessions
 ```
 
-State is derived from which folder the file lives in — not from frontmatter.
+State is derived from which folder the file lives in — not from frontmatter. `deadline` is optional and, when present, uses `YYYY-MM-DD`; new tickets omit it by default.
 
 ## Board layout
 

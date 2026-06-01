@@ -68,12 +68,33 @@ func TestLoadBoardSkipsMalformedTicketsWithWarning(t *testing.T) {
 	}
 }
 
+func TestLoadBoardWarnsOnInvalidDeadline(t *testing.T) {
+	root := t.TempDir()
+	mustInit(t, root)
+	badPath := filepath.Join(root, string(StateReady), "bad-deadline.md")
+	content := strings.Replace(ticketContent("Task: bad deadline", time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC), time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC)), "updated: 2026-05-30T10:00:00Z\n", "updated: 2026-05-30T10:00:00Z\ndeadline: soon\n", 1)
+	if err := os.WriteFile(badPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("write bad deadline ticket: %v", err)
+	}
+
+	board, err := LoadBoard(root)
+	if err != nil {
+		t.Fatalf("LoadBoard() error = %v", err)
+	}
+	if len(board.Warnings) != 1 {
+		t.Fatalf("Warnings count = %d, want 1", len(board.Warnings))
+	}
+	if !strings.Contains(board.Warnings[0].Err.Error(), "invalid deadline date") {
+		t.Fatalf("warning error = %v, want invalid deadline date", board.Warnings[0].Err)
+	}
+}
+
 func TestMoveTicketPreservesContentAndDoesNotUpdateTimestamp(t *testing.T) {
 	root := t.TempDir()
 	mustInit(t, root)
 	created := time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC)
 	updated := time.Date(2026, 5, 30, 11, 0, 0, 0, time.UTC)
-	content := ticketContent("Task: move me", created, updated)
+	content := strings.Replace(ticketContent("Task: move me", created, updated), "updated: 2026-05-30T11:00:00Z\n", "updated: 2026-05-30T11:00:00Z\ndeadline: 2026-06-15\n", 1)
 	source := filepath.Join(root, string(StateReady), "move-me.md")
 	if err := os.WriteFile(source, []byte(content), 0o644); err != nil {
 		t.Fatalf("write source ticket: %v", err)

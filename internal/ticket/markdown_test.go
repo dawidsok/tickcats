@@ -53,6 +53,36 @@ func TestNewMarkdownWithAcceptanceCriteria(t *testing.T) {
 	}
 }
 
+func TestNewMarkdownOmitsDeadlineByDefault(t *testing.T) {
+	now := time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC)
+	content := NewMarkdown(KindTask, "write README", PriorityP2, now)
+	if strings.Contains(content, "deadline:") {
+		t.Fatalf("NewMarkdown() included deadline by default:\n%s", content)
+	}
+	got, err := ParseMarkdown([]byte(content))
+	if err != nil {
+		t.Fatalf("ParseMarkdown() error = %v", err)
+	}
+	if got.Deadline != nil {
+		t.Fatalf("Deadline = %v, want nil", got.Deadline)
+	}
+}
+
+func TestParseMarkdownOptionalDeadline(t *testing.T) {
+	content := strings.Replace(validTicketContent("Task: write README", "- done"), "updated: 2026-05-30T10:00:00Z\n", "updated: 2026-05-30T10:00:00Z\ndeadline: 2026-06-15\n", 1)
+	got, err := ParseMarkdown([]byte(content))
+	if err != nil {
+		t.Fatalf("ParseMarkdown() error = %v", err)
+	}
+	if got.Deadline == nil {
+		t.Fatal("Deadline = nil, want parsed date")
+	}
+	want := time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC)
+	if !got.Deadline.Equal(want) {
+		t.Fatalf("Deadline = %s, want %s", got.Deadline, want)
+	}
+}
+
 func TestParseMarkdownParsesTitleLabelsAndDefaultsKind(t *testing.T) {
 	content := `---
 title: [idea, to refine] write README
@@ -134,6 +164,7 @@ func TestParseMarkdownMalformedFrontmatter(t *testing.T) {
 		{name: "missing title", content: strings.Replace(validTicketContent("Task: x", "- done"), "title: Task: x\n", "", 1), wantErr: "missing required frontmatter field \"title\""},
 		{name: "invalid priority", content: strings.Replace(validTicketContent("Task: x", "- done"), "priority: P2", "priority: high", 1), wantErr: "invalid priority"},
 		{name: "invalid created", content: strings.Replace(validTicketContent("Task: x", "- done"), "created: 2026-05-30T10:00:00Z", "created: yesterday", 1), wantErr: "invalid created timestamp"},
+		{name: "invalid deadline", content: strings.Replace(validTicketContent("Task: x", "- done"), "updated: 2026-05-30T10:00:00Z\n", "updated: 2026-05-30T10:00:00Z\ndeadline: soon\n", 1), wantErr: "invalid deadline date"},
 	}
 
 	for _, tt := range tests {

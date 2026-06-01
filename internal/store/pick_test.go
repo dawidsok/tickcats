@@ -84,6 +84,17 @@ func TestPickNextMissingKindPrefixStillEligible(t *testing.T) {
 	}
 }
 
+func TestPickNextTicketWithDeadlineStillEligible(t *testing.T) {
+	root := t.TempDir()
+	mustInit(t, root)
+	writeTicketWithDeadline(t, root, StateReady, "deadline.md", "Task: deadline", "P1", atHour(10), "2026-06-15", "- done")
+
+	result := pickFromRoot(t, root)
+	if result.Ticket.Name != "deadline.md" {
+		t.Fatalf("pick = %q, want deadline.md", result.Ticket.Name)
+	}
+}
+
 func TestPickNextReturnsDeterministicTieSet(t *testing.T) {
 	root := t.TempDir()
 	mustInit(t, root)
@@ -129,13 +140,22 @@ func pickFromRoot(t *testing.T, root string) PickResult {
 
 func writeTicketWith(t *testing.T, root string, state State, name string, title string, priority string, created time.Time, acceptance string) {
 	t.Helper()
+	writeTicketWithDeadline(t, root, state, name, title, priority, created, "", acceptance)
+}
+
+func writeTicketWithDeadline(t *testing.T, root string, state State, name string, title string, priority string, created time.Time, deadline string, acceptance string) {
+	t.Helper()
 	path := filepath.Join(root, string(state), name)
+	deadlineLine := ""
+	if deadline != "" {
+		deadlineLine = "deadline: " + deadline + "\n"
+	}
 	content := `---
 title: ` + title + `
 priority: ` + priority + `
 created: ` + created.Format(time.RFC3339) + `
 updated: ` + created.Format(time.RFC3339) + `
----
+` + deadlineLine + `---
 
 ## Context
 

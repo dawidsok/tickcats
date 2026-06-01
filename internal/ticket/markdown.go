@@ -14,6 +14,7 @@ type Ticket struct {
 	Priority              Priority
 	Created               time.Time
 	Updated               time.Time
+	Deadline              *time.Time
 	Body                  string
 	HasAcceptanceCriteria bool
 }
@@ -82,6 +83,10 @@ func ParseMarkdown(data []byte) (Ticket, error) {
 	if err != nil {
 		return Ticket{}, err
 	}
+	deadline, err := parseOptionalDate(fields, "deadline")
+	if err != nil {
+		return Ticket{}, err
+	}
 
 	bodyText := string(body)
 	return Ticket{
@@ -90,6 +95,7 @@ func ParseMarkdown(data []byte) (Ticket, error) {
 		Priority:              priority,
 		Created:               created,
 		Updated:               updated,
+		Deadline:              deadline,
 		Body:                  bodyText,
 		HasAcceptanceCriteria: hasNonEmptySection(bodyText, "Acceptance Criteria"),
 	}, nil
@@ -157,6 +163,18 @@ func parseRequiredTime(fields map[string]string, key string) (time.Time, error) 
 		return time.Time{}, fmt.Errorf("invalid %s timestamp %q: %w", key, value, err)
 	}
 	return parsed, nil
+}
+
+func parseOptionalDate(fields map[string]string, key string) (*time.Time, error) {
+	value := strings.TrimSpace(fields[key])
+	if value == "" {
+		return nil, nil
+	}
+	parsed, err := time.Parse(time.DateOnly, value)
+	if err != nil {
+		return nil, fmt.Errorf("invalid %s date %q: expected YYYY-MM-DD: %w", key, value, err)
+	}
+	return &parsed, nil
 }
 
 func hasNonEmptySection(markdown string, heading string) bool {

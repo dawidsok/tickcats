@@ -1477,6 +1477,9 @@ func (m Model) renderDetailMetadata(stored store.StoredTicket) string {
 	if len(stored.Ticket.ParsedTitle.Labels) > 0 {
 		b.WriteString(fmt.Sprintf("Labels: %s\n", strings.Join(stored.Ticket.ParsedTitle.Labels, ", ")))
 	}
+	if stored.Ticket.Deadline != nil {
+		b.WriteString(fmt.Sprintf("Deadline: %s\n", stored.Ticket.Deadline.Format(time.DateOnly)))
+	}
 	b.WriteString(fmt.Sprintf("Created: %s\n", stored.Ticket.Created.Format("2006-01-02 15:04")))
 	b.WriteString(fmt.Sprintf("Updated: %s", stored.Ticket.Updated.Format("2006-01-02 15:04")))
 	return b.String()
