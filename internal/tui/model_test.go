@@ -410,8 +410,8 @@ func TestMoveSelectedRightMovesTicketOnDisk(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, string(store.StateReady), "a.md")); err != nil {
 		t.Fatalf("ready ticket missing: %v", err)
 	}
-	if !strings.Contains(got.Status, "Moved a.md to ready") {
-		t.Fatalf("Status = %q", got.Status)
+	if !strings.Contains(got.notifText(), "Moved a.md to ready") {
+		t.Fatalf("notification = %q, want 'Moved a.md to ready'", got.notifText())
 	}
 	if got.InteractionMode != InteractionMove {
 		t.Fatalf("InteractionMode = %v, want move after move", got.InteractionMode)
@@ -447,8 +447,8 @@ func TestMoveSelectedLeftMovesTicketOnDisk(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, string(store.StateBacklog), "a.md")); err != nil {
 		t.Fatalf("backlog ticket missing: %v", err)
 	}
-	if !strings.Contains(got.Status, "Moved a.md to backlog") {
-		t.Fatalf("Status = %q", got.Status)
+	if !strings.Contains(got.notifText(), "Moved a.md to backlog") {
+		t.Fatalf("notification = %q, want 'Moved a.md to backlog'", got.notifText())
 	}
 }
 
@@ -533,8 +533,8 @@ func TestEditorFinishedReloadsBoard(t *testing.T) {
 
 	updated, _ := model.Update(editorFinishedMsg{})
 	got := updated.(Model)
-	if got.Status != "Edited ticket" {
-		t.Fatalf("Status = %q, want edited", got.Status)
+	if got.notifText() != "Edited ticket" {
+		t.Fatalf("notification = %q, want 'Edited ticket'", got.notifText())
 	}
 	if len(got.Board.Columns[store.StateReady]) != 1 {
 		t.Fatalf("ready count = %d, want 1", len(got.Board.Columns[store.StateReady]))
@@ -600,8 +600,8 @@ func TestDeleteConfirmMovesTicketToTrash(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, store.TrashDir, "a.md")); err != nil {
 		t.Fatalf("trash file missing: %v", err)
 	}
-	if model.Status != "Deleted a.md" {
-		t.Fatalf("Status = %q, want deleted", model.Status)
+	if model.notifText() != "Deleted a.md" {
+		t.Fatalf("notification = %q, want 'Deleted a.md'", model.notifText())
 	}
 }
 
@@ -699,6 +699,13 @@ Context.
 	}
 }
 
+func (m Model) notifText() string {
+	if m.notification == nil {
+		return ""
+	}
+	return m.notification.text
+}
+
 func emptyBoard() store.Board {
 	columns := make(map[store.State][]store.StoredTicket)
 	for _, state := range columnOrder {
@@ -766,8 +773,8 @@ func TestPProgressesTicketToNextColumn(t *testing.T) {
 			if _, err := os.Stat(filepath.Join(root, string(tt.to), "a.md")); err != nil {
 				t.Fatalf("moved ticket missing: %v", err)
 			}
-			if !strings.Contains(m.Status, fmt.Sprintf("Moved a.md to %s", tt.to)) {
-				t.Fatalf("Status = %q", m.Status)
+			if !strings.Contains(m.notifText(), fmt.Sprintf("Moved a.md to %s", tt.to)) {
+				t.Fatalf("notification = %q, want 'Moved a.md to %s'", m.notifText(), tt.to)
 			}
 		})
 	}
@@ -832,8 +839,8 @@ func TestBBacktracksTicketToPreviousColumn(t *testing.T) {
 			if _, err := os.Stat(filepath.Join(root, string(tt.to), "a.md")); err != nil {
 				t.Fatalf("moved ticket missing: %v", err)
 			}
-			if !strings.Contains(m.Status, fmt.Sprintf("Moved a.md to %s", tt.to)) {
-				t.Fatalf("Status = %q", m.Status)
+			if !strings.Contains(m.notifText(), fmt.Sprintf("Moved a.md to %s", tt.to)) {
+				t.Fatalf("notification = %q, want 'Moved a.md to %s'", m.notifText(), tt.to)
 			}
 		})
 	}
@@ -983,8 +990,8 @@ func TestPostCreateNReturnsToBoard(t *testing.T) {
 	if m4.InteractionMode != InteractionBoard {
 		t.Fatalf("InteractionMode = %v, want InteractionBoard after n", m4.InteractionMode)
 	}
-	if !strings.Contains(m4.Status, "Created") {
-		t.Fatalf("Status = %q, want 'Created ...'", m4.Status)
+	if !strings.Contains(m4.notifText(), "Created") {
+		t.Fatalf("notification = %q, want 'Created ...'", m4.notifText())
 	}
 }
 
@@ -1246,6 +1253,75 @@ func TestCreateKindCyclesWithHL(t *testing.T) {
 	m4 := got4.(Model)
 	if m4.createKind != ticket.KindFeature {
 		t.Fatalf("kind after h = %v, want KindFeature", m4.createKind)
+	}
+}
+
+func TestRKeyShowsReloadNotification(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+	board, _ := store.LoadBoard(root)
+	m := NewModelWithRoot(root, board)
+
+	got, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+	m2 := got.(Model)
+	if m2.notifText() != "Board reloaded" {
+		t.Fatalf("notification = %q, want 'Board reloaded'", m2.notifText())
+	}
+	if m2.notification.kind != notifSuccess {
+		t.Fatalf("notification kind = %v, want notifSuccess", m2.notification.kind)
+	}
+	if cmd == nil {
+		t.Fatal("r key returned nil cmd, want tick for auto-clear")
+	}
+}
+
+func TestDeleteNotificationShownAndAutoClearsOnTick(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+	writeTUITestTicket(t, root, store.StateReady, "a.md", "Task: a")
+	board, _ := store.LoadBoard(root)
+	m := NewModelWithRoot(root, board)
+	m.SelectedCol = 1
+
+	// confirm delete
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	got2, cmd := got.(Model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	m2 := got2.(Model)
+
+	if m2.notifText() != "Deleted a.md" {
+		t.Fatalf("notification = %q, want 'Deleted a.md'", m2.notifText())
+	}
+	if m2.notification.kind != notifSuccess {
+		t.Fatalf("notification kind = %v, want notifSuccess", m2.notification.kind)
+	}
+	if cmd == nil {
+		t.Fatal("delete returned nil cmd, want tick for auto-clear")
+	}
+
+	// simulate tick firing the clear message
+	gen := m2.notification.gen
+	got3, _ := m2.Update(clearNotificationMsg{gen: gen})
+	m3 := got3.(Model)
+	if m3.notification != nil {
+		t.Fatalf("notification not cleared after clearNotificationMsg: %q", m3.notifText())
+	}
+}
+
+func TestStaleTickDoesNotClearNewerNotification(t *testing.T) {
+	m := NewModel(emptyBoard())
+	m.notify("first", notifSuccess)
+	gen1 := m.notification.gen
+	m.notify("second", notifSuccess)
+
+	// stale tick from the first notify fires
+	got, _ := m.Update(clearNotificationMsg{gen: gen1})
+	m2 := got.(Model)
+	if m2.notification == nil || m2.notifText() != "second" {
+		t.Fatalf("stale tick cleared newer notification: notification = %q", m2.notifText())
 	}
 }
 
@@ -1609,8 +1685,8 @@ func TestMultiSelectMovesAllWithL(t *testing.T) {
 	if m.totalSelected() != 2 {
 		t.Fatalf("totalSelected after move = %d, want 2", m.totalSelected())
 	}
-	if !strings.Contains(m.Status, "Moved 2 ticket(s)") {
-		t.Fatalf("Status = %q, want 'Moved 2 ticket(s)'", m.Status)
+	if !strings.Contains(m.notifText(), "Moved 2 ticket(s)") {
+		t.Fatalf("notification = %q, want 'Moved 2 ticket(s)'", m.notifText())
 	}
 }
 
@@ -1637,8 +1713,8 @@ func TestCapitalLMovesSelectedToLastColumn(t *testing.T) {
 	if m.SelectedCol != 3 {
 		t.Fatalf("SelectedCol = %d, want 3", m.SelectedCol)
 	}
-	if !strings.Contains(m.Status, "done") {
-		t.Fatalf("Status = %q, want mention of done", m.Status)
+	if !strings.Contains(m.notifText(), "done") {
+		t.Fatalf("notification = %q, want mention of done", m.notifText())
 	}
 }
 

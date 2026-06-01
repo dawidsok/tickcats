@@ -21,10 +21,28 @@ var columnOrder = []store.State{store.StateBacklog, store.StateReady, store.Stat
 const minColumnWidth = 60 // minimum total width per column (including borders/margin)
 
 var (
-	selectedStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212"))
-	mutedStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	bannerStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
+	selectedStyle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212"))
+	mutedStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	bannerStyle      = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
+	notifSuccessStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#5fd787"))
+	notifErrorStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#ff5f5f"))
 )
+
+type notifKind int
+
+const (
+	notifInfo notifKind = iota
+	notifSuccess
+	notifError
+)
+
+type notification struct {
+	text string
+	kind notifKind
+	gen  int
+}
+
+type clearNotificationMsg struct{ gen int }
 
 type ViewMode int
 
@@ -99,6 +117,9 @@ type Model struct {
 	configEditorInput textinput.Model
 
 	watchCh <-chan struct{}
+
+	notification *notification
+	notifGen     int
 }
 
 func NewModel(board store.Board) Model {
@@ -135,6 +156,15 @@ func waitForWatchEvent(ch <-chan struct{}) tea.Cmd {
 		<-ch
 		return msgFileChanged{}
 	}
+}
+
+func (m *Model) notify(text string, kind notifKind) tea.Cmd {
+	m.notifGen++
+	gen := m.notifGen
+	m.notification = &notification{text: text, kind: kind, gen: gen}
+	return tea.Tick(3*time.Second, func(time.Time) tea.Msg {
+		return clearNotificationMsg{gen: gen}
+	})
 }
 
 func (m Model) Init() tea.Cmd {
@@ -177,12 +207,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateMove(msg)
 		}
 		return m.updateBoard(msg)
+	case clearNotificationMsg:
+		if m.notification != nil && m.notification.gen == msg.gen {
+			m.notification = nil
+		}
+		return m, nil
 	case msgFileChanged:
 		m.reloadBoard()
 		return m, waitForWatchEvent(m.watchCh)
 	case editorFinishedMsg:
-		m.handleEditorFinished(msg)
-		return m, nil
+		return m, m.handleEditorFinished(msg)
 	case tea.WindowSizeMsg:
 		m.Width = msg.Width
 		m.Height = msg.Height
@@ -229,15 +263,17 @@ func (m Model) updateBoard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "n":
 		return m.enterCreate()
 	case "p":
-		m.moveSelected(1)
+		return m, m.moveSelected(1)
 	case "b":
-		m.moveSelected(-1)
+		return m, m.moveSelected(-1)
 	case "e":
 		return m.editSelected()
 	case "x":
 		m.enterDeleteConfirm()
 	case "r":
-		m.reloadBoard()
+		if m.reloadBoard() {
+			return m, m.notify("Board reloaded", notifSuccess)
+		}
 	case "s":
 		m.cycleSortMode()
 	case "c":
@@ -254,13 +290,13 @@ func (m Model) updateMove(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.InteractionMode = InteractionBoard
 		m.Status = "Board mode"
 	case "h", "left":
-		m.moveAllSelectedBy(-1)
+		return m, m.moveAllSelectedBy(-1)
 	case "l", "right":
-		m.moveAllSelectedBy(1)
+		return m, m.moveAllSelectedBy(1)
 	case "H":
-		m.moveAllSelectedTo(0)
+		return m, m.moveAllSelectedTo(0)
 	case "L":
-		m.moveAllSelectedTo(len(columnOrder) - 1)
+		return m, m.moveAllSelectedTo(len(columnOrder) - 1)
 	case "j", "down":
 		if m.SortMode == store.SortManual {
 			m.moveSelectedInColumn(1)
@@ -305,7 +341,7 @@ func (m Model) updateDeleteConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.InteractionMode = InteractionBoard
 		m.Status = "Delete cancelled"
 	case "y":
-		m.deleteSelected()
+		return m, m.deleteSelected()
 	}
 	return m, nil
 }
@@ -479,30 +515,31 @@ func (m *Model) enterDeleteConfirm() {
 	m.Status = fmt.Sprintf("Delete %s?", stored.Name)
 }
 
-func (m *Model) deleteSelected() {
+func (m *Model) deleteSelected() tea.Cmd {
 	stored := m.selectedTicket()
 	if stored == nil {
 		m.InteractionMode = InteractionBoard
 		m.Status = "No ticket selected"
-		return
+		return nil
 	}
 
-	if _, err := store.Trash(m.Root, stored.Name, stored.State); err != nil {
+	name := stored.Name
+	if _, err := store.Trash(m.Root, name, stored.State); err != nil {
 		m.InteractionMode = InteractionBoard
 		m.Status = "Delete failed: " + err.Error()
-		return
+		return nil
 	}
 
 	board, err := store.LoadBoard(m.Root)
 	if err != nil {
 		m.InteractionMode = InteractionBoard
 		m.Status = "Reload failed: " + err.Error()
-		return
+		return nil
 	}
 
 	m.Board = board
 	m.InteractionMode = InteractionBoard
-	m.Status = fmt.Sprintf("Deleted %s", stored.Name)
+	return m.notify("Deleted "+name, notifSuccess)
 }
 
 func (m Model) editSelected() (tea.Model, tea.Cmd) {
@@ -526,16 +563,16 @@ type editorFinishedMsg struct {
 	err error
 }
 
-func (m *Model) handleEditorFinished(msg editorFinishedMsg) {
+func (m *Model) handleEditorFinished(msg editorFinishedMsg) tea.Cmd {
 	if msg.err != nil {
 		m.Status = "Edit failed: " + msg.err.Error()
-		return
+		return nil
 	}
 	m.reloadBoard()
-	m.Status = "Edited ticket"
+	return m.notify("Edited ticket", notifSuccess)
 }
 
-func (m *Model) reloadBoard() {
+func (m *Model) reloadBoard() bool {
 	state := columnOrder[m.SelectedCol]
 	focusedName := ""
 	if tickets := m.Board.Columns[state]; m.SelectedRows[state] < len(tickets) {
@@ -545,7 +582,7 @@ func (m *Model) reloadBoard() {
 	board, err := store.LoadBoard(m.Root)
 	if err != nil {
 		m.Status = "Reload failed: " + err.Error()
-		return
+		return false
 	}
 	m.Board = board
 	m.syncManualOrder()
@@ -553,20 +590,21 @@ func (m *Model) reloadBoard() {
 	m.syncMultiSelected()
 
 	if focusedName == "" {
-		return
+		return true
 	}
 	newTickets := m.Board.Columns[state]
 	for i, t := range newTickets {
 		if t.Name == focusedName {
 			m.SelectedRows[state] = i
 			m.ensureSelectedVisible(state)
-			return
+			return true
 		}
 	}
 	if m.SelectedRows[state] >= len(newTickets) && len(newTickets) > 0 {
 		m.SelectedRows[state] = len(newTickets) - 1
 	}
 	m.ensureSelectedVisible(state)
+	return true
 }
 
 func (m *Model) cycleSortMode() {
@@ -755,10 +793,9 @@ func (m *Model) allSelectedRefs() []selectedRef {
 	return refs
 }
 
-func (m *Model) moveAllSelectedBy(delta int) {
+func (m *Model) moveAllSelectedBy(delta int) tea.Cmd {
 	if m.totalSelected() == 0 {
-		m.moveSelected(delta)
-		return
+		return m.moveSelected(delta)
 	}
 
 	refs := m.allSelectedRefs()
@@ -776,7 +813,7 @@ func (m *Model) moveAllSelectedBy(delta int) {
 		}
 		if _, err := store.Move(m.Root, r.name, r.state, columnOrder[toIdx]); err != nil {
 			m.Status = "Move failed: " + err.Error()
-			return
+			return nil
 		}
 		moved++
 	}
@@ -784,7 +821,7 @@ func (m *Model) moveAllSelectedBy(delta int) {
 	board, err := store.LoadBoard(m.Root)
 	if err != nil {
 		m.Status = "Reload failed: " + err.Error()
-		return
+		return nil
 	}
 	m.Board = board
 	m.syncManualOrder()
@@ -812,15 +849,14 @@ func (m *Model) moveAllSelectedBy(delta int) {
 		} else {
 			m.Status = "Ticket(s) already at first column"
 		}
-	} else {
-		m.Status = fmt.Sprintf("Moved %d ticket(s)", moved)
+		return nil
 	}
+	return m.notify(fmt.Sprintf("Moved %d ticket(s)", moved), notifSuccess)
 }
 
-func (m *Model) moveAllSelectedTo(targetCol int) {
+func (m *Model) moveAllSelectedTo(targetCol int) tea.Cmd {
 	if m.totalSelected() == 0 {
-		m.moveSelected(targetCol - m.SelectedCol)
-		return
+		return m.moveSelected(targetCol - m.SelectedCol)
 	}
 
 	refs := m.allSelectedRefs()
@@ -831,7 +867,7 @@ func (m *Model) moveAllSelectedTo(targetCol int) {
 		}
 		if _, err := store.Move(m.Root, r.name, r.state, columnOrder[targetCol]); err != nil {
 			m.Status = "Move failed: " + err.Error()
-			return
+			return nil
 		}
 		moved++
 	}
@@ -839,7 +875,7 @@ func (m *Model) moveAllSelectedTo(targetCol int) {
 	board, err := store.LoadBoard(m.Root)
 	if err != nil {
 		m.Status = "Reload failed: " + err.Error()
-		return
+		return nil
 	}
 	m.Board = board
 	m.syncManualOrder()
@@ -857,9 +893,9 @@ func (m *Model) moveAllSelectedTo(targetCol int) {
 
 	if moved == 0 {
 		m.Status = fmt.Sprintf("Ticket(s) already at %s", columnOrder[targetCol])
-	} else {
-		m.Status = fmt.Sprintf("Moved %d ticket(s) to %s", moved, columnOrder[targetCol])
+		return nil
 	}
+	return m.notify(fmt.Sprintf("Moved %d ticket(s) to %s", moved, columnOrder[targetCol]), notifSuccess)
 }
 
 func (m Model) enterCreate() (tea.Model, tea.Cmd) {
@@ -990,8 +1026,7 @@ func (m Model) submitCreate() (tea.Model, tea.Cmd) {
 	m.createPending = path
 	if m.Config.SkipEditorPrompt {
 		m.InteractionMode = InteractionBoard
-		m.Status = "Created " + filepath.Base(path)
-		return m, nil
+		return m, m.notify("Created "+filepath.Base(path), notifSuccess)
 	}
 	m.InteractionMode = InteractionPostCreate
 	m.Status = ""
@@ -1013,12 +1048,12 @@ func (m Model) updatePostCreate(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		})
 	case "n", "esc":
 		m.InteractionMode = InteractionBoard
-		m.Status = "Created " + filepath.Base(m.createPending)
+		return m, m.notify("Created "+filepath.Base(m.createPending), notifSuccess)
 	case "d":
 		m.Config.SkipEditorPrompt = true
 		_ = store.SaveConfig(m.Root, m.Config)
 		m.InteractionMode = InteractionBoard
-		m.Status = "Created " + filepath.Base(m.createPending) + " (won't ask again)"
+		return m, m.notify("Created "+filepath.Base(m.createPending)+" (won't ask again)", notifSuccess)
 	}
 	return m, nil
 }
@@ -1124,42 +1159,34 @@ func (m Model) renderPriorityOptions() string {
 	return strings.Join(parts, "  ")
 }
 
-func (m *Model) moveSelectedRight() {
-	m.moveSelected(1)
-}
-
-func (m *Model) moveSelectedLeft() {
-	m.moveSelected(-1)
-}
-
-func (m *Model) moveSelected(delta int) {
+func (m *Model) moveSelected(delta int) tea.Cmd {
 	stored := m.selectedTicket()
 	if stored == nil {
 		m.Status = "No ticket selected"
-		return
+		return nil
 	}
 
 	from := columnOrder[m.SelectedCol]
 	toIndex := m.SelectedCol + delta
 	if toIndex < 0 {
 		m.Status = "Ticket already in backlog"
-		return
+		return nil
 	}
 	if toIndex >= len(columnOrder) {
 		m.Status = "Ticket already done"
-		return
+		return nil
 	}
 	to := columnOrder[toIndex]
 
 	if _, err := store.Move(m.Root, stored.Name, from, to); err != nil {
 		m.Status = "Move failed: " + err.Error()
-		return
+		return nil
 	}
 
 	board, err := store.LoadBoard(m.Root)
 	if err != nil {
 		m.Status = "Reload failed: " + err.Error()
-		return
+		return nil
 	}
 
 	m.Board = board
@@ -1169,7 +1196,7 @@ func (m *Model) moveSelected(delta int) {
 	m.ensureColVisible()
 	m.SelectedRows[to] = findTicketRow(m.Board.Columns[to], stored.Name)
 	m.ensureSelectedVisible(to)
-	m.Status = fmt.Sprintf("Moved %s to %s", stored.Name, to)
+	return m.notify(fmt.Sprintf("Moved %s to %s", stored.Name, to), notifSuccess)
 }
 
 func (m Model) selectedTicket() *store.StoredTicket {
@@ -1549,6 +1576,16 @@ func (m Model) renderWarnings() string {
 }
 
 func (m Model) renderStatus() string {
+	if m.notification != nil {
+		switch m.notification.kind {
+		case notifSuccess:
+			return notifSuccessStyle.Render("✓ "+m.notification.text) + "\n"
+		case notifError:
+			return notifErrorStyle.Render("✗ "+m.notification.text) + "\n"
+		default:
+			return mutedStyle.Render(m.notification.text) + "\n"
+		}
+	}
 	if m.Status == "" {
 		return ""
 	}
@@ -1730,8 +1767,7 @@ func (m Model) updateConfig(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			m.saveConfig()
 			m.Mode = ViewBoard
-			m.Status = "Config saved"
-			return m, nil
+			return m, m.notify("Config saved", notifSuccess)
 		default:
 			if m.configField == 0 && m.configEditorIdx == len(editorPresets) {
 				var cmd tea.Cmd
