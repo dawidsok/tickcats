@@ -1420,10 +1420,11 @@ func (m Model) renderDetail() string {
 
 func (m Model) renderDetailMetadata(stored store.StoredTicket) string {
 	var b strings.Builder
-	b.WriteString("Metadata\n")
+	b.WriteString(bannerStyle.Render("METADATA"))
+	b.WriteString("\n\n")
 	b.WriteString(fmt.Sprintf("Title: %s\n", stored.Ticket.Title))
-	b.WriteString(fmt.Sprintf("State: %s\n", stored.State))
-	b.WriteString(fmt.Sprintf("Priority: %s\n", stored.Ticket.Priority))
+	b.WriteString("State: " + m.colStyle(stateColIndex(stored.State)).Render(string(stored.State)) + "\n")
+	b.WriteString("Priority: " + priorityStyle(stored.Ticket.Priority).Render(string(stored.Ticket.Priority)) + "\n")
 	b.WriteString(fmt.Sprintf("File: %s\n", stored.Name))
 	if len(stored.Ticket.ParsedTitle.Labels) > 0 {
 		b.WriteString(fmt.Sprintf("Labels: %s\n", strings.Join(stored.Ticket.ParsedTitle.Labels, ", ")))
@@ -1692,6 +1693,28 @@ func clamp(value int, min int, max int) int {
 		return max
 	}
 	return value
+}
+
+func priorityStyle(p ticket.Priority) lipgloss.Style {
+	switch p {
+	case ticket.PriorityP0:
+		return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#ff5f5f"))
+	case ticket.PriorityP1:
+		return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#ffaf5f"))
+	case ticket.PriorityP2:
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("#d7d75f"))
+	default:
+		return mutedStyle
+	}
+}
+
+func stateColIndex(state store.State) int {
+	for i, s := range columnOrder {
+		if s == state {
+			return i
+		}
+	}
+	return 0
 }
 
 func (m Model) colStyle(colIndex int) lipgloss.Style {

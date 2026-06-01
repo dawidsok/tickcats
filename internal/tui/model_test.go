@@ -164,11 +164,37 @@ func TestDetailViewRendersContentAndMetadataColumns(t *testing.T) {
 	if !strings.Contains(view, "Long body line 1") {
 		t.Fatalf("detail missing body:\n%s", view)
 	}
-	if !strings.Contains(view, "Metadata") || !strings.Contains(view, "Title: Task: a") || !strings.Contains(view, "State: backlog") || !strings.Contains(view, "File: a.md") {
+	if !strings.Contains(view, "METADATA") || !strings.Contains(view, "Title: Task: a") || !strings.Contains(view, "State:") || !strings.Contains(view, "backlog") || !strings.Contains(view, "File: a.md") {
 		t.Fatalf("detail missing metadata:\n%s", view)
 	}
 	if !strings.Contains(view, "┌") || !strings.Contains(view, "└") {
 		t.Fatalf("detail missing borders:\n%s", view)
+	}
+}
+
+func TestDetailMetadataHeaderAndColors(t *testing.T) {
+	board := emptyBoard()
+	stored := storedTicket("a.md", store.StateReady, "Task: a")
+	stored.Ticket.Priority = ticket.PriorityP0
+	board.Columns[store.StateReady] = []store.StoredTicket{stored}
+	m := NewModel(board)
+	m.SelectedCol = 1
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	m = updated.(Model)
+
+	meta := m.renderDetailMetadata(*m.selectedTicket())
+
+	if !strings.Contains(meta, "METADATA") {
+		t.Fatalf("missing METADATA header: %s", meta)
+	}
+	if !strings.Contains(meta, "Title: Task: a") {
+		t.Fatalf("missing title line: %s", meta)
+	}
+	if !strings.Contains(meta, "State:") || !strings.Contains(meta, "ready") {
+		t.Fatalf("missing state value: %s", meta)
+	}
+	if !strings.Contains(meta, "Priority:") || !strings.Contains(meta, "P0") {
+		t.Fatalf("missing priority value: %s", meta)
 	}
 }
 
