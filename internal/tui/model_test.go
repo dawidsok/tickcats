@@ -2201,6 +2201,169 @@ func TestConfigThemePersistedOnSave(t *testing.T) {
 	}
 }
 
+func TestSlashEntersSearchMode(t *testing.T) {
+	m := NewModel(emptyBoard())
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	m2 := got.(Model)
+	if m2.InteractionMode != InteractionSearch {
+		t.Fatalf("InteractionMode = %v, want InteractionSearch", m2.InteractionMode)
+	}
+}
+
+func TestSearchFiltersByTitle(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{
+		storedTicket("a.md", store.StateBacklog, "Task: alpha"),
+		storedTicket("b.md", store.StateBacklog, "Task: beta"),
+	}
+	m := NewModel(board)
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	m = got.(Model)
+	for _, ch := range "alp" {
+		got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
+		m = got.(Model)
+	}
+
+	filtered := m.filteredTickets(store.StateBacklog)
+	if len(filtered) != 1 || filtered[0].Name != "a.md" {
+		t.Fatalf("filteredTickets = %v, want [a.md]", filtered)
+	}
+	if len(m.filteredTickets(store.StateBacklog)) != 1 {
+		t.Fatalf("expected 1 match for 'alp', got %d", len(m.filteredTickets(store.StateBacklog)))
+	}
+}
+
+func TestSearchFiltersByBody(t *testing.T) {
+	board := emptyBoard()
+	a := storedTicket("a.md", store.StateBacklog, "Task: a")
+	a.Ticket.Body = "unique body content here"
+	b := storedTicket("b.md", store.StateBacklog, "Task: b")
+	b.Ticket.Body = "something else entirely"
+	board.Columns[store.StateBacklog] = []store.StoredTicket{a, b}
+	m := NewModel(board)
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	m = got.(Model)
+	for _, ch := range "unique" {
+		got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
+		m = got.(Model)
+	}
+
+	filtered := m.filteredTickets(store.StateBacklog)
+	if len(filtered) != 1 || filtered[0].Name != "a.md" {
+		t.Fatalf("filteredTickets = %v, want [a.md]", filtered)
+	}
+}
+
+func TestSearchNoMatchRendersEmpty(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{
+		storedTicket("a.md", store.StateBacklog, "Task: alpha"),
+	}
+	m := NewModel(board)
+	m.Width = 120
+	m.Height = 40
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	m = got.(Model)
+	for _, ch := range "zzzz" {
+		got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
+		m = got.(Model)
+	}
+
+	view := m.View()
+	if !strings.Contains(view, "empty") {
+		t.Fatalf("view missing 'empty' marker for no-match column:\n%s", view)
+	}
+	if strings.Contains(view, "Task: alpha") {
+		t.Fatalf("view shows filtered-out ticket:\n%s", view)
+	}
+}
+
+func TestSearchEscClearsAndExits(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{
+		storedTicket("a.md", store.StateBacklog, "Task: alpha"),
+	}
+	m := NewModel(board)
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	m = got.(Model)
+	for _, ch := range "alp" {
+		got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
+		m = got.(Model)
+	}
+
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m = got.(Model)
+
+	if m.InteractionMode != InteractionBoard {
+		t.Fatalf("InteractionMode = %v after esc, want InteractionBoard", m.InteractionMode)
+	}
+	if m.searchInput.Value() != "" {
+		t.Fatalf("searchInput not cleared after esc: %q", m.searchInput.Value())
+	}
+	// Full ticket list restored
+	if len(m.filteredTickets(store.StateBacklog)) != 1 {
+		t.Fatalf("filteredTickets after exit = %d, want 1", len(m.filteredTickets(store.StateBacklog)))
+	}
+}
+
+func TestSearchShownInFooterWhenActive(t *testing.T) {
+	m := NewModel(emptyBoard())
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	m2 := got.(Model)
+	if !strings.Contains(m2.footerText(), "SEARCH") {
+		t.Fatalf("footerText missing SEARCH: %q", m2.footerText())
+	}
+}
+
+func TestBoardFooterMentionsSlash(t *testing.T) {
+	m := NewModel(emptyBoard())
+	if !strings.Contains(m.footerText(), "search") {
+		t.Fatalf("board footer missing '/ search' hint: %q", m.footerText())
+	}
+}
+
+func TestSearchSelectionNotMovedOnEsc(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{
+		storedTicket("a.md", store.StateBacklog, "Task: a"),
+		storedTicket("b.md", store.StateBacklog, "Task: b"),
+	}
+	m := NewModel(board)
+	m.SelectedRows[store.StateBacklog] = 1 // focus b.md
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	m = got.(Model)
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m = got.(Model)
+
+	if m.SelectedRows[store.StateBacklog] != 1 {
+		t.Fatalf("SelectedRows changed after search esc: got %d, want 1", m.SelectedRows[store.StateBacklog])
+	}
+}
+
+func TestFuzzyMatch(t *testing.T) {
+	tests := []struct {
+		pattern string
+		text    string
+		want    bool
+	}{
+		{"abc", "a1b2c3", true},
+		{"abc", "abcdef", true},
+		{"abc", "xyz", false},
+		{"", "anything", true},
+		{"abc", "acb", false}, // wrong order
+	}
+	for _, tt := range tests {
+		if got := fuzzyMatch(tt.pattern, tt.text); got != tt.want {
+			t.Errorf("fuzzyMatch(%q, %q) = %v, want %v", tt.pattern, tt.text, got, tt.want)
+		}
+	}
+}
+
 func TestDetailViewTracksTicketAfterExternalMove(t *testing.T) {
 	root := t.TempDir()
 	if err := store.Init(root); err != nil {

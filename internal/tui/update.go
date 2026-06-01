@@ -21,6 +21,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.Mode == ViewConfig {
 		return m.updateConfig(msg)
 	}
+	if m.InteractionMode == InteractionSearch {
+		return m.updateSearch(msg)
+	}
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -128,6 +131,8 @@ func (m Model) updateBoard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.cycleSortMode()
 	case "c":
 		return m.enterConfig()
+	case "/":
+		return m.enterSearch()
 	}
 	return m, nil
 }
@@ -241,6 +246,10 @@ func (m Model) View() string {
 	var b strings.Builder
 	b.WriteString(m.renderPickNext())
 	b.WriteString("\n")
+	if m.InteractionMode == InteractionSearch {
+		b.WriteString(m.renderSearchBar())
+		b.WriteString("\n")
+	}
 	b.WriteString(m.renderHScrollIndicator())
 	b.WriteString(m.renderBoard())
 	b.WriteString("\n")

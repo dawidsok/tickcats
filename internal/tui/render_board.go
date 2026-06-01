@@ -96,7 +96,7 @@ func (m Model) renderColumn(index int, state store.State) string {
 }
 
 func (m Model) renderColumnLines(index int, state store.State) []string {
-	tickets := m.Board.Columns[state]
+	tickets := m.filteredTickets(state)
 	scroll := clamp(m.ColumnScroll[state], 0, max(0, len(tickets)-1))
 	innerWidth := m.columnInnerWidth()
 	maxLines := m.columnLineBudget()
@@ -141,7 +141,7 @@ func (m Model) renderColumnLines(index int, state store.State) []string {
 // ticketColumnLines returns the plain (unstyled) wrapped lines for a ticket,
 // used by the layout engine to measure how many lines a ticket occupies.
 func (m Model) ticketColumnLines(state store.State, row int, innerWidth int) []string {
-	tickets := m.Board.Columns[state]
+	tickets := m.filteredTickets(state)
 	if row < 0 || row >= len(tickets) {
 		return nil
 	}
@@ -158,12 +158,12 @@ func (m Model) ticketColumnLines(state store.State, row int, innerWidth int) []s
 }
 
 func (m Model) styledTicketColumnLines(index int, state store.State, row int, innerWidth int) []string {
-	tickets := m.Board.Columns[state]
+	tickets := m.filteredTickets(state)
 	if row < 0 || row >= len(tickets) {
 		return nil
 	}
 	stored := tickets[row]
-	isFocused := index == m.SelectedCol && row == m.SelectedRows[state]
+	isFocused := m.InteractionMode != InteractionSearch && index == m.SelectedCol && row == m.SelectedRows[state]
 	isSelected := m.MultiSelected[state] != nil && m.MultiSelected[state][stored.Name]
 
 	var prefix string
