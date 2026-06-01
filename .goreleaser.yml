@@ -1,0 +1,60 @@
+version: 2
+
+project_name: tickcats
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: ./cmd/tickcats
+    binary: tickcats
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^style:"
+
+brews:
+  - name: tickcats
+    repository:
+      owner: dawidsok
+      name: homebrew-tickcats
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    commit_author:
+      name: goreleaser
+      email: goreleaser@users.noreply.github.com
+    homepage: "https://github.com/dawidsok/tickcats"
+    description: "Keyboard-first local kanban board for solo developers"
+    license: MIT
+    install: |
+      bin.install "tickcats"
+    test: |
+      system "#{bin}/tickcats", "--path", "#{testpath}/.tickcats", "init"
+      assert_predicate testpath/".tickcats/backlog", :directory?

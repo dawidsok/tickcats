@@ -14,13 +14,23 @@ BOARD MODE: h/l col  j/k/d/u ticket  v select  m move  s sort  n new  q quit
 
 ## Installation
 
+### Homebrew (macOS and Linux)
+
+```sh
+brew install dawidsok/tickcats/tickcats
+```
+
+### Direct download
+
+Download the binary for your platform from the [GitHub Releases](https://github.com/dawidsok/tickcats/releases) page, extract, and move to a directory on your `$PATH`.
+
+### go install
+
 ```sh
 go install github.com/dawidsok/tickcats/cmd/tickcats@latest
 ```
 
-Requires Go 1.21+. The binary is installed as `tickcats` into `$GOPATH/bin`.
-
-Homebrew and pre-built binaries coming in v1.1.
+Requires Go installed. The binary lands in `$GOPATH/bin/tickcats`.
 
 ## Quick start
 
