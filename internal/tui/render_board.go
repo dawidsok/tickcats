@@ -163,7 +163,18 @@ func (m Model) styledTicketColumnLines(index int, state store.State, row int, in
 		return nil
 	}
 	stored := tickets[row]
-	isFocused := m.InteractionMode != InteractionSearch && index == m.SelectedCol && row == m.SelectedRows[state]
+	var isFocused bool
+	if m.InteractionMode == InteractionSearch {
+		// In search mode the filtered list has different indices than the full
+		// list, so identify the selected ticket by name instead.
+		selectedName := ""
+		if full := m.Board.Columns[state]; m.SelectedRows[state] < len(full) {
+			selectedName = full[m.SelectedRows[state]].Name
+		}
+		isFocused = index == m.SelectedCol && selectedName != "" && stored.Name == selectedName
+	} else {
+		isFocused = index == m.SelectedCol && row == m.SelectedRows[state]
+	}
 	isSelected := m.MultiSelected[state] != nil && m.MultiSelected[state][stored.Name]
 
 	var prefix string

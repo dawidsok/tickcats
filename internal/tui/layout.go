@@ -135,7 +135,7 @@ func (m Model) footerText() string {
 		return "MOVE: h/l move  H/L ends  j/k reorder  ? help  esc board  q quit"
 	}
 	if m.InteractionMode == InteractionSearch {
-		return "SEARCH: type to filter  esc clear+exit  q quit"
+		return "SEARCH: type to filter  j/k navigate  h/l columns  esc exit  q quit"
 	}
 	if m.Mode == ViewDetail {
 		return "DETAIL: j/k scroll  e edit  ? help  esc board  q quit"

@@ -2345,6 +2345,116 @@ func TestSearchSelectionNotMovedOnEsc(t *testing.T) {
 	}
 }
 
+func TestSearchFiltersByPriority(t *testing.T) {
+	board := emptyBoard()
+	p0 := storedTicket("p0.md", store.StateBacklog, "Task: zero")
+	p0.Ticket.Priority = ticket.PriorityP0
+	p2 := storedTicket("p2.md", store.StateBacklog, "Task: two")
+	p2.Ticket.Priority = ticket.PriorityP2
+	board.Columns[store.StateBacklog] = []store.StoredTicket{p0, p2}
+	m := NewModel(board)
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	m = got.(Model)
+	for _, ch := range "p0" {
+		got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
+		m = got.(Model)
+	}
+
+	filtered := m.filteredTickets(store.StateBacklog)
+	if len(filtered) != 1 || filtered[0].Name != "p0.md" {
+		names := make([]string, len(filtered))
+		for i, f := range filtered {
+			names[i] = f.Name
+		}
+		t.Fatalf("filteredTickets for 'p0' = %v, want [p0.md]", names)
+	}
+}
+
+func TestSearchNavigationJK(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{
+		storedTicket("a.md", store.StateBacklog, "Task: alpha"),
+		storedTicket("b.md", store.StateBacklog, "Task: beta"),
+		storedTicket("c.md", store.StateBacklog, "Task: gamma"),
+	}
+	m := NewModel(board)
+	m.SelectedRows[store.StateBacklog] = 0
+
+	// Enter search — all three match empty query
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	m = got.(Model)
+
+	// j moves down
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m = got.(Model)
+	if m.SelectedRows[store.StateBacklog] != 1 {
+		t.Fatalf("SelectedRows after j = %d, want 1", m.SelectedRows[store.StateBacklog])
+	}
+
+	// k moves back up
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	m = got.(Model)
+	if m.SelectedRows[store.StateBacklog] != 0 {
+		t.Fatalf("SelectedRows after k = %d, want 0", m.SelectedRows[store.StateBacklog])
+	}
+}
+
+func TestSearchNavigationAcrossColumns(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{storedTicket("a.md", store.StateBacklog, "Task: a")}
+	board.Columns[store.StateReady] = []store.StoredTicket{storedTicket("b.md", store.StateReady, "Task: b")}
+	m := NewModel(board)
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	m = got.(Model)
+
+	// l moves to next column
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+	m = got.(Model)
+	if m.SelectedCol != 1 {
+		t.Fatalf("SelectedCol after l = %d, want 1", m.SelectedCol)
+	}
+	// h moves back
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+	m = got.(Model)
+	if m.SelectedCol != 0 {
+		t.Fatalf("SelectedCol after h = %d, want 0", m.SelectedCol)
+	}
+}
+
+func TestSearchNavigationSkipsFilteredOutTickets(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{
+		storedTicket("a.md", store.StateBacklog, "Task: alpha"),
+		storedTicket("b.md", store.StateBacklog, "Task: beta"),
+		storedTicket("c.md", store.StateBacklog, "Task: alpha two"),
+	}
+	m := NewModel(board)
+	m.SelectedRows[store.StateBacklog] = 0
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	m = got.(Model)
+	// Filter to only "alpha" tickets (a.md and c.md)
+	for _, ch := range "alpha" {
+		got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
+		m = got.(Model)
+	}
+
+	// j should jump from a.md (filtered[0]) to c.md (filtered[1])
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m = got.(Model)
+	state := columnOrder[m.SelectedCol]
+	fullTickets := m.Board.Columns[state]
+	if m.SelectedRows[state] >= len(fullTickets) {
+		t.Fatalf("SelectedRows out of range: %d", m.SelectedRows[state])
+	}
+	selected := fullTickets[m.SelectedRows[state]]
+	if selected.Name != "c.md" {
+		t.Fatalf("after j in filtered list, selected = %q, want c.md (skipping b.md)", selected.Name)
+	}
+}
+
 func TestFuzzyMatch(t *testing.T) {
 	tests := []struct {
 		pattern string
