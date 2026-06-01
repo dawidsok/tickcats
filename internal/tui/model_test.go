@@ -267,8 +267,8 @@ func TestDetailMetadataHeaderAndColors(t *testing.T) {
 	if !strings.Contains(meta, "Priority:") || !strings.Contains(meta, "P0") {
 		t.Fatalf("missing priority value: %s", meta)
 	}
-	if strings.Contains(meta, "Deadline:") {
-		t.Fatalf("unexpected deadline line for ticket without deadline: %s", meta)
+	if !strings.Contains(meta, "Deadline: —") {
+		t.Fatalf("missing empty deadline line: %s", meta)
 	}
 }
 
@@ -281,6 +281,47 @@ func TestDetailMetadataShowsDeadlineWhenPresent(t *testing.T) {
 	meta := m.renderDetailMetadata(stored)
 	if !strings.Contains(meta, "Deadline: 2026-06-15") {
 		t.Fatalf("missing deadline line: %s", meta)
+	}
+}
+
+func TestBoardShowsSLAIndicatorForTicketWithDeadline(t *testing.T) {
+	board := emptyBoard()
+	stored := storedTicket("a.md", store.StateReady, "Task: has deadline")
+	deadline := time.Now().UTC().AddDate(0, 0, 2)
+	stored.Ticket.Deadline = &deadline
+	board.Columns[store.StateReady] = []store.StoredTicket{stored}
+	m := NewModel(board)
+	m.SelectedCol = stateColIndex(store.StateReady)
+
+	view := m.View()
+	if !strings.Contains(view, "SLA") || !strings.Contains(view, "█") {
+		t.Fatalf("view missing SLA bar indicator:\n%s", view)
+	}
+	if strings.Contains(view, deadline.Format(time.DateOnly)) {
+		t.Fatalf("board view shows deadline date instead of visual indicator:\n%s", view)
+	}
+}
+
+func TestDeadlineBarCountIncreasesAsDeadlineApproaches(t *testing.T) {
+	now := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name     string
+		deadline time.Time
+		want     int
+	}{
+		{name: "far", deadline: now.AddDate(0, 0, 30), want: 1},
+		{name: "two weeks", deadline: now.AddDate(0, 0, 14), want: 2},
+		{name: "week", deadline: now.AddDate(0, 0, 7), want: 3},
+		{name: "three days", deadline: now.AddDate(0, 0, 3), want: 4},
+		{name: "tomorrow", deadline: now.AddDate(0, 0, 1), want: 5},
+		{name: "due today", deadline: now, want: 6},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := deadlineBarCount(tt.deadline, now); got != tt.want {
+				t.Fatalf("deadlineBarCount() = %d, want %d", got, tt.want)
+			}
+		})
 	}
 }
 

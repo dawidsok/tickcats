@@ -1378,7 +1378,11 @@ func (m Model) ticketColumnLines(state store.State, row int, innerWidth int) []s
 	if m.MultiSelected[state] != nil && m.MultiSelected[state][stored.Name] {
 		prefix = "* "
 	}
-	return wrapText(fmt.Sprintf("%s[%s] %s", prefix, stored.Ticket.Priority, stored.Ticket.Title), innerWidth)
+	lines := wrapText(fmt.Sprintf("%s[%s] %s", prefix, stored.Ticket.Priority, stored.Ticket.Title), innerWidth)
+	if stored.Ticket.Deadline != nil {
+		lines = append(lines, deadlineIndicatorPlain(*stored.Ticket.Deadline, time.Now()))
+	}
+	return lines
 }
 
 func (m Model) styledTicketColumnLines(index int, state store.State, row int, innerWidth int) []string {
@@ -1411,6 +1415,9 @@ func (m Model) styledTicketColumnLines(index int, state store.State, row int, in
 			wrapped[i] = selectedStyle.Render(line)
 		}
 	}
+	if stored.Ticket.Deadline != nil {
+		wrapped = append(wrapped, m.renderDeadlineIndicator(*stored.Ticket.Deadline, time.Now()))
+	}
 	return wrapped
 }
 
@@ -1420,6 +1427,57 @@ func appendColumnOverflow(lines []string, width int, below int, lastRenderedRow 
 	}
 	lines[len(lines)-1] = mutedStyle.Render(fmt.Sprintf("  ↓ %d below", below))
 	return lines
+}
+
+func deadlineIndicatorPlain(deadline time.Time, now time.Time) string {
+	return "  SLA " + strings.Repeat("█", deadlineBarCount(deadline, now))
+}
+
+func (m Model) renderDeadlineIndicator(deadline time.Time, now time.Time) string {
+	styles := []lipgloss.Style{
+		m.colStyle(stateColIndex(store.StateReady)),
+		m.colStyle(stateColIndex(store.StateReady)),
+		m.colStyle(stateColIndex(store.StateReady)),
+		m.colStyle(stateColIndex(store.StateDoing)),
+		m.colStyle(stateColIndex(store.StateDoing)),
+		m.colStyle(stateColIndex(store.StateDone)),
+	}
+	barCount := deadlineBarCount(deadline, now)
+	var b strings.Builder
+	b.WriteString(mutedStyle.Render("  SLA "))
+	for i := 0; i < barCount; i++ {
+		b.WriteString(styles[i].Render("█"))
+	}
+	return b.String()
+}
+
+func deadlineBarCount(deadline time.Time, now time.Time) int {
+	days := daysUntil(deadline, now)
+	switch {
+	case days <= 0:
+		return 6
+	case days <= 1:
+		return 5
+	case days <= 3:
+		return 4
+	case days <= 7:
+		return 3
+	case days <= 14:
+		return 2
+	default:
+		return 1
+	}
+}
+
+func daysUntil(deadline time.Time, now time.Time) int {
+	dueDate := dateOnly(deadline.UTC())
+	today := dateOnly(now.UTC())
+	return int(dueDate.Sub(today).Hours() / 24)
+}
+
+func dateOnly(value time.Time) time.Time {
+	year, month, day := value.Date()
+	return time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
 }
 
 func (m Model) renderDetail() string {
@@ -1479,6 +1537,8 @@ func (m Model) renderDetailMetadata(stored store.StoredTicket) string {
 	}
 	if stored.Ticket.Deadline != nil {
 		b.WriteString(fmt.Sprintf("Deadline: %s\n", stored.Ticket.Deadline.Format(time.DateOnly)))
+	} else {
+		b.WriteString("Deadline: —\n")
 	}
 	b.WriteString(fmt.Sprintf("Created: %s\n", stored.Ticket.Created.Format("2006-01-02 15:04")))
 	b.WriteString(fmt.Sprintf("Updated: %s", stored.Ticket.Updated.Format("2006-01-02 15:04")))
