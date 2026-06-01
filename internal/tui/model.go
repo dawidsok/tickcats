@@ -106,8 +106,9 @@ type Model struct {
 	MultiSelected   map[store.State]map[string]bool // ticket filenames selected for batch move
 	Mode            ViewMode
 	InteractionMode InteractionMode
-	DetailScroll    int // scroll offset in the detail body view
-	HelpScroll      int // scroll offset in the help dialog
+	DetailScroll    int    // scroll offset in the detail body view
+	HelpScroll      int    // scroll offset in the help dialog
+	detailTicketName string // filename of the ticket open in ViewDetail; used to track it across reloads and column moves
 	Status          string
 	Width           int
 	Height          int

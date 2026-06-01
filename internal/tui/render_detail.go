@@ -15,9 +15,13 @@ import (
 )
 
 func (m Model) renderDetail() string {
-	stored := m.selectedTicket()
+	stored := m.findDetailTicket()
 	if stored == nil {
-		return "No ticket selected\n\n" + mutedStyle.Render("esc back  q quit") + "\n"
+		msg := "No ticket selected"
+		if m.detailTicketName != "" {
+			msg = "Ticket not found: " + m.detailTicketName
+		}
+		return msg + "\n\n" + mutedStyle.Render("esc back  q quit") + "\n"
 	}
 
 	contentWidth, metadataWidth := m.detailWidths()
@@ -122,7 +126,7 @@ func (m Model) visibleDetailLines(lines []string) ([]string, int, int) {
 }
 
 func (m Model) detailLines() []string {
-	stored := m.selectedTicket()
+	stored := m.findDetailTicket()
 	if stored == nil {
 		return nil
 	}

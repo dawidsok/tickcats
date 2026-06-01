@@ -91,7 +91,8 @@ func (m Model) updateBoard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "u":
 		m.pageRows(-1)
 	case "enter", "o":
-		if m.selectedTicket() != nil {
+		if stored := m.selectedTicket(); stored != nil {
+			m.detailTicketName = stored.Name
 			m.Mode = ViewDetail
 			m.DetailScroll = 0
 		}
@@ -200,6 +201,8 @@ func (m Model) updateDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "q", "ctrl+c":
 		return m, tea.Quit
 	case "esc":
+		m.resolveDetailCursor()
+		m.detailTicketName = ""
 		m.Mode = ViewBoard
 		m.DetailScroll = 0
 	case "j", "down":

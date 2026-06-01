@@ -2200,3 +2200,101 @@ func TestConfigThemePersistedOnSave(t *testing.T) {
 		t.Fatalf("persisted theme = %d, want 2", cfg.Theme)
 	}
 }
+
+func TestDetailViewTracksTicketAfterExternalMove(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	writeTUITestTicket(t, root, store.StateBacklog, "a.md", "Task: a")
+	board, err := store.LoadBoard(root)
+	if err != nil {
+		t.Fatalf("LoadBoard: %v", err)
+	}
+	m := NewModelWithRoot(root, board)
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = got.(Model)
+	if m.Mode != ViewDetail {
+		t.Fatalf("Mode = %v, want ViewDetail", m.Mode)
+	}
+	if m.detailTicketName != "a.md" {
+		t.Fatalf("detailTicketName = %q, want a.md", m.detailTicketName)
+	}
+
+	if _, err := store.Move(root, "a.md", store.StateBacklog, store.StateReady); err != nil {
+		t.Fatalf("Move: %v", err)
+	}
+
+	got, _ = m.Update(msgFileChanged{})
+	m = got.(Model)
+
+	if m.Mode != ViewDetail {
+		t.Fatalf("Mode = %v after reload, want ViewDetail", m.Mode)
+	}
+	view := m.View()
+	if !strings.Contains(view, "Task: a") {
+		t.Fatalf("detail view missing ticket title after external move:\n%s", view)
+	}
+	if m.SelectedCol != stateColIndex(store.StateReady) {
+		t.Fatalf("SelectedCol = %d after move, want %d (ready)", m.SelectedCol, stateColIndex(store.StateReady))
+	}
+}
+
+func TestDetailViewShowsNotFoundForDeletedTicket(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	writeTUITestTicket(t, root, store.StateBacklog, "a.md", "Task: a")
+	board, _ := store.LoadBoard(root)
+	m := NewModelWithRoot(root, board)
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = got.(Model)
+
+	if err := os.Remove(filepath.Join(root, string(store.StateBacklog), "a.md")); err != nil {
+		t.Fatalf("Remove: %v", err)
+	}
+
+	got, _ = m.Update(msgFileChanged{})
+	m = got.(Model)
+
+	view := m.View()
+	if !strings.Contains(view, "Ticket not found") || !strings.Contains(view, "a.md") {
+		t.Fatalf("detail view missing 'Ticket not found: a.md':\n%s", view)
+	}
+}
+
+func TestEscFromDetailAfterMoveUpdatesCursorToNewColumn(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	writeTUITestTicket(t, root, store.StateBacklog, "a.md", "Task: a")
+	board, _ := store.LoadBoard(root)
+	m := NewModelWithRoot(root, board)
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = got.(Model)
+
+	if _, err := store.Move(root, "a.md", store.StateBacklog, store.StateReady); err != nil {
+		t.Fatalf("Move: %v", err)
+	}
+
+	got, _ = m.Update(msgFileChanged{})
+	m = got.(Model)
+
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m = got.(Model)
+
+	if m.Mode != ViewBoard {
+		t.Fatalf("Mode = %v after esc, want ViewBoard", m.Mode)
+	}
+	if m.SelectedCol != stateColIndex(store.StateReady) {
+		t.Fatalf("SelectedCol = %d, want %d (ready)", m.SelectedCol, stateColIndex(store.StateReady))
+	}
+	if m.detailTicketName != "" {
+		t.Fatalf("detailTicketName = %q, want empty after exit", m.detailTicketName)
+	}
+}

@@ -116,6 +116,13 @@ func (m *Model) reloadBoard() bool {
 	}
 	m.syncMultiSelected()
 
+	// In detail view, the ticket may have moved to a different column.
+	// Search all columns to restore the cursor to its new location.
+	if m.detailTicketName != "" {
+		m.resolveDetailCursor()
+		return true
+	}
+
 	if focusedName == "" {
 		return true
 	}

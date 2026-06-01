@@ -61,6 +61,43 @@ func (m Model) selectedTicket() *store.StoredTicket {
 	return &tickets[row]
 }
 
+// findDetailTicket returns the ticket currently open in the detail view,
+// searching across all columns by detailTicketName. Falls back to
+// selectedTicket when no name is set. Returns nil if the ticket is gone.
+func (m Model) findDetailTicket() *store.StoredTicket {
+	if m.detailTicketName == "" {
+		return m.selectedTicket()
+	}
+	for _, state := range columnOrder {
+		for i := range m.Board.Columns[state] {
+			if m.Board.Columns[state][i].Name == m.detailTicketName {
+				return &m.Board.Columns[state][i]
+			}
+		}
+	}
+	return nil
+}
+
+// resolveDetailCursor updates SelectedCol and SelectedRows to the current
+// location of detailTicketName across all columns. No-op if the ticket is gone
+// or detailTicketName is empty.
+func (m *Model) resolveDetailCursor() {
+	if m.detailTicketName == "" {
+		return
+	}
+	for colIdx, state := range columnOrder {
+		for rowIdx, t := range m.Board.Columns[state] {
+			if t.Name == m.detailTicketName {
+				m.SelectedCol = colIdx
+				m.SelectedRows[state] = rowIdx
+				m.ensureColVisible()
+				m.ensureSelectedVisible(state)
+				return
+			}
+		}
+	}
+}
+
 func findTicketRow(tickets []store.StoredTicket, name string) int {
 	for i, stored := range tickets {
 		if stored.Name == name {
