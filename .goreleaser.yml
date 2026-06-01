@@ -45,7 +45,7 @@ brews:
   - name: tickcats
     repository:
       owner: dawidsok
-      name: homebrew-tickcats
+      name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     commit_author:
       name: goreleaser
