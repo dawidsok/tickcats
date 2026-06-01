@@ -389,8 +389,6 @@ func (m Model) View() string {
 	b.WriteString(m.renderHScrollIndicator())
 	b.WriteString(m.renderBoard())
 	b.WriteString("\n")
-	b.WriteString(m.renderWarnings())
-	b.WriteString(m.renderStatus())
 	b.WriteString(m.renderFooter())
 	return b.String()
 }
@@ -1700,8 +1698,21 @@ func (m Model) columnInnerWidth() int {
 }
 
 func (m Model) renderFooter() string {
+	line := m.renderFooterSeparator()
+	return line + "\n" + mutedStyle.Render(m.footerText()) + "\n"
+}
+
+func (m Model) renderFooterSeparator() string {
 	line := strings.Repeat("─", m.fullWidth())
-	return mutedStyle.Render(line) + "\n" + mutedStyle.Render(m.footerText()) + "\n"
+	snack := m.renderSnack()
+	if snack == "" {
+		return mutedStyle.Render(line)
+	}
+	plainWidth := lipgloss.Width(snack)
+	if plainWidth+2 >= m.fullWidth() {
+		return snack
+	}
+	return snack + mutedStyle.Render(strings.Repeat("─", m.fullWidth()-plainWidth))
 }
 
 func (m Model) renderWarnings() string {
@@ -1712,20 +1723,31 @@ func (m Model) renderWarnings() string {
 }
 
 func (m Model) renderStatus() string {
+	return m.renderSnack()
+}
+
+func (m Model) renderSnack() string {
 	if m.notification != nil {
 		switch m.notification.kind {
 		case notifSuccess:
-			return notifSuccessStyle.Render("✓ "+m.notification.text) + "\n"
+			return notifSuccessStyle.Render("✓ " + m.notification.text + " ")
 		case notifError:
-			return notifErrorStyle.Render("✗ "+m.notification.text) + "\n"
+			return notifErrorStyle.Render("✗ " + m.notification.text + " ")
 		default:
-			return mutedStyle.Render(m.notification.text) + "\n"
+			return mutedStyle.Render(m.notification.text + " ")
 		}
 	}
-	if m.Status == "" {
+	parts := make([]string, 0, 2)
+	if m.Status != "" {
+		parts = append(parts, m.Status)
+	}
+	if len(m.Board.Warnings) > 0 {
+		parts = append(parts, fmt.Sprintf("Warnings: %d malformed ticket(s) skipped", len(m.Board.Warnings)))
+	}
+	if len(parts) == 0 {
 		return ""
 	}
-	return mutedStyle.Render(m.Status) + "\n"
+	return mutedStyle.Render(strings.Join(parts, "  •  ") + " ")
 }
 
 func min(left int, right int) int {

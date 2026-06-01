@@ -376,6 +376,22 @@ func TestFooterHasSeparator(t *testing.T) {
 	}
 }
 
+func TestStatusAndWarningsRenderInFooterSeparatorWithoutAddingLines(t *testing.T) {
+	model := NewModel(emptyBoard())
+	model.Board.Warnings = []store.Warning{{Path: "bad.md", Err: fmt.Errorf("bad")}}
+	before := model.View()
+
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	after := updated.(Model).View()
+
+	if strings.Count(after, "\n") != strings.Count(before, "\n") {
+		t.Fatalf("line count changed after status/warning snack; before=%d after=%d\nbefore:\n%s\nafter:\n%s", strings.Count(before, "\n"), strings.Count(after, "\n"), before, after)
+	}
+	if !strings.Contains(after, "Sort:") || !strings.Contains(after, "Warnings:") {
+		t.Fatalf("view missing status/warning snack:\n%s", after)
+	}
+}
+
 func TestPickNextBanner(t *testing.T) {
 	board := emptyBoard()
 	model := NewModel(board)
