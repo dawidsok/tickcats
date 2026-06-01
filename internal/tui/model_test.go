@@ -201,6 +201,24 @@ func TestBoardRendersWontDoColumnAfterDone(t *testing.T) {
 	}
 }
 
+func TestThemesDefineDistinctWontDoColor(t *testing.T) {
+	for _, theme := range colorThemes {
+		t.Run(theme.name, func(t *testing.T) {
+			if len(theme.colors) != len(columnOrder) {
+				t.Fatalf("color count = %d, want %d", len(theme.colors), len(columnOrder))
+			}
+			wontDoColor := theme.colors[stateColIndex(store.StateWontDo)]
+			doneColor := theme.colors[stateColIndex(store.StateDone)]
+			if wontDoColor == "" {
+				t.Fatal("Won't Do color is empty")
+			}
+			if wontDoColor == doneColor {
+				t.Fatalf("Won't Do color = Done color %q, want distinct muted/rejected color", wontDoColor)
+			}
+		})
+	}
+}
+
 func TestDetailViewRendersContentAndMetadataColumns(t *testing.T) {
 	board := emptyBoard()
 	board.Columns[store.StateBacklog] = []store.StoredTicket{storedTicket("a.md", store.StateBacklog, "Task: a")}

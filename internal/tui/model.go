@@ -76,11 +76,11 @@ type colorTheme struct {
 }
 
 var colorThemes = []colorTheme{
-	{name: "mono", colors: []lipgloss.Color{"#679", "#f8d", "#f8d", "#f8d", "#f8d"}},
-	{name: "gradient", colors: []lipgloss.Color{"#679", "#5fd787", "#f8d", "#679", "#888"}},
-	{name: "ocean", colors: []lipgloss.Color{"#679", "#0ff", "#0af", "#14a", "#888"}},
-	{name: "fire", colors: []lipgloss.Color{"#679", "#fa0", "#f40", "#a00", "#888"}},
-	{name: "forest", colors: []lipgloss.Color{"#679", "#5fd787", "#5faf87", "#098a08", "#888"}},
+	{name: "mono", colors: []lipgloss.Color{"#679", "#f8d", "#f8d", "#f8d", "#8a8a8a"}},
+	{name: "gradient", colors: []lipgloss.Color{"#679", "#5fd787", "#f8d", "#679", "#8a8a8a"}},
+	{name: "ocean", colors: []lipgloss.Color{"#679", "#0ff", "#0af", "#14a", "#6c7a89"}},
+	{name: "fire", colors: []lipgloss.Color{"#679", "#fa0", "#f40", "#a00", "#875f5f"}},
+	{name: "forest", colors: []lipgloss.Color{"#679", "#5fd787", "#5faf87", "#098a08", "#6b7d68"}},
 }
 
 type Model struct {
