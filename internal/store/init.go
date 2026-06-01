@@ -45,7 +45,7 @@ func ensureGitignoreEntry(path string, entry string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	if len(lines) > 0 && lines[len(lines)-1] != "" {
 		if _, err := file.WriteString("\n"); err != nil {
@@ -65,7 +65,7 @@ func readLinesIfExists(path string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	lines := make([]string, 0)
 	scanner := bufio.NewScanner(file)

@@ -2,3 +2,4 @@
 /.tickcats-test
 /tickcats
 /.env
+.DS_Store

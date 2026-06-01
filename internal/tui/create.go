@@ -54,9 +54,10 @@ func (m Model) updateCreate(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.createInput, cmd = m.createInput.Update(keyMsg)
 				return m, cmd
 			}
-			if m.createField == 0 {
+			switch m.createField {
+			case 0:
 				m.cycleKind(-1)
-			} else if m.createField == 2 {
+			case 2:
 				m.cyclePriority(-1)
 			}
 			return m, nil
@@ -66,9 +67,10 @@ func (m Model) updateCreate(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.createInput, cmd = m.createInput.Update(keyMsg)
 				return m, cmd
 			}
-			if m.createField == 0 {
+			switch m.createField {
+			case 0:
 				m.cycleKind(1)
-			} else if m.createField == 2 {
+			case 2:
 				m.cyclePriority(1)
 			}
 			return m, nil

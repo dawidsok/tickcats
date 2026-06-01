@@ -62,21 +62,21 @@ func (m Model) renderDetailMetadata(stored store.StoredTicket) string {
 	var b strings.Builder
 	b.WriteString(bannerStyle.Render("METADATA"))
 	b.WriteString("\n\n")
-	b.WriteString(fmt.Sprintf("ID: %s\n", displayTicketID(stored.Ticket.ID)))
-	b.WriteString(fmt.Sprintf("Title: %s\n", stored.Ticket.Title))
+	fmt.Fprintf(&b, "ID: %s\n", displayTicketID(stored.Ticket.ID))
+	fmt.Fprintf(&b, "Title: %s\n", stored.Ticket.Title)
 	b.WriteString("State: " + m.colStyle(stateColIndex(stored.State)).Render(string(stored.State)) + "\n")
 	b.WriteString("Priority: " + priorityStyle(stored.Ticket.Priority).Render(string(stored.Ticket.Priority)) + "\n")
-	b.WriteString(fmt.Sprintf("File: %s\n", stored.Name))
+	fmt.Fprintf(&b, "File: %s\n", stored.Name)
 	if len(stored.Ticket.ParsedTitle.Labels) > 0 {
-		b.WriteString(fmt.Sprintf("Labels: %s\n", strings.Join(stored.Ticket.ParsedTitle.Labels, ", ")))
+		fmt.Fprintf(&b, "Labels: %s\n", strings.Join(stored.Ticket.ParsedTitle.Labels, ", "))
 	}
 	if stored.Ticket.Deadline != nil {
-		b.WriteString(fmt.Sprintf("Deadline: %s\n", stored.Ticket.Deadline.Format(time.DateOnly)))
+		fmt.Fprintf(&b, "Deadline: %s\n", stored.Ticket.Deadline.Format(time.DateOnly))
 	} else {
 		b.WriteString("Deadline: —\n")
 	}
-	b.WriteString(fmt.Sprintf("Created: %s\n", stored.Ticket.Created.Format("2006-01-02 15:04")))
-	b.WriteString(fmt.Sprintf("Updated: %s", stored.Ticket.Updated.Format("2006-01-02 15:04")))
+	fmt.Fprintf(&b, "Created: %s\n", stored.Ticket.Created.Format("2006-01-02 15:04"))
+	fmt.Fprintf(&b, "Updated: %s", stored.Ticket.Updated.Format("2006-01-02 15:04"))
 	return b.String()
 }
 

@@ -150,17 +150,6 @@ func (m Model) renderFooterSeparator() string {
 	return snack + mutedStyle.Render(strings.Repeat("─", m.fullWidth()-plainWidth))
 }
 
-func (m Model) renderWarnings() string {
-	if len(m.Board.Warnings) == 0 {
-		return ""
-	}
-	return mutedStyle.Render(fmt.Sprintf("Warnings: %d ticket issue(s)", len(m.Board.Warnings))) + "\n"
-}
-
-func (m Model) renderStatus() string {
-	return m.renderSnack()
-}
-
 func (m Model) renderSnack() string {
 	if m.notification != nil {
 		switch m.notification.kind {
