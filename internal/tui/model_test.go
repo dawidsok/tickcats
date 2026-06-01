@@ -161,6 +161,9 @@ func TestDetailViewRendersContentAndMetadataColumns(t *testing.T) {
 	model = updated.(Model)
 
 	view := model.View()
+	if !strings.Contains(view, "CONTENT") {
+		t.Fatalf("detail missing CONTENT header:\n%s", view)
+	}
 	if !strings.Contains(view, "Long body line 1") {
 		t.Fatalf("detail missing body:\n%s", view)
 	}

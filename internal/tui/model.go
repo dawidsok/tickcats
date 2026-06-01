@@ -1392,6 +1392,7 @@ func (m Model) renderDetail() string {
 	if below > 0 {
 		contentText += "\n" + mutedStyle.Render(fitText(fmt.Sprintf("↓ %d lines below", below), contentInnerWidth))
 	}
+	contentText = bannerStyle.Render("CONTENT") + "\n\n" + contentText
 	content := lipgloss.NewStyle().
 		Width(contentWidth).
 		Height(m.detailPanelHeight()).
@@ -1451,7 +1452,7 @@ func (m Model) detailWidths() (int, int) {
 }
 
 func (m Model) visibleDetailLines(lines []string) ([]string, int, int) {
-	maxBodyLines := m.detailPanelHeight() - 2
+	maxBodyLines := m.detailPanelHeight() - 4 // 2 for borders, 2 for "CONTENT\n" header
 	if maxBodyLines < 3 {
 		maxBodyLines = 3
 	}
