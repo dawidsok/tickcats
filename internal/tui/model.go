@@ -66,19 +66,19 @@ var colorThemes = []colorTheme{
 }
 
 type Model struct {
-	Root             string
-	Board            store.Board
-	SelectedCol      int
-	ColScrollOffset  int
-	SelectedRows     map[store.State]int
-	ColumnScroll     map[store.State]int
-	MultiSelected    map[store.State]map[string]bool
-	Mode             ViewMode
-	InteractionMode  InteractionMode
-	DetailScroll     int
-	Status           string
-	Width            int
-	Height           int
+	Root            string
+	Board           store.Board
+	SelectedCol     int
+	ColScrollOffset int
+	SelectedRows    map[store.State]int
+	ColumnScroll    map[store.State]int
+	MultiSelected   map[store.State]map[string]bool
+	Mode            ViewMode
+	InteractionMode InteractionMode
+	DetailScroll    int
+	Status          string
+	Width           int
+	Height          int
 
 	createInput    textinput.Model
 	createKind     ticket.Kind
@@ -229,7 +229,9 @@ func (m Model) updateBoard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "n":
 		return m.enterCreate()
 	case "p":
-		m.promoteToReady()
+		m.moveSelected(1)
+	case "b":
+		m.moveSelected(-1)
 	case "e":
 		return m.editSelected()
 	case "x":
@@ -398,7 +400,7 @@ func (m Model) footerText() string {
 	if m.Mode == ViewDetail {
 		return "DETAIL MODE: j/k scroll  d/u half-page  e edit  c config  esc board  q quit"
 	}
-	return fmt.Sprintf("BOARD MODE: h/l col  j/k/d/u ticket  v select  m move  s sort(%s)  p ready  o/enter detail  e edit  n new  x del  r reload  c config  q quit", m.SortMode)
+	return fmt.Sprintf("BOARD MODE: h/l col  j/k/d/u ticket  v select  m move  s sort(%s)  p progress  b back  o/enter detail  e edit  n new  x del  r reload  c config  q quit", m.SortMode)
 }
 
 func (m *Model) moveColumn(delta int) {
@@ -501,37 +503,6 @@ func (m *Model) deleteSelected() {
 	m.Board = board
 	m.InteractionMode = InteractionBoard
 	m.Status = fmt.Sprintf("Deleted %s", stored.Name)
-}
-
-func (m *Model) promoteToReady() {
-	stored := m.selectedTicket()
-	if stored == nil {
-		m.Status = "No ticket selected"
-		return
-	}
-	if stored.State == store.StateReady {
-		m.Status = fmt.Sprintf("%s is already in ready", stored.Name)
-		return
-	}
-
-	if _, err := store.Move(m.Root, stored.Name, stored.State, store.StateReady); err != nil {
-		m.Status = "Move failed: " + err.Error()
-		return
-	}
-
-	board, err := store.LoadBoard(m.Root)
-	if err != nil {
-		m.Status = "Reload failed: " + err.Error()
-		return
-	}
-
-	m.Board = board
-	readyIdx := 1 // columnOrder index for StateReady
-	m.SelectedCol = readyIdx
-	m.ensureColVisible()
-	m.SelectedRows[store.StateReady] = findTicketRow(m.Board.Columns[store.StateReady], stored.Name)
-	m.ensureSelectedVisible(store.StateReady)
-	m.Status = fmt.Sprintf("Moved %s to ready", stored.Name)
 }
 
 func (m Model) editSelected() (tea.Model, tea.Cmd) {
@@ -1192,6 +1163,8 @@ func (m *Model) moveSelected(delta int) {
 	}
 
 	m.Board = board
+	m.syncManualOrder()
+	m.applySortToBoard()
 	m.SelectedCol = toIndex
 	m.ensureColVisible()
 	m.SelectedRows[to] = findTicketRow(m.Board.Columns[to], stored.Name)

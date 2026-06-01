@@ -724,53 +724,155 @@ func storedTicket(name string, state store.State, title string) store.StoredTick
 	}
 }
 
-func TestPromoteToReadyMovesTicket(t *testing.T) {
-	root := t.TempDir()
-	if err := store.Init(root); err != nil {
-		t.Fatalf("Init() error = %v", err)
+func TestPProgressesTicketToNextColumn(t *testing.T) {
+	tests := []struct {
+		name    string
+		from    store.State
+		fromCol int
+		to      store.State
+		toCol   int
+	}{
+		{name: "backlog to ready", from: store.StateBacklog, fromCol: 0, to: store.StateReady, toCol: 1},
+		{name: "ready to doing", from: store.StateReady, fromCol: 1, to: store.StateDoing, toCol: 2},
+		{name: "doing to done", from: store.StateDoing, fromCol: 2, to: store.StateDone, toCol: 3},
 	}
-	writeTUITestTicket(t, root, store.StateBacklog, "a.md", "Task: a")
-	board, err := store.LoadBoard(root)
-	if err != nil {
-		t.Fatalf("LoadBoard() error = %v", err)
-	}
-	model := NewModelWithRoot(root, board)
 
-	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
-	m := got.(Model)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := t.TempDir()
+			if err := store.Init(root); err != nil {
+				t.Fatalf("Init() error = %v", err)
+			}
+			writeTUITestTicket(t, root, tt.from, "a.md", "Task: a")
+			board, err := store.LoadBoard(root)
+			if err != nil {
+				t.Fatalf("LoadBoard() error = %v", err)
+			}
+			model := NewModelWithRoot(root, board)
+			model.SelectedCol = tt.fromCol
 
-	if len(m.Board.Columns[store.StateReady]) != 1 {
-		t.Fatalf("ready count = %d, want 1", len(m.Board.Columns[store.StateReady]))
-	}
-	if len(m.Board.Columns[store.StateBacklog]) != 0 {
-		t.Fatalf("backlog count = %d, want 0", len(m.Board.Columns[store.StateBacklog]))
-	}
-	if m.SelectedCol != 1 {
-		t.Fatalf("SelectedCol = %d, want 1 (ready)", m.SelectedCol)
-	}
-	if !strings.Contains(m.Status, "Moved a.md to ready") {
-		t.Fatalf("Status = %q", m.Status)
+			got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
+			m := got.(Model)
+
+			if len(m.Board.Columns[tt.to]) != 1 {
+				t.Fatalf("%s count = %d, want 1", tt.to, len(m.Board.Columns[tt.to]))
+			}
+			if len(m.Board.Columns[tt.from]) != 0 {
+				t.Fatalf("%s count = %d, want 0", tt.from, len(m.Board.Columns[tt.from]))
+			}
+			if m.SelectedCol != tt.toCol {
+				t.Fatalf("SelectedCol = %d, want %d", m.SelectedCol, tt.toCol)
+			}
+			if _, err := os.Stat(filepath.Join(root, string(tt.to), "a.md")); err != nil {
+				t.Fatalf("moved ticket missing: %v", err)
+			}
+			if !strings.Contains(m.Status, fmt.Sprintf("Moved a.md to %s", tt.to)) {
+				t.Fatalf("Status = %q", m.Status)
+			}
+		})
 	}
 }
 
-func TestPromoteToReadyAlreadyReadyIsNoOp(t *testing.T) {
-	root := t.TempDir()
-	if err := store.Init(root); err != nil {
-		t.Fatalf("Init() error = %v", err)
-	}
-	writeTUITestTicket(t, root, store.StateReady, "a.md", "Task: a")
-	board, _ := store.LoadBoard(root)
-	model := NewModelWithRoot(root, board)
-	model.SelectedCol = 1
+func TestPOnDoneIsNoOp(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateDone] = []store.StoredTicket{storedTicket("a.md", store.StateDone, "Task: a")}
+	model := NewModel(board)
+	model.SelectedCol = 3
 
 	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
 	m := got.(Model)
 
-	if len(m.Board.Columns[store.StateReady]) != 1 {
-		t.Fatalf("ready count changed unexpectedly")
+	if len(m.Board.Columns[store.StateDone]) != 1 {
+		t.Fatalf("done count changed unexpectedly")
 	}
-	if !strings.Contains(m.Status, "already in ready") {
-		t.Fatalf("Status = %q, want 'already in ready'", m.Status)
+	if m.Status != "Ticket already done" {
+		t.Fatalf("Status = %q, want already done", m.Status)
+	}
+}
+
+func TestBBacktracksTicketToPreviousColumn(t *testing.T) {
+	tests := []struct {
+		name    string
+		from    store.State
+		fromCol int
+		to      store.State
+		toCol   int
+	}{
+		{name: "done to doing", from: store.StateDone, fromCol: 3, to: store.StateDoing, toCol: 2},
+		{name: "doing to ready", from: store.StateDoing, fromCol: 2, to: store.StateReady, toCol: 1},
+		{name: "ready to backlog", from: store.StateReady, fromCol: 1, to: store.StateBacklog, toCol: 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := t.TempDir()
+			if err := store.Init(root); err != nil {
+				t.Fatalf("Init() error = %v", err)
+			}
+			writeTUITestTicket(t, root, tt.from, "a.md", "Task: a")
+			board, err := store.LoadBoard(root)
+			if err != nil {
+				t.Fatalf("LoadBoard() error = %v", err)
+			}
+			model := NewModelWithRoot(root, board)
+			model.SelectedCol = tt.fromCol
+
+			got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}})
+			m := got.(Model)
+
+			if len(m.Board.Columns[tt.to]) != 1 {
+				t.Fatalf("%s count = %d, want 1", tt.to, len(m.Board.Columns[tt.to]))
+			}
+			if len(m.Board.Columns[tt.from]) != 0 {
+				t.Fatalf("%s count = %d, want 0", tt.from, len(m.Board.Columns[tt.from]))
+			}
+			if m.SelectedCol != tt.toCol {
+				t.Fatalf("SelectedCol = %d, want %d", m.SelectedCol, tt.toCol)
+			}
+			if _, err := os.Stat(filepath.Join(root, string(tt.to), "a.md")); err != nil {
+				t.Fatalf("moved ticket missing: %v", err)
+			}
+			if !strings.Contains(m.Status, fmt.Sprintf("Moved a.md to %s", tt.to)) {
+				t.Fatalf("Status = %q", m.Status)
+			}
+		})
+	}
+}
+
+func TestBOnBacklogIsNoOp(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{storedTicket("a.md", store.StateBacklog, "Task: a")}
+	model := NewModel(board)
+
+	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}})
+	m := got.(Model)
+
+	if len(m.Board.Columns[store.StateBacklog]) != 1 {
+		t.Fatalf("backlog count changed unexpectedly")
+	}
+	if m.Status != "Ticket already in backlog" {
+		t.Fatalf("Status = %q, want already in backlog", m.Status)
+	}
+}
+
+func TestProgressBackNoSelectionShowsMessage(t *testing.T) {
+	for _, key := range []rune{'p', 'b'} {
+		t.Run(string(key), func(t *testing.T) {
+			model := NewModel(emptyBoard())
+			got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{key}})
+			m := got.(Model)
+			if m.Status != "No ticket selected" {
+				t.Fatalf("Status = %q, want no selection", m.Status)
+			}
+		})
+	}
+}
+
+func TestFooterDocumentsProgressAndBack(t *testing.T) {
+	model := NewModel(emptyBoard())
+	footer := model.footerText()
+	if !strings.Contains(footer, "p progress") || !strings.Contains(footer, "b back") {
+		t.Fatalf("footer = %q, want progress/back help", footer)
 	}
 }
 
