@@ -1430,7 +1430,7 @@ func appendColumnOverflow(lines []string, width int, below int, lastRenderedRow 
 }
 
 func deadlineIndicatorPlain(deadline time.Time, now time.Time) string {
-	return "  SLA " + strings.Repeat("█", deadlineBarCount(deadline, now))
+	return "  SLA " + strings.Repeat("|", deadlineBarCount(deadline, now))
 }
 
 func (m Model) renderDeadlineIndicator(deadline time.Time, now time.Time) string {
@@ -1446,7 +1446,7 @@ func (m Model) renderDeadlineIndicator(deadline time.Time, now time.Time) string
 	var b strings.Builder
 	b.WriteString(mutedStyle.Render("  SLA "))
 	for i := 0; i < barCount; i++ {
-		b.WriteString(styles[i].Render("█"))
+		b.WriteString(styles[i].Render("|"))
 	}
 	return b.String()
 }

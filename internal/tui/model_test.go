@@ -294,8 +294,11 @@ func TestBoardShowsSLAIndicatorForTicketWithDeadline(t *testing.T) {
 	m.SelectedCol = stateColIndex(store.StateReady)
 
 	view := m.View()
-	if !strings.Contains(view, "SLA") || !strings.Contains(view, "█") {
+	if !strings.Contains(view, "SLA") || !strings.Contains(view, "|") {
 		t.Fatalf("view missing SLA bar indicator:\n%s", view)
+	}
+	if strings.Contains(view, "█") {
+		t.Fatalf("view shows block SLA bars instead of pipe bars:\n%s", view)
 	}
 	if strings.Contains(view, deadline.Format(time.DateOnly)) {
 		t.Fatalf("board view shows deadline date instead of visual indicator:\n%s", view)
