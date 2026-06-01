@@ -1477,29 +1477,33 @@ func appendColumnOverflow(lines []string, width int, below int, lastRenderedRow 
 }
 
 func deadlineIndicatorPlain(deadline time.Time, now time.Time) string {
-	return "  SLA " + strings.Repeat("|", len(deadlineBarStates()))
+	return "  SLA " + deadlineBarPattern()
 }
 
 func (m Model) renderDeadlineIndicator(deadline time.Time, now time.Time) string {
 	activeBars := deadlineBarCount(deadline, now)
 	var b strings.Builder
 	b.WriteString(mutedStyle.Render("  SLA "))
-	b.WriteString(m.renderDeadlineBarSegment(store.StateReady, min(activeBars, 3), 3))
-	b.WriteString(m.renderDeadlineBarSegment(store.StateDoing, clamp(activeBars-3, 0, 2), 2))
-	b.WriteString(m.renderDeadlineBarSegment(store.StateDone, clamp(activeBars-5, 0, 1), 1))
+	b.WriteString(m.renderDeadlineBarSegment(store.StateReady, min(activeBars, 3), 3, "|"))
+	b.WriteString(m.renderDeadlineBarSegment(store.StateDoing, clamp(activeBars-3, 0, 2), 2, ":"))
+	b.WriteString(m.renderDeadlineBarSegment(store.StateDone, clamp(activeBars-5, 0, 1), 1, "."))
 	return b.String()
 }
 
-func (m Model) renderDeadlineBarSegment(state store.State, active int, total int) string {
+func (m Model) renderDeadlineBarSegment(state store.State, active int, total int, marker string) string {
 	active = clamp(active, 0, total)
 	var b strings.Builder
 	if active > 0 {
-		b.WriteString(m.colStyle(stateColIndex(state)).Render(strings.Repeat("|", active)))
+		b.WriteString(m.colStyle(stateColIndex(state)).Render(strings.Repeat(marker, active)))
 	}
 	if inactive := total - active; inactive > 0 {
-		b.WriteString(mutedStyle.Render(strings.Repeat("|", inactive)))
+		b.WriteString(mutedStyle.Render(strings.Repeat(marker, inactive)))
 	}
 	return b.String()
+}
+
+func deadlineBarPattern() string {
+	return "|||::."
 }
 
 func deadlineBarStates() []store.State {

@@ -308,17 +308,20 @@ func TestBoardShowsSLAIndicatorForTicketWithDeadline(t *testing.T) {
 	m.SelectedCol = stateColIndex(store.StateReady)
 
 	view := m.View()
-	if !strings.Contains(view, "SLA") || !strings.Contains(view, "|") {
+	if !strings.Contains(view, "SLA") || !strings.Contains(view, deadlineBarPattern()) {
 		t.Fatalf("view missing SLA bar indicator:\n%s", view)
 	}
-	if strings.Count(view, "|") != 6 {
-		t.Fatalf("SLA pipe count = %d, want 6 in view:\n%s", strings.Count(view, "|"), view)
-	}
 	if strings.Contains(view, "█") {
-		t.Fatalf("view shows block SLA bars instead of pipe bars:\n%s", view)
+		t.Fatalf("view shows block SLA bars instead of spacing-safe markers:\n%s", view)
 	}
 	if strings.Contains(view, deadline.Format(time.DateOnly)) {
 		t.Fatalf("board view shows deadline date instead of visual indicator:\n%s", view)
+	}
+}
+
+func TestDeadlineBarPatternUsesDistinctGroupMarkers(t *testing.T) {
+	if got := deadlineBarPattern(); got != "|||::." {
+		t.Fatalf("deadlineBarPattern() = %q, want |||::.", got)
 	}
 }
 
