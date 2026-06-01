@@ -21,9 +21,9 @@ var columnOrder = []store.State{store.StateBacklog, store.StateReady, store.Stat
 const minColumnWidth = 60 // minimum total width per column (including borders/margin)
 
 var (
-	selectedStyle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212"))
-	mutedStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	bannerStyle      = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
+	selectedStyle     = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212"))
+	mutedStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	bannerStyle       = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
 	notifSuccessStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#5fd787"))
 	notifErrorStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#ff5f5f"))
 )
@@ -471,19 +471,48 @@ func (m *Model) moveRow(delta int) {
 func (m *Model) ensureSelectedVisible(state store.State) {
 	rows := len(m.Board.Columns[state])
 	if rows == 0 {
+		m.SelectedRows[state] = 0
 		m.ColumnScroll[state] = 0
 		return
 	}
-	visible := m.visibleTicketRows()
+
 	selected := clamp(m.SelectedRows[state], 0, rows-1)
-	scroll := clamp(m.ColumnScroll[state], 0, max(0, rows-visible))
-	if selected < scroll {
+	m.SelectedRows[state] = selected
+	scroll := clamp(m.ColumnScroll[state], 0, rows-1)
+	if scroll > selected {
 		scroll = selected
 	}
-	if selected >= scroll+visible {
-		scroll = selected - visible + 1
+
+	budget := m.columnLineBudget()
+	innerWidth := m.columnInnerWidth()
+	for scroll < selected && !m.columnRangeFits(state, scroll, selected, budget, innerWidth) {
+		scroll++
 	}
-	m.ColumnScroll[state] = clamp(scroll, 0, max(0, rows-visible))
+	for scroll > 0 && m.columnRangeFits(state, scroll-1, selected, budget, innerWidth) {
+		scroll--
+	}
+
+	m.ColumnScroll[state] = clamp(scroll, 0, rows-1)
+}
+
+func (m Model) columnRangeFits(state store.State, start int, selected int, budget int, innerWidth int) bool {
+	if budget <= 0 {
+		return false
+	}
+	used := 0
+	if start > 0 {
+		used++ // "above" indicator
+	}
+	for row := start; row <= selected; row++ {
+		if row > start {
+			used++ // separator before this ticket
+		}
+		used += len(m.ticketColumnLines(state, row, innerWidth))
+		if used > budget {
+			return false
+		}
+	}
+	return true
 }
 
 func (m *Model) moveDetailScroll(delta int) {
@@ -1298,10 +1327,9 @@ func (m Model) renderColumn(index int, state store.State) string {
 
 func (m Model) renderColumnLines(index int, state store.State) []string {
 	tickets := m.Board.Columns[state]
-	visibleRows := m.visibleTicketRows()
-	scroll := clamp(m.ColumnScroll[state], 0, max(0, len(tickets)-visibleRows))
+	scroll := clamp(m.ColumnScroll[state], 0, max(0, len(tickets)-1))
 	innerWidth := m.columnInnerWidth()
-	maxLines := m.boardColumnInnerHeight() - 1
+	maxLines := m.columnLineBudget()
 	lines := make([]string, 0, maxLines)
 
 	appendLine := func(line string) bool {
@@ -1322,53 +1350,72 @@ func (m Model) renderColumnLines(index int, state store.State) []string {
 	}
 
 	selectedRow := m.SelectedRows[state]
-	end := min(len(tickets), scroll+visibleRows)
 	separator := mutedStyle.Render(strings.Repeat("─", innerWidth))
-	for row := scroll; row < end; row++ {
-		stored := tickets[row]
-		isFocused := index == m.SelectedCol && row == selectedRow
-		isSelected := m.MultiSelected[state] != nil && m.MultiSelected[state][stored.Name]
-
-		var prefix string
-		switch {
-		case isFocused && isSelected:
-			prefix = ">*"
-		case isFocused:
-			prefix = "> "
-		case isSelected:
-			prefix = "* "
-		default:
-			prefix = "  "
-		}
-
-		wrapped := wrapText(fmt.Sprintf("%s[%s] %s", prefix, stored.Ticket.Priority, stored.Ticket.Title), innerWidth)
-		for _, line := range wrapped {
-			switch {
-			case isFocused:
-				line = m.colStyle(index).Render(line)
-			case isSelected:
-				line = selectedStyle.Render(line)
-			}
-			if !appendLine(line) {
-				return appendColumnOverflow(lines, innerWidth, len(tickets)-row)
-			}
-		}
-		if row < end-1 {
+	for row := scroll; row < len(tickets); row++ {
+		if row > scroll {
 			if !appendLine(separator) {
-				return appendColumnOverflow(lines, innerWidth, len(tickets)-row-1)
+				return appendColumnOverflow(lines, innerWidth, len(tickets)-row, row-1, selectedRow)
+			}
+		}
+
+		for _, line := range m.styledTicketColumnLines(index, state, row, innerWidth) {
+			if !appendLine(line) {
+				return appendColumnOverflow(lines, innerWidth, len(tickets)-row, row, selectedRow)
 			}
 		}
 	}
 
-	below := len(tickets) - end
-	if below > 0 {
-		appendColumnOverflow(lines, innerWidth, below)
-	}
 	return lines
 }
 
-func appendColumnOverflow(lines []string, width int, below int) []string {
-	if below <= 0 || len(lines) == 0 {
+func (m Model) ticketColumnLines(state store.State, row int, innerWidth int) []string {
+	tickets := m.Board.Columns[state]
+	if row < 0 || row >= len(tickets) {
+		return nil
+	}
+	stored := tickets[row]
+	prefix := "  "
+	if m.MultiSelected[state] != nil && m.MultiSelected[state][stored.Name] {
+		prefix = "* "
+	}
+	return wrapText(fmt.Sprintf("%s[%s] %s", prefix, stored.Ticket.Priority, stored.Ticket.Title), innerWidth)
+}
+
+func (m Model) styledTicketColumnLines(index int, state store.State, row int, innerWidth int) []string {
+	tickets := m.Board.Columns[state]
+	if row < 0 || row >= len(tickets) {
+		return nil
+	}
+	stored := tickets[row]
+	isFocused := index == m.SelectedCol && row == m.SelectedRows[state]
+	isSelected := m.MultiSelected[state] != nil && m.MultiSelected[state][stored.Name]
+
+	var prefix string
+	switch {
+	case isFocused && isSelected:
+		prefix = ">*"
+	case isFocused:
+		prefix = "> "
+	case isSelected:
+		prefix = "* "
+	default:
+		prefix = "  "
+	}
+
+	wrapped := wrapText(fmt.Sprintf("%s[%s] %s", prefix, stored.Ticket.Priority, stored.Ticket.Title), innerWidth)
+	for i, line := range wrapped {
+		switch {
+		case isFocused:
+			wrapped[i] = m.colStyle(index).Render(line)
+		case isSelected:
+			wrapped[i] = selectedStyle.Render(line)
+		}
+	}
+	return wrapped
+}
+
+func appendColumnOverflow(lines []string, width int, below int, lastRenderedRow int, selectedRow int) []string {
+	if below <= 0 || len(lines) == 0 || lastRenderedRow == selectedRow {
 		return lines
 	}
 	lines[len(lines)-1] = mutedStyle.Render(fmt.Sprintf("  ↓ %d below", below))
@@ -1505,6 +1552,14 @@ func (m Model) visibleTicketRows() int {
 		return 1
 	}
 	return rows
+}
+
+func (m Model) columnLineBudget() int {
+	lines := m.boardColumnInnerHeight() - 1 // reserve one line for the column header
+	if lines < 1 {
+		return 1
+	}
+	return lines
 }
 
 func (m Model) detailPanelHeight() int {

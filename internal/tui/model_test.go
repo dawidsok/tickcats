@@ -84,6 +84,42 @@ func TestColumnScrollIndicators(t *testing.T) {
 	}
 }
 
+func TestColumnScrollKeepsFocusedTicketVisibleAtBottom(t *testing.T) {
+	board := emptyBoard()
+	for i := 0; i < 8; i++ {
+		board.Columns[store.StateBacklog] = append(board.Columns[store.StateBacklog], storedTicket(fmt.Sprintf("%d.md", i), store.StateBacklog, fmt.Sprintf("Task: visible-%d", i)))
+	}
+	model := NewModel(board)
+	model.Height = 12
+
+	for range 7 {
+		model.moveRow(1)
+	}
+
+	view := model.View()
+	if !strings.Contains(view, "Task: visible-7") {
+		t.Fatalf("View() missing focused bottom ticket after scrolling:\n%s", view)
+	}
+}
+
+func TestColumnScrollKeepsFocusedTicketVisibleAfterWrappedTicket(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{
+		storedTicket("long.md", store.StateBacklog, "Task: this title is intentionally very long so it wraps over multiple board lines and consumes the line budget"),
+		storedTicket("selected.md", store.StateBacklog, "Task: selected-after-wrapped-ticket"),
+	}
+	model := NewModel(board)
+	model.Height = 12
+	model.Width = 80
+
+	model.moveRow(1)
+
+	view := model.View()
+	if !strings.Contains(view, "Task: selected-after-wrapped-ticket") {
+		t.Fatalf("View() missing focused ticket after wrapped predecessor:\n%s", view)
+	}
+}
+
 func TestDKeyScrollsHalfPageDown(t *testing.T) {
 	board := emptyBoard()
 	for i := range 10 {
