@@ -1080,6 +1080,17 @@ func TestFooterDocumentsProgressAndBack(t *testing.T) {
 	}
 }
 
+func TestFooterSortLabelOmitsCurrentMode(t *testing.T) {
+	model := NewModel(emptyBoard())
+	footer := model.footerText()
+	if !strings.Contains(footer, "s sort") {
+		t.Fatalf("footer = %q, want sort help", footer)
+	}
+	if strings.Contains(footer, "sort(") {
+		t.Fatalf("footer = %q, want sort label without current mode", footer)
+	}
+}
+
 func TestEnterCreateModeOnN(t *testing.T) {
 	model := NewModel(emptyBoard())
 	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})

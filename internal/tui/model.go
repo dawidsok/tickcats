@@ -434,7 +434,7 @@ func (m Model) footerText() string {
 	if m.Mode == ViewDetail {
 		return "DETAIL MODE: j/k scroll  d/u half-page  e edit  c config  esc board  q quit"
 	}
-	return fmt.Sprintf("BOARD MODE: h/l col  j/k/d/u ticket  v select  m move  s sort(%s)  p progress  b back  o/enter detail  e edit  n new  x del  r reload  c config  q quit", m.SortMode)
+	return "BOARD MODE: h/l col  j/k/d/u ticket  v select  m move  s sort  p progress  b back  o/enter detail  e edit  n new  x del  r reload  c config  q quit"
 }
 
 func (m *Model) moveColumn(delta int) {
