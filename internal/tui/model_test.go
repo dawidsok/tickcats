@@ -297,6 +297,9 @@ func TestBoardShowsSLAIndicatorForTicketWithDeadline(t *testing.T) {
 	if !strings.Contains(view, "SLA") || !strings.Contains(view, "|") {
 		t.Fatalf("view missing SLA bar indicator:\n%s", view)
 	}
+	if strings.Count(view, "|") != 6 {
+		t.Fatalf("SLA pipe count = %d, want 6 in view:\n%s", strings.Count(view, "|"), view)
+	}
 	if strings.Contains(view, "█") {
 		t.Fatalf("view shows block SLA bars instead of pipe bars:\n%s", view)
 	}
