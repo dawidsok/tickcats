@@ -85,6 +85,10 @@ sequenceDiagram
         Store->>FS: read source ticket
         Store->>Ticket: ParseMarkdown(source)
         Store->>FS: rename into target state folder
+    else ids migrate
+        CLI->>Store: MigrateIDs(root)
+        Store->>FS: add missing frontmatter ids
+        Store->>FS: rename migrated files to id-based filenames
     else pick-next
         CLI->>Store: LoadBoard(".")
         Store->>Ticket: ParseMarkdown(each ticket)
@@ -135,6 +139,7 @@ classDiagram
     }
 
     class Ticket {
+        string ID
         string Title
         ParsedTitle ParsedTitle
         Priority Priority

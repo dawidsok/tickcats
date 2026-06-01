@@ -36,6 +36,7 @@ func LoadBoard(root string) (Board, error) {
 		board.Columns[state] = []StoredTicket{}
 	}
 
+	ids := make(map[string]StoredTicket)
 	for _, state := range ValidStates {
 		dir := filepath.Join(root, string(state))
 		entries, err := os.ReadDir(dir)
@@ -64,12 +65,25 @@ func LoadBoard(root string) (Board, error) {
 				continue
 			}
 
-			board.Columns[state] = append(board.Columns[state], StoredTicket{
+			stored := StoredTicket{
 				Path:   path,
 				Name:   entry.Name(),
 				State:  state,
 				Ticket: parsed,
-			})
+			}
+			board.Columns[state] = append(board.Columns[state], stored)
+			if parsed.ID == "" {
+				continue
+			}
+			if !ticket.ValidID(parsed.ID) {
+				board.Warnings = append(board.Warnings, Warning{Path: path, Err: fmt.Errorf("invalid ticket id %q: expected TC-XXXXXX", parsed.ID)})
+				continue
+			}
+			if first, exists := ids[parsed.ID]; exists {
+				board.Warnings = append(board.Warnings, Warning{Path: path, Err: fmt.Errorf("duplicate ticket id %q also used by %s", parsed.ID, first.Path)})
+				continue
+			}
+			ids[parsed.ID] = stored
 		}
 
 		sort.Slice(board.Columns[state], func(i, j int) bool {

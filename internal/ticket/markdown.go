@@ -9,6 +9,7 @@ import (
 )
 
 type Ticket struct {
+	ID                    string
 	Title                 string
 	ParsedTitle           ParsedTitle
 	Priority              Priority
@@ -30,15 +31,24 @@ func NewMarkdownWithLabels(kind Kind, text string, labels []string, priority Pri
 }
 
 func NewMarkdownFull(fullTitle string, priority Priority, now time.Time, acceptance ...string) string {
+	return NewMarkdownFullWithID("", fullTitle, priority, now, acceptance...)
+}
+
+func NewMarkdownFullWithID(id string, fullTitle string, priority Priority, now time.Time, acceptance ...string) string {
 	timestamp := now.UTC().Format(time.RFC3339)
 	acceptanceText := "-"
 	if len(acceptance) > 0 && strings.TrimSpace(acceptance[0]) != "" {
 		acceptanceText = "- " + strings.TrimSpace(acceptance[0])
 	}
 
+	idLine := ""
+	if strings.TrimSpace(id) != "" {
+		idLine = fmt.Sprintf("id: %s\n", strings.TrimSpace(id))
+	}
+
 	return fmt.Sprintf(`---
 title: %s
-priority: %s
+%spriority: %s
 created: %s
 updated: %s
 ---
@@ -47,7 +57,7 @@ updated: %s
 
 ## Acceptance Criteria
 %s
-`, fullTitle, priority, timestamp, timestamp, acceptanceText)
+`, fullTitle, idLine, priority, timestamp, timestamp, acceptanceText)
 }
 
 func ParseMarkdown(data []byte) (Ticket, error) {
@@ -65,6 +75,7 @@ func ParseMarkdown(data []byte) (Ticket, error) {
 	if err != nil {
 		return Ticket{}, err
 	}
+	id := strings.TrimSpace(fields["id"])
 
 	rawPriority, err := requiredField(fields, "priority")
 	if err != nil {
@@ -90,6 +101,7 @@ func ParseMarkdown(data []byte) (Ticket, error) {
 
 	bodyText := string(body)
 	return Ticket{
+		ID:                    id,
 		Title:                 title,
 		ParsedTitle:           ParseTitle(title),
 		Priority:              priority,

@@ -60,6 +60,7 @@ tickcats                # open the board (no command defaults to tui)
 | `tickcats list` | List tickets grouped by state |
 | `tickcats move <ticket> <from> <to>` | Move a ticket between states (`backlog`, `ready`, `doing`, `done`, `wont-do`) |
 | `tickcats pick-next` | Print the next recommended ready ticket |
+| `tickcats ids migrate` | Add IDs to existing tickets and rename migrated files |
 | `tickcats` | Open the terminal board (default when no command given) |
 | `tickcats tui` | Open the terminal board (explicit) |
 
@@ -113,6 +114,7 @@ Tickets are markdown files with YAML frontmatter:
 ```markdown
 ---
 title: "Feat: Add dark mode support [to refine]"
+id: TC-A7K9Q2
 priority: P1
 created: 2026-05-30T10:00:00Z
 updated: 2026-05-31T14:22:00Z
@@ -129,7 +131,7 @@ Users have requested a dark mode option for the dashboard.
 - Preference is persisted across sessions
 ```
 
-State is derived from which folder the file lives in — not from frontmatter. `deadline` is optional and, when present, uses `YYYY-MM-DD`; new tickets omit it by default.
+State is derived from which folder the file lives in — not from frontmatter. `id` is a stable ticket reference used in new filenames and commit references. `deadline` is optional and, when present, uses `YYYY-MM-DD`; new tickets omit deadlines by default.
 
 ## Board layout
 

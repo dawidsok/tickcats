@@ -1590,6 +1590,7 @@ func (m Model) renderDetailMetadata(stored store.StoredTicket) string {
 	var b strings.Builder
 	b.WriteString(bannerStyle.Render("METADATA"))
 	b.WriteString("\n\n")
+	b.WriteString(fmt.Sprintf("ID: %s\n", displayTicketID(stored.Ticket.ID)))
 	b.WriteString(fmt.Sprintf("Title: %s\n", stored.Ticket.Title))
 	b.WriteString("State: " + m.colStyle(stateColIndex(stored.State)).Render(string(stored.State)) + "\n")
 	b.WriteString("Priority: " + priorityStyle(stored.Ticket.Priority).Render(string(stored.Ticket.Priority)) + "\n")
@@ -1605,6 +1606,13 @@ func (m Model) renderDetailMetadata(stored store.StoredTicket) string {
 	b.WriteString(fmt.Sprintf("Created: %s\n", stored.Ticket.Created.Format("2006-01-02 15:04")))
 	b.WriteString(fmt.Sprintf("Updated: %s", stored.Ticket.Updated.Format("2006-01-02 15:04")))
 	return b.String()
+}
+
+func displayTicketID(id string) string {
+	if strings.TrimSpace(id) == "" {
+		return "—"
+	}
+	return id
 }
 
 func (m Model) detailWidths() (int, int) {
@@ -1768,7 +1776,7 @@ func (m Model) renderWarnings() string {
 	if len(m.Board.Warnings) == 0 {
 		return ""
 	}
-	return mutedStyle.Render(fmt.Sprintf("Warnings: %d malformed ticket(s) skipped", len(m.Board.Warnings))) + "\n"
+	return mutedStyle.Render(fmt.Sprintf("Warnings: %d ticket issue(s)", len(m.Board.Warnings))) + "\n"
 }
 
 func (m Model) renderStatus() string {
@@ -1791,7 +1799,7 @@ func (m Model) renderSnack() string {
 		parts = append(parts, m.Status)
 	}
 	if len(m.Board.Warnings) > 0 {
-		parts = append(parts, fmt.Sprintf("Warnings: %d malformed ticket(s) skipped", len(m.Board.Warnings)))
+		parts = append(parts, fmt.Sprintf("Warnings: %d ticket issue(s)", len(m.Board.Warnings)))
 	}
 	if len(parts) == 0 {
 		return ""

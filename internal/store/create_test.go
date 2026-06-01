@@ -58,6 +58,13 @@ func TestCreateWritesTicketInBacklog(t *testing.T) {
 	if strings.Contains(string(data), "deadline:") {
 		t.Fatalf("content includes deadline by default: %s", data)
 	}
+	parsed, err := ticket.ParseMarkdown(data)
+	if err != nil {
+		t.Fatalf("ParseMarkdown() error = %v", err)
+	}
+	if !ticket.ValidID(parsed.ID) {
+		t.Fatalf("created ticket ID = %q, want valid", parsed.ID)
+	}
 }
 
 func TestCreateFilenameContainsSlug(t *testing.T) {
@@ -71,6 +78,17 @@ func TestCreateFilenameContainsSlug(t *testing.T) {
 	name := filepath.Base(path)
 	if !strings.Contains(name, "fix-the-bug") {
 		t.Fatalf("filename %q does not contain slug", name)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read ticket: %v", err)
+	}
+	parsed, err := ticket.ParseMarkdown(data)
+	if err != nil {
+		t.Fatalf("ParseMarkdown() error = %v", err)
+	}
+	if !strings.HasPrefix(name, strings.ToLower(parsed.ID)+"-") {
+		t.Fatalf("filename %q does not start with lowercase ID %q", name, strings.ToLower(parsed.ID))
 	}
 }
 

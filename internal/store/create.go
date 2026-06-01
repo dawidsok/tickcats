@@ -16,8 +16,18 @@ func Create(boardRoot string, kind ticket.Kind, title string, labels []string, p
 		return "", fmt.Errorf("init board: %w", err)
 	}
 
-	content := ticket.NewMarkdownWithLabels(kind, title, labels, priority, now, ac...)
-	name := ticketFilename(now, title)
+	board, err := LoadBoard(boardRoot)
+	if err != nil {
+		return "", fmt.Errorf("load board ids: %w", err)
+	}
+	id, err := ticket.GenerateID(existingTicketIDs(board))
+	if err != nil {
+		return "", err
+	}
+
+	fullTitle := ticket.ParsedTitle{Kind: kind, Text: strings.TrimSpace(title), Labels: labels, HadPrefix: true}.NormalizedTitle()
+	content := ticket.NewMarkdownFullWithID(id, fullTitle, priority, now, ac...)
+	name := ticketFilename(id, title)
 	path := filepath.Join(boardRoot, string(StateBacklog), name)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return "", fmt.Errorf("write ticket %q: %w", path, err)
@@ -25,8 +35,20 @@ func Create(boardRoot string, kind ticket.Kind, title string, labels []string, p
 	return path, nil
 }
 
-func ticketFilename(now time.Time, title string) string {
-	return now.UTC().Format("20060102-1504") + "-" + ticketSlug(title) + ".md"
+func existingTicketIDs(board Board) map[string]bool {
+	ids := make(map[string]bool)
+	for _, tickets := range board.Columns {
+		for _, stored := range tickets {
+			if ticket.ValidID(stored.Ticket.ID) {
+				ids[stored.Ticket.ID] = true
+			}
+		}
+	}
+	return ids
+}
+
+func ticketFilename(id string, title string) string {
+	return strings.ToLower(id) + "-" + ticketSlug(title) + ".md"
 }
 
 var nonSlugCharsRe = regexp.MustCompile(`[^a-z0-9]+`)

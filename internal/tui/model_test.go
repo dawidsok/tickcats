@@ -258,6 +258,9 @@ func TestDetailMetadataHeaderAndColors(t *testing.T) {
 	if !strings.Contains(meta, "METADATA") {
 		t.Fatalf("missing METADATA header: %s", meta)
 	}
+	if !strings.Contains(meta, "ID: —") {
+		t.Fatalf("missing empty ID line: %s", meta)
+	}
 	if !strings.Contains(meta, "Title: Task: a") {
 		t.Fatalf("missing title line: %s", meta)
 	}
@@ -269,6 +272,17 @@ func TestDetailMetadataHeaderAndColors(t *testing.T) {
 	}
 	if !strings.Contains(meta, "Deadline: —") {
 		t.Fatalf("missing empty deadline line: %s", meta)
+	}
+}
+
+func TestDetailMetadataShowsIDWhenPresent(t *testing.T) {
+	stored := storedTicket("a.md", store.StateReady, "Task: a")
+	stored.Ticket.ID = "TC-A7K9Q2"
+	m := NewModel(emptyBoard())
+
+	meta := m.renderDetailMetadata(stored)
+	if !strings.Contains(meta, "ID: TC-A7K9Q2") {
+		t.Fatalf("missing ID line: %s", meta)
 	}
 }
 

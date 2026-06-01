@@ -89,12 +89,48 @@ func TestLoadBoardWarnsOnInvalidDeadline(t *testing.T) {
 	}
 }
 
+func TestLoadBoardWarnsOnInvalidTicketIDButKeepsTicket(t *testing.T) {
+	root := t.TempDir()
+	mustInit(t, root)
+	path := filepath.Join(root, string(StateReady), "bad-id.md")
+	content := strings.Replace(ticketContent("Task: bad id", time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC), time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC)), "title: Task: bad id\n", "title: Task: bad id\nid: nope\n", 1)
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write bad id ticket: %v", err)
+	}
+
+	board, err := LoadBoard(root)
+	if err != nil {
+		t.Fatalf("LoadBoard() error = %v", err)
+	}
+	assertColumnTitles(t, board, StateReady, []string{"Task: bad id"})
+	if len(board.Warnings) != 1 || !strings.Contains(board.Warnings[0].Err.Error(), "invalid ticket id") {
+		t.Fatalf("Warnings = %#v, want invalid ticket id", board.Warnings)
+	}
+}
+
+func TestLoadBoardWarnsOnDuplicateTicketID(t *testing.T) {
+	root := t.TempDir()
+	mustInit(t, root)
+	writeTicketWithID(t, root, StateReady, "a.md", "Task: a", "TC-A7K9Q2")
+	writeTicketWithID(t, root, StateReady, "b.md", "Task: b", "TC-A7K9Q2")
+
+	board, err := LoadBoard(root)
+	if err != nil {
+		t.Fatalf("LoadBoard() error = %v", err)
+	}
+	assertColumnTitles(t, board, StateReady, []string{"Task: a", "Task: b"})
+	if len(board.Warnings) != 1 || !strings.Contains(board.Warnings[0].Err.Error(), "duplicate ticket id") {
+		t.Fatalf("Warnings = %#v, want duplicate ticket id", board.Warnings)
+	}
+}
+
 func TestMoveTicketPreservesContentAndDoesNotUpdateTimestamp(t *testing.T) {
 	root := t.TempDir()
 	mustInit(t, root)
 	created := time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC)
 	updated := time.Date(2026, 5, 30, 11, 0, 0, 0, time.UTC)
-	content := strings.Replace(ticketContent("Task: move me", created, updated), "updated: 2026-05-30T11:00:00Z\n", "updated: 2026-05-30T11:00:00Z\ndeadline: 2026-06-15\n", 1)
+	content := strings.Replace(ticketContent("Task: move me", created, updated), "title: Task: move me\n", "title: Task: move me\nid: TC-A7K9Q2\n", 1)
+	content = strings.Replace(content, "updated: 2026-05-30T11:00:00Z\n", "updated: 2026-05-30T11:00:00Z\ndeadline: 2026-06-15\n", 1)
 	source := filepath.Join(root, string(StateReady), "move-me.md")
 	if err := os.WriteFile(source, []byte(content), 0o644); err != nil {
 		t.Fatalf("write source ticket: %v", err)
@@ -158,6 +194,15 @@ func writeTicket(t *testing.T, root string, state State, name string, title stri
 	t.Helper()
 	path := filepath.Join(root, string(state), name)
 	content := ticketContent(title, time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC), time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC))
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write ticket %q: %v", path, err)
+	}
+}
+
+func writeTicketWithID(t *testing.T, root string, state State, name string, title string, id string) {
+	t.Helper()
+	path := filepath.Join(root, string(state), name)
+	content := strings.Replace(ticketContent(title, time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC), time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC)), "title: "+title+"\n", "title: "+title+"\nid: "+id+"\n", 1)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("write ticket %q: %v", path, err)
 	}

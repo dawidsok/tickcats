@@ -53,11 +53,14 @@ func TestNewMarkdownWithAcceptanceCriteria(t *testing.T) {
 	}
 }
 
-func TestNewMarkdownOmitsDeadlineByDefault(t *testing.T) {
+func TestNewMarkdownOmitsOptionalFieldsByDefault(t *testing.T) {
 	now := time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC)
 	content := NewMarkdown(KindTask, "write README", PriorityP2, now)
 	if strings.Contains(content, "deadline:") {
 		t.Fatalf("NewMarkdown() included deadline by default:\n%s", content)
+	}
+	if strings.Contains(content, "id:") {
+		t.Fatalf("NewMarkdown() included id by default:\n%s", content)
 	}
 	got, err := ParseMarkdown([]byte(content))
 	if err != nil {
@@ -65,6 +68,21 @@ func TestNewMarkdownOmitsDeadlineByDefault(t *testing.T) {
 	}
 	if got.Deadline != nil {
 		t.Fatalf("Deadline = %v, want nil", got.Deadline)
+	}
+	if got.ID != "" {
+		t.Fatalf("ID = %q, want empty", got.ID)
+	}
+}
+
+func TestNewMarkdownFullWithID(t *testing.T) {
+	now := time.Date(2026, 5, 30, 10, 0, 0, 0, time.UTC)
+	content := NewMarkdownFullWithID("TC-A7K9Q2", "Task: write README", PriorityP2, now)
+	got, err := ParseMarkdown([]byte(content))
+	if err != nil {
+		t.Fatalf("ParseMarkdown() error = %v", err)
+	}
+	if got.ID != "TC-A7K9Q2" {
+		t.Fatalf("ID = %q, want TC-A7K9Q2", got.ID)
 	}
 }
 
@@ -80,6 +98,17 @@ func TestParseMarkdownOptionalDeadline(t *testing.T) {
 	want := time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC)
 	if !got.Deadline.Equal(want) {
 		t.Fatalf("Deadline = %s, want %s", got.Deadline, want)
+	}
+}
+
+func TestParseMarkdownOptionalID(t *testing.T) {
+	content := strings.Replace(validTicketContent("Task: write README", "- done"), "title: Task: write README\n", "title: Task: write README\nid: TC-A7K9Q2\n", 1)
+	got, err := ParseMarkdown([]byte(content))
+	if err != nil {
+		t.Fatalf("ParseMarkdown() error = %v", err)
+	}
+	if got.ID != "TC-A7K9Q2" {
+		t.Fatalf("ID = %q, want TC-A7K9Q2", got.ID)
 	}
 }
 

@@ -123,7 +123,25 @@ func TestPickNextPathTieErrorsWithCandidatePaths(t *testing.T) {
 	})
 }
 
-func TestPickNextHumanOutputUnchanged(t *testing.T) {
+func TestPickNextHumanOutputIncludesID(t *testing.T) {
+	root := t.TempDir()
+	withCwd(t, root, func() {
+		if err := store.Init(store.RootDir); err != nil {
+			t.Fatalf("Init() error = %v", err)
+		}
+		writeMainTestTicketWithID(t, store.RootDir, store.StateReady, "a.md", "Task: a", "TC-A7K9Q2", "2026-05-30T10:00:00Z")
+
+		stdout, _, err := captureOutput(func() error { return runPickNext(nil, store.RootDir) })
+		if err != nil {
+			t.Fatalf("runPickNext() error = %v", err)
+		}
+		if stdout != "a.md  TC-A7K9Q2  [P2] Task: a\n" {
+			t.Fatalf("stdout = %q", stdout)
+		}
+	})
+}
+
+func TestPickNextHumanOutputIncludesMissingIDPlaceholder(t *testing.T) {
 	root := t.TempDir()
 	withCwd(t, root, func() {
 		if err := store.Init(store.RootDir); err != nil {
@@ -135,7 +153,7 @@ func TestPickNextHumanOutputUnchanged(t *testing.T) {
 		if err != nil {
 			t.Fatalf("runPickNext() error = %v", err)
 		}
-		if stdout != "a.md  [P2] Task: a\n" {
+		if stdout != "a.md  —  [P2] Task: a\n" {
 			t.Fatalf("stdout = %q", stdout)
 		}
 	})
@@ -171,8 +189,26 @@ func TestListDisplaysWontDoColumn(t *testing.T) {
 		if err != nil {
 			t.Fatalf("runList() error = %v", err)
 		}
-		if !strings.Contains(stdout, "Won't Do\n") || !strings.Contains(stdout, "a.md  [P2] Task: rejected") {
+		if !strings.Contains(stdout, "Won't Do\n") || !strings.Contains(stdout, "a.md  —  [P2] Task: rejected") {
 			t.Fatalf("stdout missing Won't Do ticket:\n%s", stdout)
+		}
+	})
+}
+
+func TestIDsMigrateCommand(t *testing.T) {
+	root := t.TempDir()
+	withCwd(t, root, func() {
+		if err := store.Init(store.RootDir); err != nil {
+			t.Fatalf("Init() error = %v", err)
+		}
+		writeMainTestTicket(t, store.RootDir, store.StateReady, "a.md", "Task: migrate", "2026-05-30T10:00:00Z")
+
+		stdout, _, err := captureOutput(func() error { return runIDs([]string{"migrate"}, store.RootDir) })
+		if err != nil {
+			t.Fatalf("runIDs() error = %v", err)
+		}
+		if !strings.Contains(stdout, "Migrated 1 ticket(s)") || !strings.Contains(stdout, "TC-") {
+			t.Fatalf("stdout missing migration result:\n%s", stdout)
 		}
 	})
 }
@@ -215,13 +251,22 @@ func captureOutput(fn func() error) (string, string, error) {
 
 func writeMainTestTicket(t *testing.T, boardPath string, state store.State, name string, title string, createdRaw string) {
 	t.Helper()
+	writeMainTestTicketWithID(t, boardPath, state, name, title, "", createdRaw)
+}
+
+func writeMainTestTicketWithID(t *testing.T, boardPath string, state store.State, name string, title string, id string, createdRaw string) {
+	t.Helper()
 	created, err := time.Parse(time.RFC3339, createdRaw)
 	if err != nil {
 		t.Fatalf("parse created: %v", err)
 	}
+	idLine := ""
+	if id != "" {
+		idLine = "id: " + id + "\n"
+	}
 	content := `---
 title: ` + title + `
-priority: P2
+` + idLine + `priority: P2
 created: ` + created.Format(time.RFC3339) + `
 updated: ` + created.Format(time.RFC3339) + `
 ---

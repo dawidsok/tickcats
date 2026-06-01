@@ -49,6 +49,8 @@ func run(args []string) error {
 		return runMove(args[1:], boardPath)
 	case "pick-next":
 		return runPickNext(args[1:], boardPath)
+	case "ids":
+		return runIDs(args[1:], boardPath)
 	case "tui":
 		return runTUI(boardPath)
 	case "help", "--help", "-h":
@@ -100,7 +102,7 @@ func runList(boardPath string) error {
 	for _, state := range store.ValidStates {
 		fmt.Printf("%s\n", state.DisplayName())
 		for _, stored := range board.Columns[state] {
-			fmt.Printf("  %s  [%s] %s\n", stored.Name, stored.Ticket.Priority, stored.Ticket.Title)
+			fmt.Printf("  %s  %s  [%s] %s\n", stored.Name, displayID(stored.Ticket.ID), stored.Ticket.Priority, stored.Ticket.Title)
 		}
 	}
 	return nil
@@ -152,14 +154,36 @@ func runPickNext(args []string, boardPath string) error {
 	if result.NeedsChoice {
 		fmt.Println("Tie candidates:")
 		for _, tied := range result.Tied {
-			fmt.Printf("  %s  [%s] %s\n", tied.Name, tied.Ticket.Priority, tied.Ticket.Title)
+			fmt.Printf("  %s  %s  [%s] %s\n", tied.Name, displayID(tied.Ticket.ID), tied.Ticket.Priority, tied.Ticket.Title)
 		}
 		return nil
 	}
 
 	picked := result.Ticket
-	fmt.Printf("%s  [%s] %s\n", picked.Name, picked.Ticket.Priority, picked.Ticket.Title)
+	fmt.Printf("%s  %s  [%s] %s\n", picked.Name, displayID(picked.Ticket.ID), picked.Ticket.Priority, picked.Ticket.Title)
 	return nil
+}
+
+func runIDs(args []string, boardPath string) error {
+	if len(args) != 1 || args[0] != "migrate" {
+		return fmt.Errorf("usage: tickcats ids migrate")
+	}
+	result, err := store.MigrateIDs(boardPath)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Migrated %d ticket(s)\n", len(result.Migrated))
+	for _, migrated := range result.Migrated {
+		fmt.Printf("  %s  %s -> %s\n", migrated.ID, migrated.OldPath, migrated.NewPath)
+	}
+	return nil
+}
+
+func displayID(id string) string {
+	if strings.TrimSpace(id) == "" {
+		return "—"
+	}
+	return id
 }
 
 func parsePickNextArgs(args []string) (bool, error) {
@@ -224,7 +248,7 @@ func parseNewKind(raw string) (ticket.Kind, error) {
 
 func printWarnings(warnings []store.Warning) {
 	for _, warning := range warnings {
-		fmt.Fprintf(os.Stderr, "Warning: skipped %s: %v\n", warning.Path, warning.Err)
+		fmt.Fprintf(os.Stderr, "Warning: %s: %v\n", warning.Path, warning.Err)
 	}
 }
 
@@ -242,5 +266,6 @@ func printHelp() {
 	fmt.Println("  list                         list tickets grouped by state")
 	fmt.Println("  move <ticket> <from> <to>    move ticket between states (backlog, ready, doing, done, wont-do)")
 	fmt.Println("  pick-next [--path]           print next ready ticket")
+	fmt.Println("  ids migrate                  add IDs to existing tickets and rename files")
 	fmt.Println("  tui                          open terminal board")
 }
