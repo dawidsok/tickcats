@@ -33,4 +33,4 @@ Prioritize tests around markdown/frontmatter parsing, conventional title parsing
 
 ## Commit & PR Guidelines
 
-Current history only has `Initial commit`, so no commit convention is established. Use concise imperative subjects until a convention is added. PRs should mention affected PRD requirements by FR/US number where practical.
+Always use Conventional Commits for commit messages, e.g. `feat(tui): add progress shortcut`, `fix(store): preserve ticket metadata`, or `docs(readme): add install notes`. Keep subjects concise and imperative. PRs should mention affected PRD requirements by FR/US number where practical.
