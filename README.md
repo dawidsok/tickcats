@@ -30,7 +30,7 @@ brew install dawidsok/tap/tickcats
 
 ### Direct download
 
-Download the binary for your platform from the [GitHub Releases](https://github.com/dawidsok/tickcats/releases) page, extract, and move to a directory on your `$PATH`.
+Download the `tickcats_<version>_<os>_<arch>` archive for your platform from the [GitHub Releases](https://github.com/dawidsok/tickcats/releases) page, extract, and move the `tickcats` binary to a directory on your `$PATH`.
 
 ### go install
 

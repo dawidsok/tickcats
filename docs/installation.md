@@ -29,11 +29,12 @@ Requires no CI, no release workflow, no external accounts.
 **Phase 2 — widen reach:**
 
 Add GoReleaser (`.goreleaser.yml`) + a GitHub Actions release workflow triggered on
-`v*` tags. GoReleaser produces:
+semantic version tags like `v0.1.4`. GoReleaser produces:
 - pre-built tarballs for macOS/Linux/Windows uploaded to GitHub Releases
-- a Homebrew tap formula auto-generated in a separate `homebrew-tickcats` repo
+- a Homebrew tap formula auto-generated in the `dawidsok/homebrew-tap` repo
 
-This covers non-Go macOS/Linux users via `brew install <tap>/tickcats` and
+Archive names follow `tickcats_<version>_<os>_<arch>.tar.gz`, except Windows uses `.zip`.
+This covers non-Go macOS/Linux users via `brew install dawidsok/tap/tickcats` and
 anyone who prefers a direct download.
 
 No hosted services, auth, or sync are introduced by either phase.
