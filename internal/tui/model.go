@@ -1434,13 +1434,10 @@ func deadlineIndicatorPlain(deadline time.Time, now time.Time) string {
 }
 
 func (m Model) renderDeadlineIndicator(deadline time.Time, now time.Time) string {
-	styles := []lipgloss.Style{
-		m.colStyle(stateColIndex(store.StateReady)),
-		m.colStyle(stateColIndex(store.StateReady)),
-		m.colStyle(stateColIndex(store.StateReady)),
-		m.colStyle(stateColIndex(store.StateDoing)),
-		m.colStyle(stateColIndex(store.StateDoing)),
-		m.colStyle(stateColIndex(store.StateDone)),
+	states := deadlineBarStates()
+	styles := make([]lipgloss.Style, 0, len(states))
+	for _, state := range states {
+		styles = append(styles, m.colStyle(stateColIndex(state)))
 	}
 	barCount := deadlineBarCount(deadline, now)
 	var b strings.Builder
@@ -1449,6 +1446,17 @@ func (m Model) renderDeadlineIndicator(deadline time.Time, now time.Time) string
 		b.WriteString(styles[i].Render("|"))
 	}
 	return b.String()
+}
+
+func deadlineBarStates() []store.State {
+	return []store.State{
+		store.StateReady,
+		store.StateReady,
+		store.StateReady,
+		store.StateDoing,
+		store.StateDoing,
+		store.StateDone,
+	}
 }
 
 func deadlineBarCount(deadline time.Time, now time.Time) int {

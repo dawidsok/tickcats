@@ -305,6 +305,26 @@ func TestBoardShowsSLAIndicatorForTicketWithDeadline(t *testing.T) {
 	}
 }
 
+func TestDeadlineBarStatesUseReadyDoingDoneColors(t *testing.T) {
+	want := []store.State{
+		store.StateReady,
+		store.StateReady,
+		store.StateReady,
+		store.StateDoing,
+		store.StateDoing,
+		store.StateDone,
+	}
+	got := deadlineBarStates()
+	if len(got) != len(want) {
+		t.Fatalf("deadlineBarStates len = %d, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("deadlineBarStates()[%d] = %s, want %s", i, got[i], want[i])
+		}
+	}
+}
+
 func TestDeadlineBarCountIncreasesAsDeadlineApproaches(t *testing.T) {
 	now := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
 	tests := []struct {
