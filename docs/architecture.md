@@ -21,15 +21,15 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    R[User repository] --> T[.tickcats/]
-    T --> B[backlog/]
-    T --> Y[ready/]
-    T --> D[doing/]
-    T --> N[done/]
-    B --> B1[ticket markdown files]
-    Y --> Y1[ticket markdown files]
-    D --> D1[ticket markdown files]
-    N --> N1[ticket markdown files]
+    R[User repository] --> T[".tickcats/"]
+    T --> B["backlog/"]
+    T --> Y["ready/"]
+    T --> D["doing/"]
+    T --> N["done/"]
+    B --> B1["ticket markdown files"]
+    Y --> Y1["ticket markdown files"]
+    D --> D1["ticket markdown files"]
+    N --> N1["ticket markdown files"]
 
     M[Ticket markdown] --> F[Frontmatter: title, priority, created, updated]
     M --> C[Body: Context, Acceptance Criteria]
