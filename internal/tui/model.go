@@ -539,6 +539,7 @@ func (m *Model) deleteSelected() tea.Cmd {
 
 	m.Board = board
 	m.InteractionMode = InteractionBoard
+	m.Status = ""
 	return m.notify("Deleted "+name, notifSuccess)
 }
 
