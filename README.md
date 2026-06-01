@@ -58,7 +58,7 @@ tickcats                # open the board (no command defaults to tui)
 | `tickcats init` | Create board folders and update `.gitignore` |
 | `tickcats new feat\|task\|bug <title>` | Create a ticket in backlog |
 | `tickcats list` | List tickets grouped by state |
-| `tickcats move <ticket> <from> <to>` | Move a ticket between states |
+| `tickcats move <ticket> <from> <to>` | Move a ticket between states (`backlog`, `ready`, `doing`, `done`, `wont-do`) |
 | `tickcats pick-next` | Print the next recommended ready ticket |
 | `tickcats` | Open the terminal board (default when no command given) |
 | `tickcats tui` | Open the terminal board (explicit) |
@@ -76,7 +76,7 @@ All commands accept `--path <dir>` to target a board other than `.tickcats`.
 | `d` / `u` | Half-page down / up |
 | `v` | Toggle selection on focused ticket |
 | `m` | Enter move mode |
-| `p` | Promote focused ticket to Ready |
+| `p` | Progress focused ticket to the next column |
 | `enter` / `o` | Open detail view |
 | `e` | Open ticket in external editor |
 | `n` | New ticket form |
@@ -138,7 +138,8 @@ State is derived from which folder the file lives in — not from frontmatter.
   ready/     ← refined, unblocked, ready to start
   doing/     ← active work
   done/      ← completed
-  trash/     ← soft-deleted tickets
+  wont-do/   ← intentionally rejected / not pursuing
+  .trash/    ← soft-deleted tickets
   config.json
   sort.json
 ```

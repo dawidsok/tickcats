@@ -98,7 +98,7 @@ func runList(boardPath string) error {
 	printWarnings(board.Warnings)
 
 	for _, state := range store.ValidStates {
-		fmt.Printf("%s\n", state)
+		fmt.Printf("%s\n", state.DisplayName())
 		for _, stored := range board.Columns[state] {
 			fmt.Printf("  %s  [%s] %s\n", stored.Name, stored.Ticket.Priority, stored.Ticket.Title)
 		}
@@ -222,7 +222,6 @@ func parseNewKind(raw string) (ticket.Kind, error) {
 	}
 }
 
-
 func printWarnings(warnings []store.Warning) {
 	for _, warning := range warnings {
 		fmt.Fprintf(os.Stderr, "Warning: skipped %s: %v\n", warning.Path, warning.Err)
@@ -241,7 +240,7 @@ func printHelp() {
 	fmt.Println("  init                         create board folders and ignore them in git")
 	fmt.Println("  new feat|task|bug <title> [--ac text]  create ticket in backlog")
 	fmt.Println("  list                         list tickets grouped by state")
-	fmt.Println("  move <ticket> <from> <to>    move ticket between states")
+	fmt.Println("  move <ticket> <from> <to>    move ticket between states (backlog, ready, doing, done, wont-do)")
 	fmt.Println("  pick-next [--path]           print next ready ticket")
 	fmt.Println("  tui                          open terminal board")
 }

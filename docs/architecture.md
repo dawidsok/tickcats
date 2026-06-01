@@ -26,10 +26,12 @@ flowchart TD
     T --> Y["ready/"]
     T --> D["doing/"]
     T --> N["done/"]
+    T --> W["wont-do/"]
     B --> B1["ticket markdown files"]
     Y --> Y1["ticket markdown files"]
     D --> D1["ticket markdown files"]
     N --> N1["ticket markdown files"]
+    W --> W1["ticket markdown files"]
 
     M[Ticket markdown] --> F[Frontmatter: title, priority, created, updated]
     M --> C[Body: Context, Acceptance Criteria]
@@ -66,7 +68,7 @@ sequenceDiagram
     User->>CLI: tickcats <command>
     alt init
         CLI->>Store: Init(".")
-        Store->>FS: mkdir backlog/ ready/ doing/ done/
+        Store->>FS: mkdir backlog/ ready/ doing/ done/ wont-do/
         Store->>FS: append .tickcats/ to .gitignore if missing
     else new feat|task|bug <title>
         CLI->>Store: Init(".")

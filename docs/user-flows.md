@@ -7,7 +7,7 @@ These Mermaid diagrams summarize the v1 flows from the PRD and current CLI imple
 ```mermaid
 flowchart TD
     A["User runs tickcats init"] --> B["Create .tickcats/"]
-    B --> C["Create backlog/ ready/ doing/ done/"]
+    B --> C["Create backlog/ ready/ doing/ done/ wont-do/"]
     C --> D["Ensure .gitignore contains .tickcats/"]
     D --> E["Repo-local private board is ready"]
 ```
@@ -38,18 +38,22 @@ flowchart LR
     B --> D["Show Ready column"]
     B --> E["Show Doing column"]
     B --> F["Show Done column"]
+    B --> W["Show Won't Do column"]
     C -. h/l .-> D
     D -. h/l .-> E
     E -. h/l .-> F
+    F -. h/l .-> W
     C -. j/k .-> C
     D -. j/k .-> D
     E -. j/k .-> E
     F -. j/k .-> F
+    W -. j/k .-> W
     G["Move selected ticket"] --> H{"Target state"}
     H -->|Backlog| C
     H -->|Ready| D
     H -->|Doing| E
     H -->|Done| F
+    H -->|Won't Do| W
 ```
 
 ## Pick next ready ticket

@@ -187,6 +187,20 @@ func TestBoardRendersColumnBorders(t *testing.T) {
 	}
 }
 
+func TestBoardRendersWontDoColumnAfterDone(t *testing.T) {
+	model := NewModel(emptyBoard())
+	model.Width = 300
+	view := model.View()
+	doneIdx := strings.Index(view, "DONE")
+	wontDoIdx := strings.Index(view, "WON'T DO")
+	if doneIdx < 0 || wontDoIdx < 0 {
+		t.Fatalf("View() missing Done or Won't Do columns:\n%s", view)
+	}
+	if wontDoIdx < doneIdx {
+		t.Fatalf("Won't Do column rendered before Done:\n%s", view)
+	}
+}
+
 func TestDetailViewRendersContentAndMetadataColumns(t *testing.T) {
 	board := emptyBoard()
 	board.Columns[store.StateBacklog] = []store.StoredTicket{storedTicket("a.md", store.StateBacklog, "Task: a")}
@@ -526,16 +540,16 @@ func TestMoveSelectedRightEmptyColumn(t *testing.T) {
 	}
 }
 
-func TestMoveSelectedRightDoneNoop(t *testing.T) {
+func TestMoveSelectedRightLastColumnNoop(t *testing.T) {
 	board := emptyBoard()
-	board.Columns[store.StateDone] = []store.StoredTicket{storedTicket("a.md", store.StateDone, "Task: a")}
+	board.Columns[store.StateWontDo] = []store.StoredTicket{storedTicket("a.md", store.StateWontDo, "Task: a")}
 	model := NewModel(board)
-	model.SelectedCol = 3
+	model.SelectedCol = 4
 	model = enterMoveMode(t, model)
 	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
 	got := updated.(Model)
-	if got.Status != "Ticket already done" {
-		t.Fatalf("Status = %q, want already done", got.Status)
+	if got.Status != "Ticket already in wont-do" {
+		t.Fatalf("Status = %q, want already in wont-do", got.Status)
 	}
 }
 
@@ -807,6 +821,7 @@ func TestPProgressesTicketToNextColumn(t *testing.T) {
 		{name: "backlog to ready", from: store.StateBacklog, fromCol: 0, to: store.StateReady, toCol: 1},
 		{name: "ready to doing", from: store.StateReady, fromCol: 1, to: store.StateDoing, toCol: 2},
 		{name: "doing to done", from: store.StateDoing, fromCol: 2, to: store.StateDone, toCol: 3},
+		{name: "done to wont-do", from: store.StateDone, fromCol: 3, to: store.StateWontDo, toCol: 4},
 	}
 
 	for _, tt := range tests {
@@ -845,20 +860,20 @@ func TestPProgressesTicketToNextColumn(t *testing.T) {
 	}
 }
 
-func TestPOnDoneIsNoOp(t *testing.T) {
+func TestPOnWontDoIsNoOp(t *testing.T) {
 	board := emptyBoard()
-	board.Columns[store.StateDone] = []store.StoredTicket{storedTicket("a.md", store.StateDone, "Task: a")}
+	board.Columns[store.StateWontDo] = []store.StoredTicket{storedTicket("a.md", store.StateWontDo, "Task: a")}
 	model := NewModel(board)
-	model.SelectedCol = 3
+	model.SelectedCol = 4
 
 	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
 	m := got.(Model)
 
-	if len(m.Board.Columns[store.StateDone]) != 1 {
-		t.Fatalf("done count changed unexpectedly")
+	if len(m.Board.Columns[store.StateWontDo]) != 1 {
+		t.Fatalf("wont-do count changed unexpectedly")
 	}
-	if m.Status != "Ticket already done" {
-		t.Fatalf("Status = %q, want already done", m.Status)
+	if m.Status != "Ticket already in wont-do" {
+		t.Fatalf("Status = %q, want already in wont-do", m.Status)
 	}
 }
 
@@ -870,6 +885,7 @@ func TestBBacktracksTicketToPreviousColumn(t *testing.T) {
 		to      store.State
 		toCol   int
 	}{
+		{name: "wont-do to done", from: store.StateWontDo, fromCol: 4, to: store.StateDone, toCol: 3},
 		{name: "done to doing", from: store.StateDone, fromCol: 3, to: store.StateDoing, toCol: 2},
 		{name: "doing to ready", from: store.StateDoing, fromCol: 2, to: store.StateReady, toCol: 1},
 		{name: "ready to backlog", from: store.StateReady, fromCol: 1, to: store.StateBacklog, toCol: 0},
@@ -1772,14 +1788,14 @@ func TestCapitalLMovesSelectedToLastColumn(t *testing.T) {
 	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'L'}})
 	m = got.(Model)
 
-	if len(m.Board.Columns[store.StateDone]) != 1 {
-		t.Fatalf("done len = %d, want 1", len(m.Board.Columns[store.StateDone]))
+	if len(m.Board.Columns[store.StateWontDo]) != 1 {
+		t.Fatalf("wont-do len = %d, want 1", len(m.Board.Columns[store.StateWontDo]))
 	}
-	if m.SelectedCol != 3 {
-		t.Fatalf("SelectedCol = %d, want 3", m.SelectedCol)
+	if m.SelectedCol != 4 {
+		t.Fatalf("SelectedCol = %d, want 4", m.SelectedCol)
 	}
-	if !strings.Contains(m.notifText(), "done") {
-		t.Fatalf("notification = %q, want mention of done", m.notifText())
+	if !strings.Contains(m.notifText(), "wont-do") {
+		t.Fatalf("notification = %q, want mention of wont-do", m.notifText())
 	}
 }
 
@@ -1838,17 +1854,17 @@ func TestCapitalLNoSelectionMovesToLastColumn(t *testing.T) {
 	board, _ := store.LoadBoard(root)
 	m := NewModelWithRoot(root, board)
 
-	// No selection — L should move focused ticket to done
+	// No selection — L should move focused ticket to the last column.
 	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
 	m = got.(Model)
 	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'L'}})
 	m = got.(Model)
 
-	if len(m.Board.Columns[store.StateDone]) != 1 {
-		t.Fatalf("done len = %d, want 1", len(m.Board.Columns[store.StateDone]))
+	if len(m.Board.Columns[store.StateWontDo]) != 1 {
+		t.Fatalf("wont-do len = %d, want 1", len(m.Board.Columns[store.StateWontDo]))
 	}
-	if m.SelectedCol != 3 {
-		t.Fatalf("SelectedCol = %d, want 3", m.SelectedCol)
+	if m.SelectedCol != 4 {
+		t.Fatalf("SelectedCol = %d, want 4", m.SelectedCol)
 	}
 }
 
@@ -1860,9 +1876,9 @@ func TestVisibleColumnCountNarrowWide(t *testing.T) {
 		t.Fatalf("width=0: visibleColumnCount = %d, want %d", m.visibleColumnCount(), len(columnOrder))
 	}
 
-	m.Width = 240
-	if m.visibleColumnCount() != 4 {
-		t.Fatalf("width=240: visibleColumnCount = %d, want 4", m.visibleColumnCount())
+	m.Width = 300
+	if m.visibleColumnCount() != 5 {
+		t.Fatalf("width=300: visibleColumnCount = %d, want 5", m.visibleColumnCount())
 	}
 
 	m.Width = 120
@@ -1915,14 +1931,14 @@ func TestHScrollIndicatorShownOnNarrowTerminal(t *testing.T) {
 	if !strings.Contains(view, "←") {
 		t.Fatalf("view missing ← scroll indicator:\n%s", view)
 	}
-	if !strings.Contains(view, "backlog") {
-		t.Fatalf("view missing 'backlog' in scroll indicator:\n%s", view)
+	if !strings.Contains(view, "Backlog") {
+		t.Fatalf("view missing 'Backlog' in scroll indicator:\n%s", view)
 	}
 }
 
 func TestHScrollIndicatorNotShownWhenAllFit(t *testing.T) {
 	m := NewModel(emptyBoard())
-	m.Width = 240
+	m.Width = 300
 
 	if m.renderHScrollIndicator() != "" {
 		t.Fatal("hscroll indicator shown when all columns fit")

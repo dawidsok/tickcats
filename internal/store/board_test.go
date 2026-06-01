@@ -15,6 +15,7 @@ func TestLoadBoardGroupsTicketsByState(t *testing.T) {
 	writeTicket(t, root, StateReady, "b.md", "Feat: ready item")
 	writeTicket(t, root, StateDoing, "c.md", "Bug: doing item")
 	writeTicket(t, root, StateDone, "d.md", "Task: done item")
+	writeTicket(t, root, StateWontDo, "e.md", "Task: rejected item")
 
 	board, err := LoadBoard(root)
 	if err != nil {
@@ -28,6 +29,21 @@ func TestLoadBoardGroupsTicketsByState(t *testing.T) {
 	assertColumnTitles(t, board, StateReady, []string{"Feat: ready item"})
 	assertColumnTitles(t, board, StateDoing, []string{"Bug: doing item"})
 	assertColumnTitles(t, board, StateDone, []string{"Task: done item"})
+	assertColumnTitles(t, board, StateWontDo, []string{"Task: rejected item"})
+}
+
+func TestLoadBoardToleratesMissingWontDoFolder(t *testing.T) {
+	root := t.TempDir()
+	mustInit(t, root)
+	if err := os.RemoveAll(filepath.Join(root, string(StateWontDo))); err != nil {
+		t.Fatalf("remove wont-do folder: %v", err)
+	}
+
+	board, err := LoadBoard(root)
+	if err != nil {
+		t.Fatalf("LoadBoard() error = %v", err)
+	}
+	assertColumnTitles(t, board, StateWontDo, []string{})
 }
 
 func TestLoadBoardSkipsMalformedTicketsWithWarning(t *testing.T) {

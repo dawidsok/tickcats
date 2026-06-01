@@ -13,6 +13,9 @@ func TestParseState(t *testing.T) {
 		{name: "ready", raw: "ready", want: StateReady, ok: true},
 		{name: "doing", raw: "doing", want: StateDoing, ok: true},
 		{name: "done", raw: "done", want: StateDone, ok: true},
+		{name: "wont-do", raw: "wont-do", want: StateWontDo, ok: true},
+		{name: "won't do display", raw: "Won't Do", want: StateWontDo, ok: true},
+		{name: "wont do words", raw: "wont do", want: StateWontDo, ok: true},
 		{name: "trim and lowercase", raw: " Ready ", want: StateReady, ok: true},
 		{name: "invalid", raw: "blocked", ok: false},
 	}
@@ -32,4 +35,3 @@ func TestParseState(t *testing.T) {
 		})
 	}
 }
-

@@ -141,6 +141,41 @@ func TestPickNextHumanOutputUnchanged(t *testing.T) {
 	})
 }
 
+func TestMoveAcceptsWontDoState(t *testing.T) {
+	root := t.TempDir()
+	withCwd(t, root, func() {
+		if err := store.Init(store.RootDir); err != nil {
+			t.Fatalf("Init() error = %v", err)
+		}
+		writeMainTestTicket(t, store.RootDir, store.StateDone, "a.md", "Task: a", "2026-05-30T10:00:00Z")
+
+		_, _, err := captureOutput(func() error { return runMove([]string{"a.md", "done", "Won't Do"}, store.RootDir) })
+		if err != nil {
+			t.Fatalf("runMove() error = %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(store.RootDir, string(store.StateWontDo), "a.md")); err != nil {
+			t.Fatalf("wont-do ticket missing: %v", err)
+		}
+	})
+}
+
+func TestListDisplaysWontDoColumn(t *testing.T) {
+	root := t.TempDir()
+	withCwd(t, root, func() {
+		if err := store.Init(store.RootDir); err != nil {
+			t.Fatalf("Init() error = %v", err)
+		}
+		writeMainTestTicket(t, store.RootDir, store.StateWontDo, "a.md", "Task: rejected", "2026-05-30T10:00:00Z")
+
+		stdout, _, err := captureOutput(func() error { return runList(store.RootDir) })
+		if err != nil {
+			t.Fatalf("runList() error = %v", err)
+		}
+		if !strings.Contains(stdout, "Won't Do\n") || !strings.Contains(stdout, "a.md  [P2] Task: rejected") {
+			t.Fatalf("stdout missing Won't Do ticket:\n%s", stdout)
+		}
+	})
+}
 
 func withCwd(t *testing.T, dir string, fn func()) {
 	t.Helper()

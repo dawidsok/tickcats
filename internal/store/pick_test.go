@@ -27,6 +27,7 @@ func TestPickNextExcludesNonReadyFolder(t *testing.T) {
 	root := t.TempDir()
 	mustInit(t, root)
 	writeTicketWith(t, root, StateBacklog, "p0.md", "Task: p0", "P0", atHour(10), "- done")
+	writeTicketWith(t, root, StateWontDo, "rejected.md", "Task: rejected", "P0", atHour(9), "- done")
 	writeTicketWith(t, root, StateReady, "p2.md", "Task: p2", "P2", atHour(11), "- done")
 
 	result := pickFromRoot(t, root)

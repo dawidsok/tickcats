@@ -16,7 +16,7 @@ import (
 	"github.com/dawidsok/tickcats/internal/ticket"
 )
 
-var columnOrder = []store.State{store.StateBacklog, store.StateReady, store.StateDoing, store.StateDone}
+var columnOrder = []store.State{store.StateBacklog, store.StateReady, store.StateDoing, store.StateDone, store.StateWontDo}
 
 const minColumnWidth = 60 // minimum total width per column (including borders/margin)
 
@@ -72,15 +72,15 @@ var editorPresets = []string{"", "nvim", "vim", "nano", "code", "hx"}
 
 type colorTheme struct {
 	name   string
-	colors [4]lipgloss.Color // indexed by columnOrder: backlog, ready, doing, done
+	colors []lipgloss.Color // indexed by columnOrder: backlog, ready, doing, done, wont-do
 }
 
 var colorThemes = []colorTheme{
-	{name: "mono", colors: [4]lipgloss.Color{"#679", "#f8d", "#f8d", "#f8d"}},
-	{name: "gradient", colors: [4]lipgloss.Color{"#679", "#5fd787", "#f8d", "#679"}},
-	{name: "ocean", colors: [4]lipgloss.Color{"#679", "#0ff", "#0af", "#14a"}},
-	{name: "fire", colors: [4]lipgloss.Color{"#679", "#fa0", "#f40", "#a00"}},
-	{name: "forest", colors: [4]lipgloss.Color{"#679", "#5fd787", "#5faf87", "#098a08"}},
+	{name: "mono", colors: []lipgloss.Color{"#679", "#f8d", "#f8d", "#f8d", "#f8d"}},
+	{name: "gradient", colors: []lipgloss.Color{"#679", "#5fd787", "#f8d", "#679", "#888"}},
+	{name: "ocean", colors: []lipgloss.Color{"#679", "#0ff", "#0af", "#14a", "#888"}},
+	{name: "fire", colors: []lipgloss.Color{"#679", "#fa0", "#f40", "#a00", "#888"}},
+	{name: "forest", colors: []lipgloss.Color{"#679", "#5fd787", "#5faf87", "#098a08", "#888"}},
 }
 
 type Model struct {
@@ -1199,11 +1199,11 @@ func (m *Model) moveSelected(delta int) tea.Cmd {
 	from := columnOrder[m.SelectedCol]
 	toIndex := m.SelectedCol + delta
 	if toIndex < 0 {
-		m.Status = "Ticket already in backlog"
+		m.Status = fmt.Sprintf("Ticket already in %s", columnOrder[0])
 		return nil
 	}
 	if toIndex >= len(columnOrder) {
-		m.Status = "Ticket already done"
+		m.Status = fmt.Sprintf("Ticket already in %s", columnOrder[len(columnOrder)-1])
 		return nil
 	}
 	to := columnOrder[toIndex]
@@ -1287,14 +1287,14 @@ func (m Model) renderHScrollIndicator() string {
 	if leftHidden > 0 {
 		names := make([]string, leftHidden)
 		for i := range leftHidden {
-			names[i] = string(columnOrder[i])
+			names[i] = columnOrder[i].DisplayName()
 		}
 		parts = append(parts, fmt.Sprintf("← %s", strings.Join(names, ", ")))
 	}
 	if rightHidden > 0 {
 		names := make([]string, rightHidden)
 		for i := range rightHidden {
-			names[i] = string(columnOrder[start+visible+i])
+			names[i] = columnOrder[start+visible+i].DisplayName()
 		}
 		parts = append(parts, fmt.Sprintf("%s →", strings.Join(names, ", ")))
 	}
@@ -1303,7 +1303,7 @@ func (m Model) renderHScrollIndicator() string {
 
 func (m Model) renderColumn(index int, state store.State) string {
 	var b strings.Builder
-	header := strings.ToUpper(string(state))
+	header := strings.ToUpper(state.DisplayName())
 	if index == m.SelectedCol {
 		header = m.colStyle(index).Render(header)
 	}
@@ -1775,7 +1775,8 @@ func stateColIndex(state store.State) int {
 
 func (m Model) colStyle(colIndex int) lipgloss.Style {
 	themeIdx := clamp(m.Config.Theme, 0, len(colorThemes)-1)
-	color := colorThemes[themeIdx].colors[clamp(colIndex, 0, 3)]
+	colors := colorThemes[themeIdx].colors
+	color := colors[clamp(colIndex, 0, len(colors)-1)]
 	return lipgloss.NewStyle().Bold(true).Foreground(color)
 }
 
