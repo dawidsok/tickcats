@@ -18,6 +18,8 @@ import (
 
 var columnOrder = []store.State{store.StateBacklog, store.StateReady, store.StateDoing, store.StateDone}
 
+const minColumnWidth = 28 // minimum total width per column (including borders/margin)
+
 var (
 	selectedStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212"))
 	mutedStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
@@ -64,18 +66,19 @@ var colorThemes = []colorTheme{
 }
 
 type Model struct {
-	Root            string
-	Board           store.Board
-	SelectedCol     int
-	SelectedRows    map[store.State]int
-	ColumnScroll    map[store.State]int
-	MultiSelected   map[store.State]map[string]bool
-	Mode            ViewMode
-	InteractionMode InteractionMode
-	DetailScroll    int
-	Status          string
-	Width           int
-	Height          int
+	Root             string
+	Board            store.Board
+	SelectedCol      int
+	ColScrollOffset  int
+	SelectedRows     map[store.State]int
+	ColumnScroll     map[store.State]int
+	MultiSelected    map[store.State]map[string]bool
+	Mode             ViewMode
+	InteractionMode  InteractionMode
+	DetailScroll     int
+	Status           string
+	Width            int
+	Height           int
 
 	createInput    textinput.Model
 	createKind     ticket.Kind
@@ -345,6 +348,7 @@ func (m Model) View() string {
 	var b strings.Builder
 	b.WriteString(m.renderPickNext())
 	b.WriteString("\n")
+	b.WriteString(m.renderHScrollIndicator())
 	b.WriteString(m.renderBoard())
 	b.WriteString("\n")
 	b.WriteString(m.renderWarnings())
@@ -399,7 +403,19 @@ func (m Model) footerText() string {
 
 func (m *Model) moveColumn(delta int) {
 	m.SelectedCol = clamp(m.SelectedCol+delta, 0, len(columnOrder)-1)
+	m.ensureColVisible()
 	m.ensureSelectedVisible(columnOrder[m.SelectedCol])
+}
+
+func (m *Model) ensureColVisible() {
+	visible := m.visibleColumnCount()
+	if m.SelectedCol < m.ColScrollOffset {
+		m.ColScrollOffset = m.SelectedCol
+	}
+	if m.SelectedCol >= m.ColScrollOffset+visible {
+		m.ColScrollOffset = m.SelectedCol - visible + 1
+	}
+	m.ColScrollOffset = clamp(m.ColScrollOffset, 0, max(0, len(columnOrder)-visible))
 }
 
 func (m *Model) moveRow(delta int) {
@@ -512,6 +528,7 @@ func (m *Model) promoteToReady() {
 	m.Board = board
 	readyIdx := 1 // columnOrder index for StateReady
 	m.SelectedCol = readyIdx
+	m.ensureColVisible()
 	m.SelectedRows[store.StateReady] = findTicketRow(m.Board.Columns[store.StateReady], stored.Name)
 	m.ensureSelectedVisible(store.StateReady)
 	m.Status = fmt.Sprintf("Moved %s to ready", stored.Name)
@@ -816,6 +833,7 @@ func (m *Model) moveAllSelectedBy(delta int) {
 	}
 	m.MultiSelected = newSelected
 	m.SelectedCol = clamp(m.SelectedCol+delta, 0, len(columnOrder)-1)
+	m.ensureColVisible()
 
 	if moved == 0 {
 		if delta > 0 {
@@ -864,6 +882,7 @@ func (m *Model) moveAllSelectedTo(targetCol int) {
 	}
 	m.MultiSelected = newSelected
 	m.SelectedCol = targetCol
+	m.ensureColVisible()
 
 	if moved == 0 {
 		m.Status = fmt.Sprintf("Ticket(s) already at %s", columnOrder[targetCol])
@@ -1174,6 +1193,7 @@ func (m *Model) moveSelected(delta int) {
 
 	m.Board = board
 	m.SelectedCol = toIndex
+	m.ensureColVisible()
 	m.SelectedRows[to] = findTicketRow(m.Board.Columns[to], stored.Name)
 	m.ensureSelectedVisible(to)
 	m.Status = fmt.Sprintf("Moved %s to %s", stored.Name, to)
@@ -1215,11 +1235,40 @@ func (m Model) renderPickNext() string {
 }
 
 func (m Model) renderBoard() string {
-	columns := make([]string, 0, len(columnOrder))
-	for i, state := range columnOrder {
-		columns = append(columns, m.renderColumn(i, state))
+	visible := m.visibleColumnCount()
+	start := clamp(m.ColScrollOffset, 0, max(0, len(columnOrder)-visible))
+	end := min(start+visible, len(columnOrder))
+	columns := make([]string, 0, end-start)
+	for i := start; i < end; i++ {
+		columns = append(columns, m.renderColumn(i, columnOrder[i]))
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, columns...)
+}
+
+func (m Model) renderHScrollIndicator() string {
+	visible := m.visibleColumnCount()
+	if visible >= len(columnOrder) {
+		return ""
+	}
+	start := clamp(m.ColScrollOffset, 0, max(0, len(columnOrder)-visible))
+	leftHidden := start
+	rightHidden := len(columnOrder) - (start + visible)
+	var parts []string
+	if leftHidden > 0 {
+		names := make([]string, leftHidden)
+		for i := range leftHidden {
+			names[i] = string(columnOrder[i])
+		}
+		parts = append(parts, fmt.Sprintf("← %s", strings.Join(names, ", ")))
+	}
+	if rightHidden > 0 {
+		names := make([]string, rightHidden)
+		for i := range rightHidden {
+			names[i] = string(columnOrder[start+visible+i])
+		}
+		parts = append(parts, fmt.Sprintf("%s →", strings.Join(names, ", ")))
+	}
+	return mutedStyle.Render(strings.Join(parts, "  ")) + "\n"
 }
 
 func (m Model) renderColumn(index int, state store.State) string {
@@ -1480,11 +1529,26 @@ func (m Model) fullWidth() int {
 	return m.Width
 }
 
+func (m Model) visibleColumnCount() int {
+	if m.Width <= 0 {
+		return len(columnOrder)
+	}
+	count := m.Width / minColumnWidth
+	if count < 1 {
+		count = 1
+	}
+	if count > len(columnOrder) {
+		count = len(columnOrder)
+	}
+	return count
+}
+
 func (m Model) columnWidth() int {
+	visible := m.visibleColumnCount()
 	if m.Width <= 0 {
 		return 32
 	}
-	width := (m.Width / len(columnOrder)) - 2
+	width := (m.Width / visible) - 2
 	if width < 20 {
 		return 20
 	}

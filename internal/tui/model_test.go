@@ -1609,6 +1609,113 @@ func TestCapitalLNoSelectionMovesToLastColumn(t *testing.T) {
 	}
 }
 
+func TestVisibleColumnCountNarrowWide(t *testing.T) {
+	m := NewModel(emptyBoard())
+
+	m.Width = 0
+	if m.visibleColumnCount() != len(columnOrder) {
+		t.Fatalf("width=0: visibleColumnCount = %d, want %d", m.visibleColumnCount(), len(columnOrder))
+	}
+
+	m.Width = 120
+	if m.visibleColumnCount() != 4 {
+		t.Fatalf("width=120: visibleColumnCount = %d, want 4", m.visibleColumnCount())
+	}
+
+	m.Width = 60
+	if m.visibleColumnCount() != 2 {
+		t.Fatalf("width=60: visibleColumnCount = %d, want 2", m.visibleColumnCount())
+	}
+
+	m.Width = 28
+	if m.visibleColumnCount() != 1 {
+		t.Fatalf("width=28: visibleColumnCount = %d, want 1", m.visibleColumnCount())
+	}
+}
+
+func TestHorizontalScrollOnNarrowTerminal(t *testing.T) {
+	m := NewModel(emptyBoard())
+	m.Width = 60 // fits 2 columns
+
+	// Navigate right past visible range
+	for range 3 {
+		m.moveColumn(1)
+	}
+	if m.SelectedCol != 3 {
+		t.Fatalf("SelectedCol = %d, want 3", m.SelectedCol)
+	}
+	if m.ColScrollOffset == 0 {
+		t.Fatal("ColScrollOffset = 0 after navigating past visible range, want > 0")
+	}
+
+	// Navigate back to col 0 — scroll should follow
+	for range 3 {
+		m.moveColumn(-1)
+	}
+	if m.SelectedCol != 0 {
+		t.Fatalf("SelectedCol = %d, want 0", m.SelectedCol)
+	}
+	if m.ColScrollOffset != 0 {
+		t.Fatalf("ColScrollOffset = %d after returning to col 0, want 0", m.ColScrollOffset)
+	}
+}
+
+func TestHScrollIndicatorShownOnNarrowTerminal(t *testing.T) {
+	m := NewModel(emptyBoard())
+	m.Width = 56 // fits 2 columns
+
+	// Navigate to col 3 so left cols are hidden
+	for range 3 {
+		m.moveColumn(1)
+	}
+	view := m.View()
+	if !strings.Contains(view, "←") {
+		t.Fatalf("view missing ← scroll indicator:\n%s", view)
+	}
+	if !strings.Contains(view, "backlog") {
+		t.Fatalf("view missing 'backlog' in scroll indicator:\n%s", view)
+	}
+}
+
+func TestHScrollIndicatorNotShownWhenAllFit(t *testing.T) {
+	m := NewModel(emptyBoard())
+	m.Width = 120
+
+	if m.renderHScrollIndicator() != "" {
+		t.Fatal("hscroll indicator shown when all columns fit")
+	}
+}
+
+func TestNarrowTerminalOmitsHiddenColumns(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{storedTicket("a.md", store.StateBacklog, "Task: a")}
+	board.Columns[store.StateDone] = []store.StoredTicket{storedTicket("z.md", store.StateDone, "Task: z")}
+	m := NewModel(board)
+	m.Width = 56 // fits 2 columns; at offset 0 shows backlog+ready
+
+	view := m.View()
+	// backlog should be visible (col 0)
+	if !strings.Contains(view, "Task: a") {
+		t.Fatalf("view missing backlog ticket:\n%s", view)
+	}
+	// done ticket should be hidden
+	if strings.Contains(view, "Task: z") {
+		t.Fatalf("view shows done ticket when it should be scrolled off:\n%s", view)
+	}
+
+	// Navigate to done column
+	for range 3 {
+		m.moveColumn(1)
+	}
+	view = m.View()
+	if !strings.Contains(view, "Task: z") {
+		t.Fatalf("view missing done ticket after scroll:\n%s", view)
+	}
+	if strings.Contains(view, "Task: a") {
+		t.Fatalf("view shows backlog ticket after scrolling right:\n%s", view)
+	}
+}
+
 func TestConfigThemePersistedOnSave(t *testing.T) {
 	root := t.TempDir()
 	if err := store.Init(root); err != nil {
