@@ -1434,20 +1434,23 @@ func deadlineIndicatorPlain(deadline time.Time, now time.Time) string {
 }
 
 func (m Model) renderDeadlineIndicator(deadline time.Time, now time.Time) string {
-	states := deadlineBarStates()
-	styles := make([]lipgloss.Style, 0, len(states))
-	for _, state := range states {
-		styles = append(styles, m.colStyle(stateColIndex(state)))
-	}
 	activeBars := deadlineBarCount(deadline, now)
 	var b strings.Builder
 	b.WriteString(mutedStyle.Render("  SLA "))
-	for i := range styles {
-		if i < activeBars {
-			b.WriteString(styles[i].Render("|"))
-			continue
-		}
-		b.WriteString(mutedStyle.Render("|"))
+	b.WriteString(m.renderDeadlineBarSegment(store.StateReady, min(activeBars, 3), 3))
+	b.WriteString(m.renderDeadlineBarSegment(store.StateDoing, clamp(activeBars-3, 0, 2), 2))
+	b.WriteString(m.renderDeadlineBarSegment(store.StateDone, clamp(activeBars-5, 0, 1), 1))
+	return b.String()
+}
+
+func (m Model) renderDeadlineBarSegment(state store.State, active int, total int) string {
+	active = clamp(active, 0, total)
+	var b strings.Builder
+	if active > 0 {
+		b.WriteString(m.colStyle(stateColIndex(state)).Render(strings.Repeat("|", active)))
+	}
+	if inactive := total - active; inactive > 0 {
+		b.WriteString(mutedStyle.Render(strings.Repeat("|", inactive)))
 	}
 	return b.String()
 }
