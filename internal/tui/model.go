@@ -132,7 +132,8 @@ type Model struct {
 	configEditorIdx   int
 	configEditorInput textinput.Model
 
-	searchInput textinput.Model
+	searchInput   textinput.Model
+	searchFocused bool // true = typing in field; false = navigating results
 
 	watchCh <-chan struct{}
 

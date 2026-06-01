@@ -2345,6 +2345,38 @@ func TestSearchSelectionNotMovedOnEsc(t *testing.T) {
 	}
 }
 
+func TestSearchTypingPhaseDoesNotInterceptNavKeys(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{
+		storedTicket("a.md", store.StateBacklog, "Task: a"),
+		storedTicket("b.md", store.StateBacklog, "Task: b"),
+	}
+	m := NewModel(board)
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	m = got.(Model)
+	if !m.searchFocused {
+		t.Fatal("searchFocused should be true after /")
+	}
+
+	// Typing j/k/h/l should go into the text field, not navigate
+	colBefore := m.SelectedCol
+	rowBefore := m.SelectedRows[store.StateBacklog]
+	for _, ch := range "jkhl" {
+		got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
+		m = got.(Model)
+	}
+	if m.SelectedCol != colBefore {
+		t.Fatalf("SelectedCol changed while typing: %d -> %d", colBefore, m.SelectedCol)
+	}
+	if m.SelectedRows[store.StateBacklog] != rowBefore {
+		t.Fatalf("SelectedRows changed while typing: %d -> %d", rowBefore, m.SelectedRows[store.StateBacklog])
+	}
+	if m.searchInput.Value() != "jkhl" {
+		t.Fatalf("search input = %q, want jkhl", m.searchInput.Value())
+	}
+}
+
 func TestSearchFiltersByPriority(t *testing.T) {
 	board := emptyBoard()
 	p0 := storedTicket("p0.md", store.StateBacklog, "Task: zero")
@@ -2371,6 +2403,16 @@ func TestSearchFiltersByPriority(t *testing.T) {
 	}
 }
 
+func enterSearchNav(t *testing.T, m Model) Model {
+	t.Helper()
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m2 := got.(Model)
+	if m2.searchFocused {
+		t.Fatal("searchFocused still true after enter")
+	}
+	return m2
+}
+
 func TestSearchNavigationJK(t *testing.T) {
 	board := emptyBoard()
 	board.Columns[store.StateBacklog] = []store.StoredTicket{
@@ -2381,9 +2423,8 @@ func TestSearchNavigationJK(t *testing.T) {
 	m := NewModel(board)
 	m.SelectedRows[store.StateBacklog] = 0
 
-	// Enter search — all three match empty query
 	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
-	m = got.(Model)
+	m = enterSearchNav(t, got.(Model))
 
 	// j moves down
 	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
@@ -2407,7 +2448,7 @@ func TestSearchNavigationAcrossColumns(t *testing.T) {
 	m := NewModel(board)
 
 	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
-	m = got.(Model)
+	m = enterSearchNav(t, got.(Model))
 
 	// l moves to next column
 	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
@@ -2435,11 +2476,11 @@ func TestSearchNavigationSkipsFilteredOutTickets(t *testing.T) {
 
 	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
 	m = got.(Model)
-	// Filter to only "alpha" tickets (a.md and c.md)
 	for _, ch := range "alpha" {
 		got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
 		m = got.(Model)
 	}
+	m = enterSearchNav(t, m)
 
 	// j should jump from a.md (filtered[0]) to c.md (filtered[1])
 	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})

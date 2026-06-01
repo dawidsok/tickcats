@@ -18,6 +18,7 @@ func (m Model) enterSearch() (tea.Model, tea.Cmd) {
 	input.Placeholder = "fuzzy filter..."
 	input.CharLimit = 100
 	m.searchInput = input
+	m.searchFocused = true
 	m.InteractionMode = InteractionSearch
 	cmd := m.searchInput.Focus()
 	return m, cmd
@@ -25,44 +26,110 @@ func (m Model) enterSearch() (tea.Model, tea.Cmd) {
 
 func (m Model) updateSearch(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch keyMsg.String() {
-		case "ctrl+c":
-			return m, tea.Quit
-		case "esc":
-			m.InteractionMode = InteractionBoard
-			m.searchInput = textinput.Model{}
-			for _, state := range columnOrder {
-				tickets := m.Board.Columns[state]
-				if m.SelectedRows[state] >= len(tickets) && len(tickets) > 0 {
-					m.SelectedRows[state] = len(tickets) - 1
-				}
-			}
-			return m, nil
-		case "j", "down":
-			m.moveInSearch(1)
-			return m, nil
-		case "k", "up":
-			m.moveInSearch(-1)
-			return m, nil
-		case "h", "left":
-			m.moveColumn(-1)
-			return m, nil
-		case "l", "right":
-			m.moveColumn(1)
-			return m, nil
+		if m.searchFocused {
+			return m.updateSearchTyping(keyMsg)
 		}
-		var cmd tea.Cmd
-		m.searchInput, cmd = m.searchInput.Update(keyMsg)
-		return m, cmd
+		return m.updateSearchNav(keyMsg)
 	}
 	if sizeMsg, ok := msg.(tea.WindowSizeMsg); ok {
 		m.Width = sizeMsg.Width
 		m.Height = sizeMsg.Height
 		return m, nil
 	}
+	// Forward non-key messages to the input (cursor blink etc.) only while typing.
+	if m.searchFocused {
+		var cmd tea.Cmd
+		m.searchInput, cmd = m.searchInput.Update(msg)
+		return m, cmd
+	}
+	return m, nil
+}
+
+// updateSearchTyping handles key input while the text field has focus.
+// All printable characters go to the input; enter exits focus to nav mode.
+func (m Model) updateSearchTyping(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c":
+		return m, tea.Quit
+	case "esc":
+		return m.exitSearch()
+	case "enter":
+		m.searchFocused = false
+		m.searchInput.Blur()
+		// Jump cursor to first filtered result in current column if the current
+		// selection is not in the filtered results.
+		state := columnOrder[m.SelectedCol]
+		filtered := m.filteredTickets(state)
+		if len(filtered) > 0 {
+			selectedName := ""
+			if full := m.Board.Columns[state]; m.SelectedRows[state] < len(full) {
+				selectedName = full[m.SelectedRows[state]].Name
+			}
+			inResults := false
+			for _, t := range filtered {
+				if t.Name == selectedName {
+					inResults = true
+					break
+				}
+			}
+			if !inResults {
+				for i, t := range m.Board.Columns[state] {
+					if t.Name == filtered[0].Name {
+						m.SelectedRows[state] = i
+						break
+					}
+				}
+			}
+		}
+		return m, nil
+	}
 	var cmd tea.Cmd
 	m.searchInput, cmd = m.searchInput.Update(msg)
 	return m, cmd
+}
+
+// updateSearchNav handles key input while browsing filtered results.
+func (m Model) updateSearchNav(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c":
+		return m, tea.Quit
+	case "esc":
+		return m.exitSearch()
+	case "j", "down":
+		m.moveInSearch(1)
+	case "k", "up":
+		m.moveInSearch(-1)
+	case "h", "left":
+		m.moveColumn(-1)
+	case "l", "right":
+		m.moveColumn(1)
+	case "enter":
+		if stored := m.selectedTicket(); stored != nil {
+			m.detailTicketName = stored.Name
+			m.Mode = ViewDetail
+			m.DetailScroll = 0
+			m.InteractionMode = InteractionBoard
+			m.searchInput = textinput.Model{}
+		}
+	case "/":
+		m.searchFocused = true
+		cmd := m.searchInput.Focus()
+		return m, cmd
+	}
+	return m, nil
+}
+
+func (m Model) exitSearch() (tea.Model, tea.Cmd) {
+	m.InteractionMode = InteractionBoard
+	m.searchInput = textinput.Model{}
+	m.searchFocused = false
+	for _, state := range columnOrder {
+		tickets := m.Board.Columns[state]
+		if m.SelectedRows[state] >= len(tickets) && len(tickets) > 0 {
+			m.SelectedRows[state] = len(tickets) - 1
+		}
+	}
+	return m, nil
 }
 
 // filteredTickets returns the ticket slice for state filtered by the current
