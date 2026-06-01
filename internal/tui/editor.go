@@ -5,6 +5,7 @@ package tui
 import (
 	"os"
 	"os/exec"
+	"strings"
 )
 
 func editorCommand(path, preferred string) *exec.Cmd {
@@ -15,5 +16,11 @@ func editorCommand(path, preferred string) *exec.Cmd {
 	if editor == "" {
 		editor = "vi"
 	}
-	return exec.Command(editor, path)
+	parts := strings.Fields(editor)
+	bin, err := exec.LookPath(parts[0])
+	if err != nil {
+		bin = parts[0]
+	}
+	args := append(parts[1:], path)
+	return exec.Command(bin, args...)
 }
