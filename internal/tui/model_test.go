@@ -394,7 +394,7 @@ func TestFooterHasSeparator(t *testing.T) {
 }
 
 func TestStatusAndWarningsRenderInFooterSeparatorWithoutAddingLines(t *testing.T) {
-	model := NewModel(emptyBoard())
+	model := newModelForSort(t, emptyBoard())
 	model.Board.Warnings = []store.Warning{{Path: "bad.md", Err: fmt.Errorf("bad")}}
 	before := model.View()
 
