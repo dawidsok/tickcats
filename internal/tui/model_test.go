@@ -371,7 +371,7 @@ func TestPickNextBannerHasBorder(t *testing.T) {
 func TestFooterHasSeparator(t *testing.T) {
 	model := NewModel(emptyBoard())
 	view := model.View()
-	if !strings.Contains(view, "────") || !strings.Contains(view, "BOARD MODE") {
+	if !strings.Contains(view, "────") || !strings.Contains(view, "BOARD:") {
 		t.Fatalf("View() missing footer separator:\n%s", view)
 	}
 }
@@ -1072,22 +1072,45 @@ func TestProgressBackNoSelectionShowsMessage(t *testing.T) {
 	}
 }
 
-func TestFooterDocumentsProgressAndBack(t *testing.T) {
+func TestFooterShowsCriticalShortcutsOnly(t *testing.T) {
 	model := NewModel(emptyBoard())
 	footer := model.footerText()
-	if !strings.Contains(footer, "p progress") || !strings.Contains(footer, "b back") {
-		t.Fatalf("footer = %q, want progress/back help", footer)
+	for _, want := range []string{"h/l columns", "j/k tickets", "enter detail", "m move", "n new", "? help", "q quit"} {
+		if !strings.Contains(footer, want) {
+			t.Fatalf("footer = %q, want %q", footer, want)
+		}
+	}
+	for _, redundant := range []string{"p progress", "b back", "s sort", "x del", "r reload", "c config"} {
+		if strings.Contains(footer, redundant) {
+			t.Fatalf("footer = %q, should omit non-critical shortcut %q", footer, redundant)
+		}
 	}
 }
 
-func TestFooterSortLabelOmitsCurrentMode(t *testing.T) {
+func TestQuestionMarkOpensKeyboardShortcutDialog(t *testing.T) {
 	model := NewModel(emptyBoard())
-	footer := model.footerText()
-	if !strings.Contains(footer, "s sort") {
-		t.Fatalf("footer = %q, want sort help", footer)
+	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
+	m := got.(Model)
+	if m.InteractionMode != InteractionHelp {
+		t.Fatalf("InteractionMode = %v, want InteractionHelp", m.InteractionMode)
 	}
-	if strings.Contains(footer, "sort(") {
-		t.Fatalf("footer = %q, want sort label without current mode", footer)
+	view := m.View()
+	for _, want := range []string{"Keyboard Shortcuts", "Board", "Move mode", "Detail", "s", "cycle sort mode", "p / b", "progress / move back"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("help view missing %q:\n%s", want, view)
+		}
+	}
+}
+
+func TestHelpDialogClosesAndRestoresPreviousInteraction(t *testing.T) {
+	model := NewModel(emptyBoard())
+	model.InteractionMode = InteractionMove
+	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
+	m := got.(Model)
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m = got.(Model)
+	if m.InteractionMode != InteractionMove {
+		t.Fatalf("InteractionMode = %v, want InteractionMove", m.InteractionMode)
 	}
 }
 

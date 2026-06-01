@@ -62,6 +62,7 @@ const (
 	InteractionPostCreate
 	InteractionSortPrompt
 	InteractionQuitConfirm
+	InteractionHelp
 )
 
 var createKinds = []ticket.Kind{ticket.KindFeature, ticket.KindTask, ticket.KindBug}
@@ -185,11 +186,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
+		if msg.String() == "?" && m.InteractionMode != InteractionHelp && m.InteractionMode != InteractionQuitConfirm {
+			return m.enterHelp()
+		}
 		if msg.String() == "q" && m.InteractionMode != InteractionQuitConfirm {
 			return m.enterQuitConfirm()
 		}
 		if m.InteractionMode == InteractionQuitConfirm {
 			return m.updateQuitConfirm(msg)
+		}
+		if m.InteractionMode == InteractionHelp {
+			return m.updateHelp(msg)
 		}
 		if m.Mode == ViewDetail {
 			return m.updateDetail(msg)
@@ -376,6 +383,9 @@ func (m Model) View() string {
 	if m.Mode == ViewConfig {
 		return m.renderConfig()
 	}
+	if m.InteractionMode == InteractionHelp {
+		return m.renderHelpDialog()
+	}
 	if m.InteractionMode == InteractionPostCreate {
 		return m.renderPostCreateDialog()
 	}
@@ -400,6 +410,13 @@ func (m Model) enterQuitConfirm() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) enterHelp() (tea.Model, tea.Cmd) {
+	m.prevMode = m.Mode
+	m.prevInteractionMode = m.InteractionMode
+	m.InteractionMode = InteractionHelp
+	return m, nil
+}
+
 func (m Model) updateQuitConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "y", "q":
@@ -411,9 +428,21 @@ func (m Model) updateQuitConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) updateHelp(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "?", "esc", "enter":
+		m.Mode = m.prevMode
+		m.InteractionMode = m.prevInteractionMode
+	}
+	return m, nil
+}
+
 func (m Model) footerText() string {
 	if m.InteractionMode == InteractionQuitConfirm {
 		return "QUIT? y/q confirm  n/esc cancel"
+	}
+	if m.InteractionMode == InteractionHelp {
+		return "HELP: ?/enter/esc close  q quit"
 	}
 	if m.InteractionMode == InteractionPostCreate {
 		return "y open editor  n/esc stay  d don't ask again"
@@ -427,14 +456,14 @@ func (m Model) footerText() string {
 	if m.InteractionMode == InteractionMove {
 		sel := m.totalSelected()
 		if sel > 0 {
-			return fmt.Sprintf("MOVE MODE (%d selected): h/l col  H first  L last  j/k reorder  esc board  q quit", sel)
+			return fmt.Sprintf("MOVE (%d): h/l move  H/L ends  ? help  esc board  q quit", sel)
 		}
-		return "MOVE MODE: h/l col  H first  L last  j/k reorder (manual)  v select  esc board  q quit"
+		return "MOVE: h/l move  H/L ends  j/k reorder  ? help  esc board  q quit"
 	}
 	if m.Mode == ViewDetail {
-		return "DETAIL MODE: j/k scroll  d/u half-page  e edit  c config  esc board  q quit"
+		return "DETAIL: j/k scroll  e edit  ? help  esc board  q quit"
 	}
-	return "BOARD MODE: h/l col  j/k/d/u ticket  v select  m move  s sort  p progress  b back  o/enter detail  e edit  n new  x del  r reload  c config  q quit"
+	return "BOARD: h/l columns  j/k tickets  enter detail  m move  n new  ? help  q quit"
 }
 
 func (m *Model) moveColumn(delta int) {
@@ -2069,6 +2098,63 @@ func (m Model) renderConfig() string {
 	}
 	return lipgloss.Place(m.fullWidth(), h, lipgloss.Center, lipgloss.Center,
 		selectedStyle.Render("Config")+"\n\n"+box+statusLine)
+}
+
+func (m Model) renderHelpDialog() string {
+	content := strings.Join([]string{
+		bannerStyle.Render("Board"),
+		"h/l, ←/→  move between columns",
+		"j/k, ↓/↑  move between tickets",
+		"d/u       half-page down/up",
+		"enter/o   open detail view",
+		"v         toggle multi-select",
+		"m         move mode",
+		"p / b     progress / move back one column",
+		"n         new ticket",
+		"e         open selected ticket in editor",
+		"x         delete selected ticket",
+		"s         cycle sort mode",
+		"r         reload board",
+		"c         config",
+		"",
+		bannerStyle.Render("Move mode"),
+		"h/l       move focused/selected tickets one column",
+		"H/L       move focused/selected tickets to first/last column",
+		"j/k       reorder within column when manual sort is active",
+		"esc       return to board",
+		"",
+		bannerStyle.Render("Detail"),
+		"j/k       scroll ticket body",
+		"d/u       half-page scroll",
+		"e         open in editor",
+		"c         config",
+		"esc       return to board",
+		"",
+		bannerStyle.Render("Dialogs and global"),
+		"tab       next field in forms",
+		"h/l       change focused option in forms",
+		"space     toggle checkbox in forms",
+		"enter     confirm / create / save",
+		"y/n       confirm or cancel prompts",
+		"?         open or close this help",
+		"q         quit confirmation",
+		"ctrl+c    quit immediately",
+	}, "\n")
+
+	width := min(72, max(48, m.fullWidth()-8))
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("212")).
+		Padding(1, 2).
+		Width(width).
+		Render(content)
+
+	height := m.Height
+	if height <= 0 {
+		height = 36
+	}
+	return lipgloss.Place(m.fullWidth(), height, lipgloss.Center, lipgloss.Center,
+		selectedStyle.Render("Keyboard Shortcuts")+"\n\n"+box+"\n"+mutedStyle.Render("?/enter/esc close  q quit"))
 }
 
 func (m Model) renderPostCreateDialog() string {
