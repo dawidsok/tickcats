@@ -95,6 +95,7 @@ type Model struct {
 	Mode            ViewMode
 	InteractionMode InteractionMode
 	DetailScroll    int
+	HelpScroll      int
 	Status          string
 	Width           int
 	Height          int
@@ -414,6 +415,7 @@ func (m Model) enterHelp() (tea.Model, tea.Cmd) {
 	m.prevMode = m.Mode
 	m.prevInteractionMode = m.InteractionMode
 	m.InteractionMode = InteractionHelp
+	m.HelpScroll = 0
 	return m, nil
 }
 
@@ -433,6 +435,15 @@ func (m Model) updateHelp(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "?", "esc", "enter":
 		m.Mode = m.prevMode
 		m.InteractionMode = m.prevInteractionMode
+		m.HelpScroll = 0
+	case "j", "down":
+		m.moveHelpScroll(1)
+	case "k", "up":
+		m.moveHelpScroll(-1)
+	case "d":
+		m.moveHelpScroll(m.helpPageSize())
+	case "u":
+		m.moveHelpScroll(-m.helpPageSize())
 	}
 	return m, nil
 }
@@ -559,6 +570,15 @@ func (m *Model) pageRows(dir int) {
 
 func (m Model) detailHalfPage() int {
 	return max(1, m.detailPanelInnerHeight()/2)
+}
+
+func (m Model) helpPageSize() int {
+	return max(1, m.helpVisibleLineCount()/2)
+}
+
+func (m *Model) moveHelpScroll(delta int) {
+	maxScroll := max(0, len(helpLines())-m.helpVisibleLineCount())
+	m.HelpScroll = clamp(m.HelpScroll+delta, 0, maxScroll)
 }
 
 func (m *Model) enterDeleteConfirm() {
@@ -2101,7 +2121,42 @@ func (m Model) renderConfig() string {
 }
 
 func (m Model) renderHelpDialog() string {
-	content := strings.Join([]string{
+	lines := helpLines()
+	visibleLines := m.helpVisibleLineCount()
+	maxScroll := max(0, len(lines)-visibleLines)
+	scroll := clamp(m.HelpScroll, 0, maxScroll)
+	visible := lines[scroll:min(len(lines), scroll+visibleLines)]
+
+	contentLines := make([]string, 0, visibleLines+2)
+	if scroll > 0 {
+		contentLines = append(contentLines, mutedStyle.Render(fmt.Sprintf("↑ %d lines above", scroll)))
+	}
+	contentLines = append(contentLines, visible...)
+	below := len(lines) - (scroll + len(visible))
+	if below > 0 {
+		contentLines = append(contentLines, mutedStyle.Render(fmt.Sprintf("↓ %d lines below", below)))
+	}
+	content := strings.Join(contentLines, "\n")
+
+	width := min(72, max(48, m.fullWidth()-8))
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("212")).
+		Padding(1, 2).
+		Width(width).
+		Height(m.helpBoxHeight()).
+		Render(content)
+
+	height := m.Height
+	if height <= 0 {
+		height = 36
+	}
+	return lipgloss.Place(m.fullWidth(), height, lipgloss.Center, lipgloss.Center,
+		selectedStyle.Render("Keyboard Shortcuts")+"\n\n"+box+"\n"+mutedStyle.Render("j/k scroll  d/u half-page  ?/enter/esc close  q quit"))
+}
+
+func helpLines() []string {
+	return []string{
 		bannerStyle.Render("Board"),
 		"h/l, ←/→  move between columns",
 		"j/k, ↓/↑  move between tickets",
@@ -2139,22 +2194,29 @@ func (m Model) renderHelpDialog() string {
 		"?         open or close this help",
 		"q         quit confirmation",
 		"ctrl+c    quit immediately",
-	}, "\n")
-
-	width := min(72, max(48, m.fullWidth()-8))
-	box := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("212")).
-		Padding(1, 2).
-		Width(width).
-		Render(content)
-
-	height := m.Height
-	if height <= 0 {
-		height = 36
 	}
-	return lipgloss.Place(m.fullWidth(), height, lipgloss.Center, lipgloss.Center,
-		selectedStyle.Render("Keyboard Shortcuts")+"\n\n"+box+"\n"+mutedStyle.Render("?/enter/esc close  q quit"))
+}
+
+func (m Model) helpDialogHeight() int {
+	return max(8, int(float64(m.helpScreenHeight())*0.8))
+}
+
+func (m Model) helpBoxHeight() int {
+	// Reserve space for title, spacer, and close hint so the whole dialog fits
+	// within roughly 80% of the terminal height.
+	return max(6, m.helpDialogHeight()-3)
+}
+
+func (m Model) helpVisibleLineCount() int {
+	// 2 border rows + 2 vertical padding rows; indicators share content space.
+	return max(3, m.helpBoxHeight()-4)
+}
+
+func (m Model) helpScreenHeight() int {
+	if m.Height <= 0 {
+		return 36
+	}
+	return m.Height
 }
 
 func (m Model) renderPostCreateDialog() string {

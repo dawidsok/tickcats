@@ -1089,6 +1089,7 @@ func TestFooterShowsCriticalShortcutsOnly(t *testing.T) {
 
 func TestQuestionMarkOpensKeyboardShortcutDialog(t *testing.T) {
 	model := NewModel(emptyBoard())
+	model.Height = 60
 	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
 	m := got.(Model)
 	if m.InteractionMode != InteractionHelp {
@@ -1099,6 +1100,39 @@ func TestQuestionMarkOpensKeyboardShortcutDialog(t *testing.T) {
 		if !strings.Contains(view, want) {
 			t.Fatalf("help view missing %q:\n%s", want, view)
 		}
+	}
+}
+
+func TestHelpDialogUsesEightyPercentHeight(t *testing.T) {
+	m := NewModel(emptyBoard())
+	m.Height = 20
+	if got := m.helpDialogHeight(); got != 16 {
+		t.Fatalf("helpDialogHeight = %d, want 16", got)
+	}
+	if got := m.helpBoxHeight(); got != 13 {
+		t.Fatalf("helpBoxHeight = %d, want 13", got)
+	}
+}
+
+func TestHelpDialogScrolls(t *testing.T) {
+	model := NewModel(emptyBoard())
+	model.Height = 20
+	got, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
+	m := got.(Model)
+
+	view := m.View()
+	if !strings.Contains(view, "↓") || !strings.Contains(view, "lines below") {
+		t.Fatalf("help view missing below indicator:\n%s", view)
+	}
+
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m = got.(Model)
+	if m.HelpScroll != 1 {
+		t.Fatalf("HelpScroll = %d, want 1", m.HelpScroll)
+	}
+	view = m.View()
+	if !strings.Contains(view, "↑") || !strings.Contains(view, "lines above") {
+		t.Fatalf("help view missing above indicator after scroll:\n%s", view)
 	}
 }
 
