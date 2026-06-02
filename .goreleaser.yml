@@ -25,6 +25,10 @@ builds:
 archives:
   - formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+      - completions/*
     format_overrides:
       - goos: windows
         formats: [zip]
@@ -67,6 +71,9 @@ brews:
     license: MIT
     install: |
       bin.install "tickcats"
+      bash_completion.install "completions/tickcats.bash" => "tickcats"
+      zsh_completion.install "completions/_tickcats.zsh" => "_tickcats"
+      fish_completion.install "completions/tickcats.fish"
     test: |
       system "#{bin}/tickcats", "--path", "#{testpath}/.tickcats", "init"
       assert_predicate testpath/".tickcats/backlog", :directory?

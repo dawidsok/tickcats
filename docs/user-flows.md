@@ -1,13 +1,13 @@
 # TickCats User Flow Diagrams
 
-These Mermaid diagrams summarize the v1 flows from the PRD and current CLI implementation. Workflow state is derived from ticket folder location under `.tickcats/`.
+These Mermaid diagrams summarize the v1 flows from the PRD and current CLI implementation. Workflow state is derived from ticket column folder location under `.tickcats/`.
 
 ## Initialize local board
 
 ```mermaid
 flowchart TD
     A["User runs tickcats init"] --> B["Create .tickcats/"]
-    B --> C["Create backlog/ ready/ doing/ done/ wont-do/"]
+    B --> C["Create default columns\nbacklog/ ready/ doing/ done/ wont-do/"]
     C --> D["Ensure .gitignore contains .tickcats/"]
     D --> E["Repo-local private board is ready"]
 ```
@@ -33,7 +33,7 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    A["Open TickCats board"] --> B["Load .tickcats folders"]
+    A["Open TickCats board"] --> B["Load configured .tickcats folders"]
     B --> C["Show Backlog column"]
     B --> D["Show Ready column"]
     B --> E["Show Doing column"]
@@ -48,7 +48,7 @@ flowchart LR
     E -. j/k .-> E
     F -. j/k .-> F
     W -. j/k .-> W
-    G["Move selected ticket"] --> H{"Target state"}
+    G["Move selected ticket"] --> H{"Target column"}
     H -->|Backlog| C
     H -->|Ready| D
     H -->|Doing| E
@@ -105,7 +105,7 @@ flowchart TD
     B -->|New Feature| C["Create Feat ticket"]
     B -->|New Task| D["Create Task ticket"]
     B -->|New Bug| E["Create Bug ticket"]
-    B -->|Move to state| F["Move markdown file between state folders"]
+    B -->|Move to column| F["Move markdown file between column folders"]
     B -->|Edit Metadata| G["Update selected ticket frontmatter"]
     B -->|Open in Editor| H["Open selected markdown file externally"]
     B -->|Pick Next| I["Run pick-next rule"]

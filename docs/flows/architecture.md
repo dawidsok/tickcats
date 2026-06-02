@@ -29,7 +29,7 @@ graph LR
         Delete["delete.go\nTrash"]
         Pick["pick.go\nPickNext"]
         Sort["sort.go\nSortConfig"]
-        Config["config.go\nboard config"]
+        Config["config.go\nboard config\ncolumn sync + CRUD"]
         Init["init.go\ndir init"]
         IDs["ids.go\nMigrateIDs"]
     end
@@ -62,8 +62,9 @@ flowchart TD
     Root --> Doing["doing/\nticket files"]
     Root --> Done["done/\nticket files"]
     Root --> WontDo["wont-do/\nticket files"]
-    Root --> Config["config.json\neditor, theme, skipEditorPrompt"]
-    Root --> SortJSON["sort.json\nmode, manualOrder per state"]
+    Root --> Custom["custom-column/\nticket files"]
+    Root --> Config["config.json\neditor, theme, columns"]
+    Root --> SortJSON["sort.json\nmode, manualOrder per column"]
     Root --> Trash[".trash/\nsoft-deleted tickets"]
 
     Backlog --> File["tc-xxxxxx-slug.md"]
@@ -75,6 +76,15 @@ flowchart TD
 
 ```mermaid
 classDiagram
+    class Config {
+        string Editor
+        int Theme
+        []Column Columns
+    }
+    class Column {
+        string ID
+        string DisplayName
+    }
     class Board {
         map~State[]StoredTicket~ Columns
         []Warning Warnings
@@ -109,6 +119,7 @@ classDiagram
         Rank() int
         HigherThan() bool
     }
+    Config "1" --> "*" Column
     Board "1" --> "*" StoredTicket
     StoredTicket --> Ticket
     Ticket --> ParsedTitle

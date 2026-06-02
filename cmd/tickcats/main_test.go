@@ -196,6 +196,91 @@ func TestListDisplaysWontDoColumn(t *testing.T) {
 	})
 }
 
+func TestMoveAcceptsDynamicColumnDisplayName(t *testing.T) {
+	root := t.TempDir()
+	withCwd(t, root, func() {
+		setupMainTestColumns(t, store.RootDir, []store.Column{
+			{ID: "backlog", DisplayName: "Backlog"},
+			{ID: "code-review", DisplayName: "Code Review"},
+			{ID: "done", DisplayName: "Done"},
+		})
+		writeMainTestTicket(t, store.RootDir, store.State("code-review"), "a.md", "Task: review", "2026-05-30T10:00:00Z")
+
+		_, _, err := captureOutput(func() error { return runMove([]string{"a.md", "Code Review", "done"}, store.RootDir) })
+		if err != nil {
+			t.Fatalf("runMove() error = %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(store.RootDir, "done", "a.md")); err != nil {
+			t.Fatalf("done ticket missing: %v", err)
+		}
+	})
+}
+
+func TestListUsesConfiguredColumnOrder(t *testing.T) {
+	root := t.TempDir()
+	withCwd(t, root, func() {
+		setupMainTestColumns(t, store.RootDir, []store.Column{
+			{ID: "backlog", DisplayName: "Backlog"},
+			{ID: "code-review", DisplayName: "Code Review"},
+			{ID: "done", DisplayName: "Done"},
+		})
+		writeMainTestTicket(t, store.RootDir, store.State("code-review"), "a.md", "Task: review", "2026-05-30T10:00:00Z")
+
+		stdout, _, err := captureOutput(func() error { return runList(store.RootDir) })
+		if err != nil {
+			t.Fatalf("runList() error = %v", err)
+		}
+		backlogIdx := strings.Index(stdout, "Backlog\n")
+		reviewIdx := strings.Index(stdout, "Code Review\n")
+		doneIdx := strings.Index(stdout, "Done\n")
+		if backlogIdx < 0 || reviewIdx < 0 || doneIdx < 0 || !(backlogIdx < reviewIdx && reviewIdx < doneIdx) {
+			t.Fatalf("stdout does not follow config order:\n%s", stdout)
+		}
+		if !strings.Contains(stdout, "a.md  —  [P2] Task: review") {
+			t.Fatalf("stdout missing custom column ticket:\n%s", stdout)
+		}
+	})
+}
+
+func TestCompleteColumnsPrintsConfiguredIDs(t *testing.T) {
+	root := t.TempDir()
+	withCwd(t, root, func() {
+		setupMainTestColumns(t, store.RootDir, []store.Column{
+			{ID: "backlog", DisplayName: "Backlog"},
+			{ID: "code-review", DisplayName: "Code Review"},
+			{ID: "done", DisplayName: "Done"},
+		})
+
+		stdout, _, err := captureOutput(func() error { return runComplete([]string{"columns"}, store.RootDir) })
+		if err != nil {
+			t.Fatalf("runComplete(columns) error = %v", err)
+		}
+		if stdout != "backlog\ncode-review\ndone\n" {
+			t.Fatalf("stdout = %q", stdout)
+		}
+	})
+}
+
+func TestCompleteTicketsPrintsLiveTicketNames(t *testing.T) {
+	root := t.TempDir()
+	withCwd(t, root, func() {
+		setupMainTestColumns(t, store.RootDir, []store.Column{
+			{ID: "backlog", DisplayName: "Backlog"},
+			{ID: "code-review", DisplayName: "Code Review"},
+		})
+		writeMainTestTicket(t, store.RootDir, store.StateBacklog, "b.md", "Task: backlog", "2026-05-30T10:00:00Z")
+		writeMainTestTicket(t, store.RootDir, store.State("code-review"), "a.md", "Task: review", "2026-05-30T10:00:00Z")
+
+		stdout, _, err := captureOutput(func() error { return runComplete([]string{"tickets"}, store.RootDir) })
+		if err != nil {
+			t.Fatalf("runComplete(tickets) error = %v", err)
+		}
+		if stdout != "b.md\na.md\n" {
+			t.Fatalf("stdout = %q", stdout)
+		}
+	})
+}
+
 func TestIDsMigrateCommand(t *testing.T) {
 	root := t.TempDir()
 	withCwd(t, root, func() {
@@ -212,6 +297,18 @@ func TestIDsMigrateCommand(t *testing.T) {
 			t.Fatalf("stdout missing migration result:\n%s", stdout)
 		}
 	})
+}
+
+func setupMainTestColumns(t *testing.T, boardPath string, columns []store.Column) {
+	t.Helper()
+	for _, col := range columns {
+		if err := os.MkdirAll(filepath.Join(boardPath, col.ID), 0o755); err != nil {
+			t.Fatalf("mkdir column %q: %v", col.ID, err)
+		}
+	}
+	if err := store.SaveConfig(boardPath, store.Config{Columns: columns}); err != nil {
+		t.Fatalf("SaveConfig: %v", err)
+	}
 }
 
 func withCwd(t *testing.T, dir string, fn func()) {

@@ -41,7 +41,7 @@ graph LR
         Markdown["markdown.go\nParseMarkdown()"]
     end
 
-    FS[("state dirs\n.trash/")]
+    FS[("column folders\n.trash/")]
 
     Update --> Actions
     Actions --> Delete

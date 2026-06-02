@@ -79,18 +79,31 @@ var createPriorities = []ticket.Priority{ticket.PriorityP0, ticket.PriorityP1, t
 var editorPresets = []string{"", "nvim", "vim", "nano", "code", "hx"}
 
 type colorTheme struct {
-	name   string
-	colors []lipgloss.Color // indexed by columnOrder: backlog, ready, doing, done, wont-do
+	name         string
+	backlogColor lipgloss.Color
+	startColor   lipgloss.Color
+	endColor     lipgloss.Color
 }
 
-// for colors definition I use three character notation with those values: 0, 4, 8, a, d, f to keep theming simple.
+// Themes define three colors: first/backlog column, gradient start, and
+// gradient end. Per-column colors are generated deterministically at render time
+// so dynamic boards are not limited to five hard-coded columns.
 var colorThemes = []colorTheme{
-	{name: "mono", colors: []lipgloss.Color{"#88a", "#f8d", "#f8d", "#f8d", "#88a"}},
-	{name: "gradient", colors: []lipgloss.Color{"#88a", "#fad", "#d8d", "#88f", "#88a"}},
-	{name: "ocean", colors: []lipgloss.Color{"#88a", "#8df", "#4af", "#44a", "#88a"}},
-	{name: "fire", colors: []lipgloss.Color{"#88a", "#fd8", "#f88", "#a44", "#a88"}},
-	{name: "forest", colors: []lipgloss.Color{"#88a", "#5fd787", "#5faf87", "#4a4", "#8a8"}},
+	{name: "mono", backlogColor: "#88a", startColor: "#f8d", endColor: "#88a"},
+	{name: "gradient", backlogColor: "#88a", startColor: "#fad", endColor: "#88a"},
+	{name: "ocean", backlogColor: "#88a", startColor: "#8df", endColor: "#88a"},
+	{name: "fire", backlogColor: "#88a", startColor: "#fd8", endColor: "#a88"},
+	{name: "forest", backlogColor: "#88a", startColor: "#5fd787", endColor: "#8a8"},
 }
+
+type configAction int
+
+const (
+	configActionNone configAction = iota
+	configActionAddName
+	configActionRename
+	configActionDeleteConfirm
+)
 
 // Model is the complete UI state passed through every Update/View cycle.
 // It is a value type — Update returns a new copy rather than mutating in place,
@@ -128,9 +141,12 @@ type Model struct {
 	ManualOrder map[store.State][]string
 
 	Config            store.Config
-	configField       int // 0=editor, 1=theme
+	configField       int // 0=editor, 1=theme, 2=columns
 	configEditorIdx   int
 	configEditorInput textinput.Model
+	configColIdx      int
+	configAction      configAction
+	configColumnInput textinput.Model
 
 	searchInput   textinput.Model
 	searchFocused bool // true = typing in field; false = navigating results

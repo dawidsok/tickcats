@@ -1,6 +1,6 @@
 # CLI Commands
 
-Non-TUI command-line operations: init, new, list, move, pick-next, ids, and tui.
+Non-TUI command-line operations: init, new, list, move, pick-next, ids, completion helpers, and tui.
 
 ## User flow
 
@@ -9,17 +9,20 @@ Non-TUI command-line operations: init, new, list, move, pick-next, ids, and tui.
 flowchart TD
     Start["tickcats [--path dir] <command>"] --> Dispatch{"command"}
 
-    Dispatch -->|"init"| Init["store.Init(root)\nmkdir state dirs\nensure .gitignore entry"]
+    Dispatch -->|"init"| Init["store.Init(root)\nmkdir default column dirs\nensure .gitignore entry"]
     Init --> InitDone["'Board initialized' message"]
 
     Dispatch -->|"new feat|task|bug <title> [flags]"| New["store.Init(root)\nstore.Create(root, kind, title, labels, priority, now)\nprint created file path"]
     New --> NewDone["ticket written to backlog/"]
 
-    Dispatch -->|"list"| List["store.LoadBoard(root)\nprint warnings\nprint each column with ticket details"]
+    Dispatch -->|"list"| List["store.LoadConfig(root)\nstore.LoadBoard(root)\nprint warnings\nprint configured columns in order"]
     List --> ListDone["grouped ticket list to stdout"]
 
-    Dispatch -->|"move <name> <from> <to>"| Move["store.Move(root, name, fromState, toState)\nvalidate states\nrename file"]
-    Move --> MoveDone["ticket moved between state dirs"]
+    Dispatch -->|"move <name> <from> <to>"| Move["LoadConfig(root)\nResolveColumn(from/to)\nstore.Move(root, name, fromColumn, toColumn)\nrename file"]
+    Move --> MoveDone["ticket moved between column folders"]
+
+    Dispatch -->|"__complete tickets|columns"| Complete["print live completion candidates\nfrom board/config"]
+    Complete --> CompleteDone["candidate list to stdout"]
 
     Dispatch -->|"pick-next"| PickNext["store.LoadBoard(root)\nstore.PickNext(board)\nprint recommendation or tie candidates"]
     PickNext --> PickDone["recommendation printed"]
@@ -29,6 +32,19 @@ flowchart TD
 
     Dispatch -->|"tui [--path dir]"| TUI["tui.New(root, config, sortConfig)\ntea.NewProgram(model).Run()"]
     TUI --> TUIDone["interactive TUI session"]
+```
+
+## Dynamic columns
+
+`tickcats list` prints columns from `.tickcats/config.json` in configured order. If folders were added or removed manually, `LoadConfig` reconciles config with disk before the list is printed.
+
+`tickcats move <ticket> <from> <to>` resolves `<from>` and `<to>` against configured columns. Inputs may be exact folder IDs (`code-review`), slug-compatible text (`code review`), or case-insensitive display names (`Code Review`).
+
+Hidden completion helpers are script-facing only:
+
+```sh
+tickcats __complete tickets   # ticket filenames from the live board
+tickcats __complete columns   # configured column folder IDs
 ```
 
 ## Module architecture
@@ -44,6 +60,7 @@ graph LR
         Init["init.go\nInit()"]
         Create["create.go\nCreate()"]
         Board["board.go\nLoadBoard(), Move()"]
+        State["state.go\nResolveColumn()"]
         Pick["pick.go\nPickNext(), IsReadyForPick()"]
         IDs["ids.go\nMigrateIDs()"]
         Config["config.go\nLoadConfig()"]
@@ -66,6 +83,7 @@ graph LR
     Main --> Init
     Main --> Create
     Main --> Board
+    Main --> State
     Main --> Pick
     Main --> IDs
     Main --> Config
@@ -113,7 +131,7 @@ sequenceDiagram
     Note over User,FS: tickcats pick-next
     User->>CLI: tickcats pick-next
     CLI->>Store: LoadBoard(root)
-    Store->>FS: read all .md files in state dirs
+    Store->>FS: read all .md files in configured column folders
     Store->>Ticket: ParseMarkdown(bytes) for each file
     Ticket-->>Store: Ticket structs
     Store-->>CLI: Board

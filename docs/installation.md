@@ -31,10 +31,15 @@ Requires no CI, no release workflow, no external accounts.
 Add GoReleaser (`.goreleaser.yml`) + a GitHub Actions release workflow triggered on
 semantic version tags like `v0.1.4`. GoReleaser produces:
 - pre-built tarballs for macOS/Linux/Windows uploaded to GitHub Releases
-- a Homebrew tap formula auto-generated in the `dawidsok/homebrew-tap` repo
+- shell completion scripts in release archives
+- a Homebrew tap formula auto-generated in the `dawidsok/homebrew-tap` repo with completion installation
 
 Archive names follow `tickcats_<version>_<os>_<arch>.tar.gz`, except Windows uses `.zip`.
 This covers non-Go macOS/Linux users via `brew install dawidsok/tap/tickcats` and
 anyone who prefers a direct download.
+
+For `go install` users, completions are manual: source/copy the scripts from `completions/`
+for bash, zsh, or fish. The scripts use `tickcats __complete tickets` and
+`tickcats __complete columns` to return live candidates from the local board.
 
 No hosted services, auth, or sync are introduced by either phase.

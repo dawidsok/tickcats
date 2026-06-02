@@ -4,6 +4,7 @@
 package store
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -64,6 +65,165 @@ func LoadConfig(boardRoot string) (Config, error) {
 
 func SaveConfig(boardRoot string, cfg Config) error {
 	return saveJSON(boardRoot, "config.json", cfg)
+}
+
+// AddColumn creates a new column folder and appends it to config. The folder ID
+// is derived from displayName; custom folder slugs are intentionally not part of
+// this API slice.
+func AddColumn(boardRoot string, displayName string) error {
+	displayName = strings.TrimSpace(displayName)
+	id := slugify(displayName)
+	if id == "" {
+		return fmt.Errorf("invalid column name %q", displayName)
+	}
+
+	cfg, err := LoadConfig(boardRoot)
+	if err != nil {
+		return err
+	}
+	columns := cfg.GetColumns()
+	if columnIndex(columns, id) >= 0 {
+		return fmt.Errorf("column %q already exists", id)
+	}
+
+	if err := os.MkdirAll(filepath.Join(boardRoot, id), 0o755); err != nil {
+		return fmt.Errorf("create column folder %q: %w", id, err)
+	}
+	cfg.Columns = append(columns, Column{ID: id, DisplayName: displayName})
+	return SaveConfig(boardRoot, cfg)
+}
+
+// RenameColumn renames a column folder and updates its config entry. The new
+// folder ID is derived from newDisplayName.
+func RenameColumn(boardRoot string, oldID string, newDisplayName string) error {
+	newDisplayName = strings.TrimSpace(newDisplayName)
+	newID := slugify(newDisplayName)
+	if newID == "" {
+		return fmt.Errorf("invalid column name %q", newDisplayName)
+	}
+
+	cfg, err := LoadConfig(boardRoot)
+	if err != nil {
+		return err
+	}
+	columns := cfg.GetColumns()
+	idx := columnIndex(columns, oldID)
+	if idx < 0 {
+		return fmt.Errorf("column %q not found", oldID)
+	}
+	if existing := columnIndex(columns, newID); existing >= 0 && existing != idx {
+		return fmt.Errorf("column %q already exists", newID)
+	}
+
+	oldDir := filepath.Join(boardRoot, oldID)
+	newDir := filepath.Join(boardRoot, newID)
+	if oldID != newID {
+		if _, err := os.Stat(newDir); err == nil {
+			return fmt.Errorf("target column folder %q already exists", newID)
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("check target column folder %q: %w", newID, err)
+		}
+		if err := os.Rename(oldDir, newDir); err != nil {
+			return fmt.Errorf("rename column folder %q to %q: %w", oldID, newID, err)
+		}
+	}
+
+	columns[idx] = Column{ID: newID, DisplayName: newDisplayName}
+	cfg.Columns = columns
+	return SaveConfig(boardRoot, cfg)
+}
+
+// ReorderColumns persists exactly the column order supplied by newOrder. The
+// input must contain each configured column ID once.
+func ReorderColumns(boardRoot string, newOrder []string) error {
+	cfg, err := LoadConfig(boardRoot)
+	if err != nil {
+		return err
+	}
+	columns := cfg.GetColumns()
+	if len(newOrder) != len(columns) {
+		return fmt.Errorf("new column order has %d columns, want %d", len(newOrder), len(columns))
+	}
+
+	byID := make(map[string]Column, len(columns))
+	for _, col := range columns {
+		byID[col.ID] = col
+	}
+	seen := make(map[string]bool, len(newOrder))
+	reordered := make([]Column, 0, len(newOrder))
+	for _, id := range newOrder {
+		col, ok := byID[id]
+		if !ok {
+			return fmt.Errorf("unknown column %q", id)
+		}
+		if seen[id] {
+			return fmt.Errorf("duplicate column %q", id)
+		}
+		seen[id] = true
+		reordered = append(reordered, col)
+	}
+
+	cfg.Columns = reordered
+	return SaveConfig(boardRoot, cfg)
+}
+
+// DeleteColumn removes a non-first column. Tickets in that column are moved to
+// the first configured column before the folder and config entry are removed.
+func DeleteColumn(boardRoot string, id string) error {
+	cfg, err := LoadConfig(boardRoot)
+	if err != nil {
+		return err
+	}
+	columns := cfg.GetColumns()
+	idx := columnIndex(columns, id)
+	if idx < 0 {
+		return fmt.Errorf("column %q not found", id)
+	}
+	if idx == 0 {
+		return fmt.Errorf("the first column (%s) cannot be deleted", columns[0].DisplayName)
+	}
+
+	recipientID := columns[0].ID
+	sourceDir := filepath.Join(boardRoot, id)
+	recipientDir := filepath.Join(boardRoot, recipientID)
+	entries, err := os.ReadDir(sourceDir)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("read column folder %q: %w", id, err)
+	}
+	if err := os.MkdirAll(recipientDir, 0o755); err != nil {
+		return fmt.Errorf("create recipient column folder %q: %w", recipientID, err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		source := filepath.Join(sourceDir, entry.Name())
+		target := filepath.Join(recipientDir, entry.Name())
+		if _, err := os.Stat(target); err == nil {
+			return fmt.Errorf("target ticket already exists %q", target)
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("check target ticket %q: %w", target, err)
+		}
+		if err := os.Rename(source, target); err != nil {
+			return fmt.Errorf("move ticket %q to %q: %w", source, target, err)
+		}
+	}
+
+	if err := os.RemoveAll(sourceDir); err != nil {
+		return fmt.Errorf("remove column folder %q: %w", id, err)
+	}
+	cfg.Columns = append(columns[:idx], columns[idx+1:]...)
+	return SaveConfig(boardRoot, cfg)
+}
+
+func columnIndex(columns []Column, id string) int {
+	for i, col := range columns {
+		if col.ID == id {
+			return i
+		}
+	}
+	return -1
 }
 
 // SyncConfigColumns reconciles config columns with folders on disk.
