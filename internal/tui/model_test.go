@@ -80,6 +80,79 @@ func TestNavigationClampsRows(t *testing.T) {
 	}
 }
 
+func TestCountPrefixMovesRows(t *testing.T) {
+	board := emptyBoard()
+	for i := range 10 {
+		board.Columns[store.StateBacklog] = append(board.Columns[store.StateBacklog], storedTicket(fmt.Sprintf("%d.md", i), store.StateBacklog, fmt.Sprintf("Task: %d", i)))
+	}
+	m := NewModel(board)
+
+	m = updateRune(t, m, '3')
+	m = updateRune(t, m, 'j')
+	if got := m.SelectedRows[store.StateBacklog]; got != 3 {
+		t.Fatalf("row after 3j = %d, want 3", got)
+	}
+
+	m = updateRune(t, m, '2')
+	m = updateRune(t, m, 'k')
+	if got := m.SelectedRows[store.StateBacklog]; got != 1 {
+		t.Fatalf("row after 2k = %d, want 1", got)
+	}
+}
+
+func TestCountPrefixMovesColumnsAndClamps(t *testing.T) {
+	m := NewModel(emptyBoard())
+
+	m = updateRune(t, m, '3')
+	m = updateRune(t, m, 'l')
+	if m.SelectedCol != 3 {
+		t.Fatalf("SelectedCol after 3l = %d, want 3", m.SelectedCol)
+	}
+
+	m = updateRune(t, m, '9')
+	m = updateRune(t, m, 'l')
+	if want := len(m.columnOrder) - 1; m.SelectedCol != want {
+		t.Fatalf("SelectedCol after 9l = %d, want %d", m.SelectedCol, want)
+	}
+
+	m = updateRune(t, m, '2')
+	m = updateRune(t, m, 'h')
+	if want := len(m.columnOrder) - 3; m.SelectedCol != want {
+		t.Fatalf("SelectedCol after 2h = %d, want %d", m.SelectedCol, want)
+	}
+}
+
+func TestCountPrefixPartialAndInvalidSequence(t *testing.T) {
+	board := emptyBoard()
+	for i := range 3 {
+		board.Columns[store.StateBacklog] = append(board.Columns[store.StateBacklog], storedTicket(fmt.Sprintf("%d.md", i), store.StateBacklog, fmt.Sprintf("Task: %d", i)))
+	}
+	m := NewModel(board)
+
+	m = updateRune(t, m, '1')
+	m = updateRune(t, m, '0')
+	if m.countPrefix != "10" {
+		t.Fatalf("countPrefix = %q, want 10", m.countPrefix)
+	}
+	if view := m.View(); !strings.Contains(view, "Count: 10") {
+		t.Fatalf("View() missing partial count:\n%s", view)
+	}
+
+	m = updateRune(t, m, 'z')
+	if m.countPrefix != "" {
+		t.Fatalf("countPrefix after invalid key = %q, want empty", m.countPrefix)
+	}
+	if got := m.SelectedRows[store.StateBacklog]; got != 0 {
+		t.Fatalf("row after invalid count sequence = %d, want 0", got)
+	}
+
+	m = updateRune(t, m, '0')
+	m = updateRune(t, m, 'j')
+	if got := m.SelectedRows[store.StateBacklog]; got != 1 {
+		t.Fatalf("row after ignored 0 then j = %d, want 1", got)
+	}
+}
+
 func TestColumnWrapsLongTicketsAndSeparatesTickets(t *testing.T) {
 	board := emptyBoard()
 	board.Columns[store.StateBacklog] = []store.StoredTicket{

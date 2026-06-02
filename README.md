@@ -91,8 +91,8 @@ The completion scripts call hidden helpers (`tickcats __complete tickets` and `t
 
 | Key | Action |
 |---|---|
-| `h` / `l` | Move between columns |
-| `j` / `k` | Move between tickets |
+| `h` / `l` | Move between columns (`3l` moves three columns) |
+| `j` / `k` | Move between tickets (`10j` moves ten tickets) |
 | `d` / `u` | Half-page down / up |
 | `v` | Toggle selection on focused ticket |
 | `m` | Enter move mode |

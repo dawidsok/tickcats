@@ -1,6 +1,6 @@
 # Board Navigation
 
-Column/row movement, multi-select, horizontal scroll, and vertical scroll within columns.
+Column/row movement, vim-style count prefixes, multi-select, horizontal scroll, and vertical scroll within columns.
 
 ## User flow
 
@@ -10,13 +10,17 @@ flowchart TD
     Start["TUI launches\nViewBoard + InteractionBoard"] --> Init["LoadBoard from disk\ndefault col=0 row=0"]
     Init --> Loop["Keyboard input loop"]
 
+    Loop --> CountPrefix{"number prefix?\n1..9 then digits"}
+    CountPrefix --> PendingCount["store countPrefix\nshow Count: N"]
+    PendingCount --> Loop
+
     Loop --> ColNav{"h / l\nor ← →"}
-    ColNav --> MoveCol["moveColumn(±1)\nadjust SelectedCol"]
+    ColNav --> MoveCol["moveColumn(±count)\nadjust SelectedCol"]
     MoveCol --> EnsureColVis["ensureColVisible()\nadjust ColScrollOffset\nif col out of view"]
     EnsureColVis --> Loop
 
     Loop --> RowNav{"j / k\nor ↓ ↑"}
-    RowNav --> MoveRow["moveRow(±1)\nadjust SelectedRows[state]"]
+    RowNav --> MoveRow["moveRow(±count)\nadjust SelectedRows[state]"]
     MoveRow --> EnsureRowVis["ensureSelectedVisible(state)\nline-budget scroll\nadjust ColumnScroll[state]"]
     EnsureRowVis --> Loop
 
@@ -44,7 +48,7 @@ graph LR
         Actions["actions.go\ntoggleSelection"]
         Layout["layout.go\ncolumnWidth\ncolumnLineBudget\nvisibleColumnCount"]
         Render["render_board.go\ncolumn rendering\nscroll indicators"]
-        Model["model.go\nSelectedCol, ColScrollOffset\nSelectedRows, ColumnScroll\nMultiSelected, Width/Height"]
+        Model["model.go\nSelectedCol, ColScrollOffset\nSelectedRows, ColumnScroll\ncountPrefix\nMultiSelected, Width/Height"]
     end
 
     Update --> Nav
@@ -67,16 +71,18 @@ sequenceDiagram
     participant Model as Model state
     participant Render as render_board.go
 
-    User->>Update: press h/l
-    Update->>Nav: moveColumn(±1)
+    User->>Update: optionally type count, then h/l
+    Update->>Update: collect countPrefix until motion key
+    Update->>Nav: moveColumn(±count)
     Nav->>Model: adjust SelectedCol
     Nav->>Nav: ensureColVisible()
     Nav->>Layout: visibleColumnCount()
     Layout-->>Nav: count based on Width
     Nav->>Model: adjust ColScrollOffset
 
-    User->>Update: press j/k
-    Update->>Nav: moveRow(±1)
+    User->>Update: optionally type count, then j/k
+    Update->>Update: collect countPrefix until motion key
+    Update->>Nav: moveRow(±count)
     Nav->>Model: adjust SelectedRows[state]
     Nav->>Nav: ensureSelectedVisible(state)
     Nav->>Layout: columnLineBudget()

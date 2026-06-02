@@ -124,6 +124,7 @@ type Model struct {
 	HelpScroll       int    // scroll offset in the help dialog
 	detailTicketName string // filename of the ticket open in ViewDetail; used to track it across reloads and column moves
 	Status           string
+	countPrefix      string
 	Width            int
 	Height           int
 

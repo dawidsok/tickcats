@@ -170,7 +170,10 @@ func (m Model) renderSnack() string {
 			return mutedStyle.Render(m.notification.text + " ")
 		}
 	}
-	parts := make([]string, 0, 2)
+	parts := make([]string, 0, 3)
+	if m.countPrefix != "" {
+		parts = append(parts, "Count: "+m.countPrefix)
+	}
 	if m.Status != "" {
 		parts = append(parts, m.Status)
 	}

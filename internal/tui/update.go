@@ -7,6 +7,7 @@ package tui
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -29,12 +30,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		// Global exits — always honoured outside create/config views.
 		if msg.String() == "ctrl+c" {
+			m.countPrefix = ""
 			return m, tea.Quit
 		}
 		if msg.String() == "?" && m.InteractionMode != InteractionHelp && m.InteractionMode != InteractionQuitConfirm {
+			m.countPrefix = ""
 			return m.enterHelp()
 		}
 		if msg.String() == "q" && m.InteractionMode != InteractionQuitConfirm {
+			m.countPrefix = ""
 			return m.enterQuitConfirm()
 		}
 		if m.InteractionMode == InteractionQuitConfirm {
@@ -78,17 +82,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) updateBoard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
+	key := msg.String()
+	if handled := m.updateCountPrefix(msg); handled {
+		return m, nil
+	}
+	count := m.consumeMotionCount(key)
+
+	switch key {
 	case "q", "ctrl+c":
 		return m, tea.Quit
 	case "h", "left":
-		m.moveColumn(-1)
+		m.moveColumn(-count)
 	case "l", "right":
-		m.moveColumn(1)
+		m.moveColumn(count)
 	case "j", "down":
-		m.moveRow(1)
+		m.moveRow(count)
 	case "k", "up":
-		m.moveRow(-1)
+		m.moveRow(-count)
 	case "d":
 		m.pageRows(1)
 	case "u":
@@ -135,6 +145,46 @@ func (m Model) updateBoard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.enterSearch()
 	}
 	return m, nil
+}
+
+func (m *Model) updateCountPrefix(msg tea.KeyMsg) bool {
+	key := msg.String()
+	if msg.Type == tea.KeyRunes && len(msg.Runes) == 1 && msg.Runes[0] >= '0' && msg.Runes[0] <= '9' {
+		digit := msg.Runes[0]
+		if m.countPrefix == "" && digit == '0' {
+			return true
+		}
+		if len(m.countPrefix) < 6 {
+			m.countPrefix += string(digit)
+		}
+		return true
+	}
+	if m.countPrefix != "" && !isCountMotion(key) {
+		m.countPrefix = ""
+		return true
+	}
+	return false
+}
+
+func (m *Model) consumeMotionCount(key string) int {
+	if m.countPrefix == "" || !isCountMotion(key) {
+		return 1
+	}
+	count, err := strconv.Atoi(m.countPrefix)
+	m.countPrefix = ""
+	if err != nil || count < 1 {
+		return 1
+	}
+	return count
+}
+
+func isCountMotion(key string) bool {
+	switch key {
+	case "h", "j", "k", "l":
+		return true
+	default:
+		return false
+	}
 }
 
 func (m Model) updateMove(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
