@@ -42,6 +42,43 @@ func ParseState(raw string) (State, error) {
 	return "", fmt.Errorf("invalid state %q", raw)
 }
 
+// ResolveColumn resolves user input against configured board columns. It accepts
+// exact folder IDs, slug-compatible values, and case-insensitive display names.
+func ResolveColumn(cfg Config, raw string) (State, error) {
+	normalized := strings.ToLower(strings.TrimSpace(raw))
+	slug := slugify(raw)
+	for _, col := range cfg.GetColumns() {
+		if strings.ToLower(col.ID) == normalized || col.ID == slug || strings.ToLower(col.DisplayName) == normalized {
+			return State(col.ID), nil
+		}
+	}
+	return "", fmt.Errorf("invalid column %q", raw)
+}
+
+func slugify(raw string) string {
+	normalized := strings.ToLower(strings.TrimSpace(raw))
+	normalized = strings.ReplaceAll(normalized, "’", "")
+	normalized = strings.ReplaceAll(normalized, "'", "")
+	normalized = strings.ReplaceAll(normalized, "_", "-")
+
+	var b strings.Builder
+	for _, r := range normalized {
+		switch {
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r)
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case r == ' ' || r == '-':
+			b.WriteRune(r)
+		}
+	}
+
+	parts := strings.FieldsFunc(b.String(), func(r rune) bool {
+		return r == ' ' || r == '-'
+	})
+	return strings.Join(parts, "-")
+}
+
 func normalizeStateInput(raw string) string {
 	normalized := strings.ToLower(strings.TrimSpace(raw))
 	normalized = strings.ReplaceAll(normalized, "’", "'")

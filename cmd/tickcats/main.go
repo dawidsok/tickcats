@@ -56,6 +56,8 @@ func run(args []string) error {
 		return runPickNext(args[1:], boardPath)
 	case "ids":
 		return runIDs(args[1:], boardPath)
+	case "__complete":
+		return runComplete(args[1:], boardPath)
 	case "tui":
 		return runTUI(boardPath)
 	case "help", "--help", "-h":
@@ -98,14 +100,20 @@ func runNew(args []string, boardPath string) error {
 }
 
 func runList(boardPath string) error {
+	cfg, err := store.LoadConfig(boardPath)
+	if err != nil {
+		return err
+	}
+
 	board, err := store.LoadBoard(boardPath)
 	if err != nil {
 		return err
 	}
 	printWarnings(board.Warnings)
 
-	for _, state := range store.ValidStates {
-		fmt.Printf("%s\n", state.DisplayName())
+	for _, col := range cfg.GetColumns() {
+		state := store.State(col.ID)
+		fmt.Printf("%s\n", col.DisplayName)
 		for _, stored := range board.Columns[state] {
 			fmt.Printf("  %s  %s  [%s] %s\n", stored.Name, displayID(stored.Ticket.ID), stored.Ticket.Priority, stored.Ticket.Title)
 		}
@@ -115,14 +123,18 @@ func runList(boardPath string) error {
 
 func runMove(args []string, boardPath string) error {
 	if len(args) != 3 {
-		return fmt.Errorf("usage: tickcats move <ticket.md> <from-state> <to-state>")
+		return fmt.Errorf("usage: tickcats move <ticket.md> <from-column> <to-column>")
 	}
 
-	from, err := store.ParseState(args[1])
+	cfg, err := store.LoadConfig(boardPath)
 	if err != nil {
 		return err
 	}
-	to, err := store.ParseState(args[2])
+	from, err := store.ResolveColumn(cfg, args[1])
+	if err != nil {
+		return err
+	}
+	to, err := store.ResolveColumn(cfg, args[2])
 	if err != nil {
 		return err
 	}
@@ -241,6 +253,48 @@ func runTUI(boardPath string) error {
 	return err
 }
 
+func runComplete(args []string, boardPath string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("usage: tickcats __complete tickets|columns")
+	}
+
+	switch args[0] {
+	case "tickets":
+		return completeTickets(boardPath)
+	case "columns":
+		return completeColumns(boardPath)
+	default:
+		return fmt.Errorf("usage: tickcats __complete tickets|columns")
+	}
+}
+
+func completeTickets(boardPath string) error {
+	cfg, err := store.LoadConfig(boardPath)
+	if err != nil {
+		return err
+	}
+	board, err := store.LoadBoard(boardPath)
+	if err != nil {
+		return err
+	}
+	for _, col := range cfg.GetColumns() {
+		for _, stored := range board.Columns[store.State(col.ID)] {
+			fmt.Println(stored.Name)
+		}
+	}
+	return nil
+}
+
+func completeColumns(boardPath string) error {
+	cfg, err := store.LoadConfig(boardPath)
+	if err != nil {
+		return err
+	}
+	for _, col := range cfg.GetColumns() {
+		fmt.Println(col.ID)
+	}
+	return nil
+}
 
 func printWarnings(warnings []store.Warning) {
 	for _, warning := range warnings {
@@ -259,8 +313,8 @@ func printHelp() {
 	fmt.Println("Commands:")
 	fmt.Println("  init                         create board folders and ignore them in git")
 	fmt.Println("  new feat|task|bug <title> [--ac text]  create ticket in backlog")
-	fmt.Println("  list                         list tickets grouped by state")
-	fmt.Println("  move <ticket> <from> <to>    move ticket between states (backlog, ready, doing, done, wont-do)")
+	fmt.Println("  list                         list tickets grouped by column")
+	fmt.Println("  move <ticket> <from> <to>    move ticket between columns")
 	fmt.Println("  pick-next [--path]           print next ready ticket")
 	fmt.Println("  ids migrate                  add IDs to existing tickets and rename files")
 	fmt.Println("  tui                          open terminal board")
