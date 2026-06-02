@@ -96,6 +96,15 @@ var colorThemes = []colorTheme{
 	{name: "forest", backlogColor: "#88a", startColor: "#5fd787", endColor: "#8a8"},
 }
 
+type configAction int
+
+const (
+	configActionNone configAction = iota
+	configActionAddName
+	configActionRename
+	configActionDeleteConfirm
+)
+
 // Model is the complete UI state passed through every Update/View cycle.
 // It is a value type — Update returns a new copy rather than mutating in place,
 // except for pointer-receiver helpers that modify fields directly as a
@@ -132,9 +141,12 @@ type Model struct {
 	ManualOrder map[store.State][]string
 
 	Config            store.Config
-	configField       int // 0=editor, 1=theme
+	configField       int // 0=editor, 1=theme, 2=columns
 	configEditorIdx   int
 	configEditorInput textinput.Model
+	configColIdx      int
+	configAction      configAction
+	configColumnInput textinput.Model
 
 	searchInput   textinput.Model
 	searchFocused bool // true = typing in field; false = navigating results

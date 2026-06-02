@@ -1952,6 +1952,182 @@ func TestConfigThemeCyclesWithHL(t *testing.T) {
 	}
 }
 
+func TestConfigColumnsRenderTable(t *testing.T) {
+	_, m := newConfigTestModel(t)
+	m = openConfigColumns(t, m)
+
+	view := m.View()
+	if !strings.Contains(view, "Folder ID") || !strings.Contains(view, "Backlog") || !strings.Contains(view, "wont-do") {
+		t.Fatalf("config columns table missing expected content:\n%s", view)
+	}
+}
+
+func TestConfigColumnsAddFlow(t *testing.T) {
+	root, m := newConfigTestModel(t)
+	m = openConfigColumns(t, m)
+	m = updateRune(t, m, 'a')
+	m = typeRunes(t, m, "Code Review")
+	m = updateKey(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+
+	if !hasConfigColumn(m.Config.GetColumns(), "code-review") {
+		t.Fatalf("model config missing code-review: %#v", m.Config.GetColumns())
+	}
+	if _, err := os.Stat(filepath.Join(root, "code-review")); err != nil {
+		t.Fatalf("code-review folder missing: %v", err)
+	}
+	if _, ok := m.Board.Columns[store.State("code-review")]; !ok {
+		t.Fatalf("board missing code-review column: %#v", m.Board.Columns)
+	}
+}
+
+func TestConfigColumnsRenameFlow(t *testing.T) {
+	root, m := newConfigTestModel(t)
+	if err := store.AddColumn(root, "Code Review"); err != nil {
+		t.Fatalf("AddColumn: %v", err)
+	}
+	board, _ := store.LoadBoard(root)
+	m = NewModelWithRoot(root, board)
+	m = openConfigColumns(t, m)
+	m.configColIdx = len(m.Config.GetColumns()) - 1
+
+	m = updateRune(t, m, 'r')
+	for range len("Code Review") {
+		m = updateKey(t, m, tea.KeyMsg{Type: tea.KeyBackspace})
+	}
+	m = typeRunes(t, m, "QA Testing")
+	m = updateKey(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+
+	if hasConfigColumn(m.Config.GetColumns(), "code-review") || !hasConfigColumn(m.Config.GetColumns(), "qa-testing") {
+		t.Fatalf("rename not reflected in config: %#v", m.Config.GetColumns())
+	}
+	if _, err := os.Stat(filepath.Join(root, "qa-testing")); err != nil {
+		t.Fatalf("qa-testing folder missing: %v", err)
+	}
+}
+
+func TestConfigColumnsReorderFlow(t *testing.T) {
+	root, m := newConfigTestModel(t)
+	if err := store.AddColumn(root, "Code Review"); err != nil {
+		t.Fatalf("AddColumn: %v", err)
+	}
+	board, _ := store.LoadBoard(root)
+	m = NewModelWithRoot(root, board)
+	m = openConfigColumns(t, m)
+	m.configColIdx = len(m.Config.GetColumns()) - 1
+
+	m = updateRune(t, m, 'K')
+
+	cfg, err := store.LoadConfig(root)
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if got := cfg.GetColumns()[len(cfg.GetColumns())-2].ID; got != "code-review" {
+		t.Fatalf("penultimate column = %q, want code-review; columns=%#v", got, cfg.GetColumns())
+	}
+	if m.configColIdx != len(m.Config.GetColumns())-2 {
+		t.Fatalf("configColIdx = %d, want %d", m.configColIdx, len(m.Config.GetColumns())-2)
+	}
+}
+
+func TestConfigColumnsDeleteFlow(t *testing.T) {
+	root, m := newConfigTestModel(t)
+	if err := store.AddColumn(root, "Temporary"); err != nil {
+		t.Fatalf("AddColumn: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "temporary", "a.md"), []byte("ticket"), 0o644); err != nil {
+		t.Fatalf("write ticket: %v", err)
+	}
+	board, _ := store.LoadBoard(root)
+	m = NewModelWithRoot(root, board)
+	m = openConfigColumns(t, m)
+	m.configColIdx = len(m.Config.GetColumns()) - 1
+
+	m = updateRune(t, m, 'd')
+	if m.configAction != configActionDeleteConfirm {
+		t.Fatalf("configAction = %v, want delete confirm", m.configAction)
+	}
+	m = updateRune(t, m, 'y')
+
+	if hasConfigColumn(m.Config.GetColumns(), "temporary") {
+		t.Fatalf("temporary still in config: %#v", m.Config.GetColumns())
+	}
+	if _, err := os.Stat(filepath.Join(root, "temporary")); !os.IsNotExist(err) {
+		t.Fatalf("temporary folder still exists or unexpected stat error: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "backlog", "a.md")); err != nil {
+		t.Fatalf("ticket not migrated to backlog: %v", err)
+	}
+}
+
+func TestConfigColumnsFirstColumnDeleteBlocked(t *testing.T) {
+	root, m := newConfigTestModel(t)
+	m = openConfigColumns(t, m)
+
+	m = updateRune(t, m, 'd')
+
+	if m.configAction != configActionNone {
+		t.Fatalf("configAction = %v, want none", m.configAction)
+	}
+	if !strings.Contains(m.Status, "first column") {
+		t.Fatalf("Status = %q, want first column warning", m.Status)
+	}
+	if _, err := os.Stat(filepath.Join(root, "backlog")); err != nil {
+		t.Fatalf("backlog folder should remain: %v", err)
+	}
+}
+
+func newConfigTestModel(t *testing.T) (string, Model) {
+	t.Helper()
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	board, err := store.LoadBoard(root)
+	if err != nil {
+		t.Fatalf("LoadBoard: %v", err)
+	}
+	return root, NewModelWithRoot(root, board)
+}
+
+func openConfigColumns(t *testing.T, m Model) Model {
+	t.Helper()
+	m = updateRune(t, m, 'c')
+	m = updateKey(t, m, tea.KeyMsg{Type: tea.KeyTab})
+	m = updateKey(t, m, tea.KeyMsg{Type: tea.KeyTab})
+	if m.Mode != ViewConfig || m.configField != 2 {
+		t.Fatalf("Mode/configField = %v/%d, want config/2", m.Mode, m.configField)
+	}
+	return m
+}
+
+func typeRunes(t *testing.T, m Model, text string) Model {
+	t.Helper()
+	for _, ch := range text {
+		m = updateRune(t, m, ch)
+	}
+	return m
+}
+
+func updateRune(t *testing.T, m Model, ch rune) Model {
+	t.Helper()
+	return updateKey(t, m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
+}
+
+func updateKey(t *testing.T, m Model, msg tea.KeyMsg) Model {
+	t.Helper()
+	got, _ := m.Update(msg)
+	return got.(Model)
+}
+
+func hasConfigColumn(cols []store.Column, id string) bool {
+	for _, col := range cols {
+		if col.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 func TestVTogglesSelection(t *testing.T) {
 	board := emptyBoard()
 	board.Columns[store.StateBacklog] = []store.StoredTicket{storedTicket("a.md", store.StateBacklog, "Task: a")}
