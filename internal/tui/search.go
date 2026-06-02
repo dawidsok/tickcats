@@ -94,6 +94,11 @@ func (m Model) updateSearchNav(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+c":
 		return m, tea.Quit
 	case "esc":
+		// First esc clears an active query; second esc exits search entirely.
+		if m.searchInput.Value() != "" {
+			m.searchInput.SetValue("")
+			return m, nil
+		}
 		return m.exitSearch()
 	case "j", "down":
 		m.moveInSearch(1)

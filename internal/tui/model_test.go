@@ -2345,6 +2345,44 @@ func TestSearchSelectionNotMovedOnEsc(t *testing.T) {
 	}
 }
 
+func TestSearchEscInNavClearsQueryBeforeExiting(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{
+		storedTicket("a.md", store.StateBacklog, "Task: alpha"),
+		storedTicket("b.md", store.StateBacklog, "Task: beta"),
+	}
+	m := NewModel(board)
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	m = got.(Model)
+	for _, ch := range "alpha" {
+		got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
+		m = got.(Model)
+	}
+	m = enterSearchNav(t, m)
+
+	// First esc: clears query, stays in search
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m = got.(Model)
+	if m.InteractionMode != InteractionSearch {
+		t.Fatalf("InteractionMode = %v after first esc, want InteractionSearch", m.InteractionMode)
+	}
+	if m.searchInput.Value() != "" {
+		t.Fatalf("searchInput not cleared after first esc: %q", m.searchInput.Value())
+	}
+	// All tickets visible again
+	if len(m.filteredTickets(store.StateBacklog)) != 2 {
+		t.Fatalf("filteredTickets = %d after query clear, want 2", len(m.filteredTickets(store.StateBacklog)))
+	}
+
+	// Second esc: exits search
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m = got.(Model)
+	if m.InteractionMode != InteractionBoard {
+		t.Fatalf("InteractionMode = %v after second esc, want InteractionBoard", m.InteractionMode)
+	}
+}
+
 func TestSearchTypingPhaseDoesNotInterceptNavKeys(t *testing.T) {
 	board := emptyBoard()
 	board.Columns[store.StateBacklog] = []store.StoredTicket{
