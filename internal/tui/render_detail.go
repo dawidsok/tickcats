@@ -68,7 +68,7 @@ func (m Model) renderDetailMetadata(stored store.StoredTicket) string {
 	b.WriteString("\n\n")
 	fmt.Fprintf(&b, "ID: %s\n", displayTicketID(stored.Ticket.ID))
 	fmt.Fprintf(&b, "Title: %s\n", stored.Ticket.Title)
-	b.WriteString("State: " + colStyle(m.Config.Theme, m.stateColIndex(stored.State)).Render(string(stored.State)) + "\n")
+	b.WriteString("State: " + m.colStyle(m.stateColIndex(stored.State)).Render(string(stored.State)) + "\n")
 	b.WriteString("Priority: " + priorityStyle(stored.Ticket.Priority).Render(string(stored.Ticket.Priority)) + "\n")
 	fmt.Fprintf(&b, "File: %s\n", stored.Name)
 	if len(stored.Ticket.ParsedTitle.Labels) > 0 {

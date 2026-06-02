@@ -255,15 +255,12 @@ func TestColumnLineBudgetReservesLinesForHeaderBox(t *testing.T) {
 	}
 }
 
-func TestThemesDefineDistinctWontDoColor(t *testing.T) {
+func TestThemesGenerateDistinctWontDoColor(t *testing.T) {
 	m := NewModel(emptyBoard())
-	for _, theme := range colorThemes {
+	for themeIdx, theme := range colorThemes {
 		t.Run(theme.name, func(t *testing.T) {
-			if len(theme.colors) != len(m.columnOrder) {
-				t.Fatalf("color count = %d, want %d", len(theme.colors), len(m.columnOrder))
-			}
-			wontDoColor := theme.colors[m.stateColIndex(store.StateWontDo)]
-			doneColor := theme.colors[m.stateColIndex(store.StateDone)]
+			wontDoColor := themeColor(themeIdx, m.stateColIndex(store.StateWontDo), len(m.columnOrder))
+			doneColor := themeColor(themeIdx, m.stateColIndex(store.StateDone), len(m.columnOrder))
 			if wontDoColor == "" {
 				t.Fatal("Won't Do color is empty")
 			}
