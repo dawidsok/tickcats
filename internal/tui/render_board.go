@@ -26,12 +26,14 @@ func (m Model) renderPickNext() string {
 	} else if result.HasPick {
 		text = fmt.Sprintf("Next: [%s] %s", result.Ticket.Ticket.Priority, result.Ticket.Ticket.Title)
 	}
+	color := themeColor(m.Config.Theme, stateColIndex(store.StateDoing))
+	styled := lipgloss.NewStyle().Bold(true).Foreground(color).Render(text)
 	return lipgloss.NewStyle().
 		Width(m.fullWidth()).
 		Border(lipgloss.NormalBorder()).
-		BorderForeground(themeColor(m.Config.Theme,stateColIndex(store.StateDoing))).
+		BorderForeground(color).
 		Padding(0, 1).
-		Render(bannerStyle.Render(text))
+		Render(styled)
 }
 
 func (m Model) renderBoard() string {
@@ -75,8 +77,8 @@ func (m Model) renderColumn(index int, state store.State) string {
 	header := strings.ToUpper(state.DisplayName())
 	var headerBorderColor lipgloss.Color
 	if index == m.SelectedCol {
-		header = colStyle(m.Config.Theme,index).Render(header)
-		headerBorderColor = themeColor(m.Config.Theme,index)
+		header = colStyle(m.Config.Theme, index).Render(header)
+		headerBorderColor = themeColor(m.Config.Theme, index)
 	} else {
 		headerBorderColor = lipgloss.Color("240")
 	}
@@ -95,7 +97,7 @@ func (m Model) renderColumn(index int, state store.State) string {
 	}
 	bodyBox := lipgloss.NewStyle().
 		Width(m.columnWidth()).
-		Height(m.boardColumnInnerHeight() - 3).
+		Height(m.boardColumnInnerHeight()-3).
 		Border(lipgloss.NormalBorder()).
 		BorderForeground(lipgloss.Color("240")).
 		Padding(0, 1).
@@ -203,7 +205,7 @@ func (m Model) styledTicketColumnLines(index int, state store.State, row int, in
 	for i, line := range wrapped {
 		switch {
 		case isFocused:
-			wrapped[i] = colStyle(m.Config.Theme,index).Render(line)
+			wrapped[i] = colStyle(m.Config.Theme, index).Render(line)
 		case isSelected:
 			wrapped[i] = selectedStyle.Render(line)
 		}
@@ -244,7 +246,7 @@ func (m Model) renderDeadlineBarSegment(state store.State, active int, total int
 	active = clamp(active, 0, total)
 	var b strings.Builder
 	if active > 0 {
-		b.WriteString(colStyle(m.Config.Theme,stateColIndex(state)).Render(strings.Repeat(marker, active)))
+		b.WriteString(colStyle(m.Config.Theme, stateColIndex(state)).Render(strings.Repeat(marker, active)))
 	}
 	if inactive := total - active; inactive > 0 {
 		b.WriteString(mutedStyle.Render(strings.Repeat(marker, inactive)))
