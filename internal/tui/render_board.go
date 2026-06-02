@@ -29,7 +29,7 @@ func (m Model) renderPickNext() string {
 	return lipgloss.NewStyle().
 		Width(m.fullWidth()).
 		Border(lipgloss.NormalBorder()).
-		BorderForeground(m.themeColor(stateColIndex(store.StateDoing))).
+		BorderForeground(themeColor(m.Config.Theme,stateColIndex(store.StateDoing))).
 		Padding(0, 1).
 		Render(bannerStyle.Render(text))
 }
@@ -75,8 +75,8 @@ func (m Model) renderColumn(index int, state store.State) string {
 	header := strings.ToUpper(state.DisplayName())
 	var headerBorderColor lipgloss.Color
 	if index == m.SelectedCol {
-		header = m.colStyle(index).Render(header)
-		headerBorderColor = m.themeColor(index)
+		header = colStyle(m.Config.Theme,index).Render(header)
+		headerBorderColor = themeColor(m.Config.Theme,index)
 	} else {
 		headerBorderColor = lipgloss.Color("240")
 	}
@@ -203,7 +203,7 @@ func (m Model) styledTicketColumnLines(index int, state store.State, row int, in
 	for i, line := range wrapped {
 		switch {
 		case isFocused:
-			wrapped[i] = m.colStyle(index).Render(line)
+			wrapped[i] = colStyle(m.Config.Theme,index).Render(line)
 		case isSelected:
 			wrapped[i] = selectedStyle.Render(line)
 		}
@@ -244,7 +244,7 @@ func (m Model) renderDeadlineBarSegment(state store.State, active int, total int
 	active = clamp(active, 0, total)
 	var b strings.Builder
 	if active > 0 {
-		b.WriteString(m.colStyle(stateColIndex(state)).Render(strings.Repeat(marker, active)))
+		b.WriteString(colStyle(m.Config.Theme,stateColIndex(state)).Render(strings.Repeat(marker, active)))
 	}
 	if inactive := total - active; inactive > 0 {
 		b.WriteString(mutedStyle.Render(strings.Repeat(marker, inactive)))
