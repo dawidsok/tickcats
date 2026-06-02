@@ -171,9 +171,12 @@ func stateColIndex(state store.State) int {
 	return 0
 }
 
-func (m Model) colStyle(colIndex int) lipgloss.Style {
+func (m Model) themeColor(colIndex int) lipgloss.Color {
 	themeIdx := clamp(m.Config.Theme, 0, len(colorThemes)-1)
 	colors := colorThemes[themeIdx].colors
-	color := colors[clamp(colIndex, 0, len(colors)-1)]
-	return lipgloss.NewStyle().Bold(true).Foreground(color)
+	return colors[clamp(colIndex, 0, len(colors)-1)]
+}
+
+func (m Model) colStyle(colIndex int) lipgloss.Style {
+	return lipgloss.NewStyle().Bold(true).Foreground(m.themeColor(colIndex))
 }

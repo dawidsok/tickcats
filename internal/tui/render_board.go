@@ -29,7 +29,7 @@ func (m Model) renderPickNext() string {
 	return lipgloss.NewStyle().
 		Width(m.fullWidth()).
 		Border(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("240")).
+		BorderForeground(m.themeColor(stateColIndex(store.StateDoing))).
 		Padding(0, 1).
 		Render(bannerStyle.Render(text))
 }
