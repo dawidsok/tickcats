@@ -85,12 +85,13 @@ type colorTheme struct {
 	colors []lipgloss.Color // indexed by columnOrder: backlog, ready, doing, done, wont-do
 }
 
+// for colors definition I use three character notation with those values: 0, 4, 8, a, d, f to keep theming simple.
 var colorThemes = []colorTheme{
-	{name: "mono", colors: []lipgloss.Color{"#679", "#f8d", "#f8d", "#f8d", "#8a8a8a"}},
-	{name: "gradient", colors: []lipgloss.Color{"#679", "#5fd787", "#f8d", "#679", "#8a8a8a"}},
-	{name: "ocean", colors: []lipgloss.Color{"#679", "#0ff", "#0af", "#14a", "#6c7a89"}},
-	{name: "fire", colors: []lipgloss.Color{"#679", "#fa0", "#f40", "#a00", "#875f5f"}},
-	{name: "forest", colors: []lipgloss.Color{"#679", "#5fd787", "#5faf87", "#098a08", "#6b7d68"}},
+	{name: "mono", colors: []lipgloss.Color{"#88a", "#f8d", "#f8d", "#f8d", "#88a"}},
+	{name: "gradient", colors: []lipgloss.Color{"#88a", "#fad", "#d8d", "#88f", "#88a"}},
+	{name: "ocean", colors: []lipgloss.Color{"#88a", "#8df", "#4af", "#44a", "#88a"}},
+	{name: "fire", colors: []lipgloss.Color{"#88a", "#fd8", "#f88", "#a44", "#a88"}},
+	{name: "forest", colors: []lipgloss.Color{"#88a", "#5fd787", "#5faf87", "#4a4", "#8a8"}},
 }
 
 // Model is the complete UI state passed through every Update/View cycle.
@@ -98,21 +99,21 @@ var colorThemes = []colorTheme{
 // except for pointer-receiver helpers that modify fields directly as a
 // performance optimisation within the same cycle.
 type Model struct {
-	Root            string          // absolute path to the board root directory
-	Board           store.Board     // last loaded board snapshot
-	SelectedCol     int             // index into columnOrder for the focused column
-	ColScrollOffset int             // first visible column index when board is wider than terminal
-	SelectedRows    map[store.State]int            // focused row per column
-	ColumnScroll    map[store.State]int            // scroll offset per column
-	MultiSelected   map[store.State]map[string]bool // ticket filenames selected for batch move
-	Mode            ViewMode
-	InteractionMode InteractionMode
-	DetailScroll    int    // scroll offset in the detail body view
-	HelpScroll      int    // scroll offset in the help dialog
+	Root             string                          // absolute path to the board root directory
+	Board            store.Board                     // last loaded board snapshot
+	SelectedCol      int                             // index into columnOrder for the focused column
+	ColScrollOffset  int                             // first visible column index when board is wider than terminal
+	SelectedRows     map[store.State]int             // focused row per column
+	ColumnScroll     map[store.State]int             // scroll offset per column
+	MultiSelected    map[store.State]map[string]bool // ticket filenames selected for batch move
+	Mode             ViewMode
+	InteractionMode  InteractionMode
+	DetailScroll     int    // scroll offset in the detail body view
+	HelpScroll       int    // scroll offset in the help dialog
 	detailTicketName string // filename of the ticket open in ViewDetail; used to track it across reloads and column moves
-	Status          string
-	Width           int
-	Height          int
+	Status           string
+	Width            int
+	Height           int
 
 	createInput    textinput.Model
 	createKind     ticket.Kind
