@@ -58,7 +58,7 @@ func (m Model) updateSearchTyping(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.searchInput.Blur()
 		// Jump cursor to first filtered result in current column if the current
 		// selection is not in the filtered results.
-		state := columnOrder[m.SelectedCol]
+		state := m.columnOrder[m.SelectedCol]
 		filtered := m.filteredTickets(state)
 		if len(filtered) > 0 {
 			selectedName := ""
@@ -128,7 +128,7 @@ func (m Model) exitSearch() (tea.Model, tea.Cmd) {
 	m.InteractionMode = InteractionBoard
 	m.searchInput = textinput.Model{}
 	m.searchFocused = false
-	for _, state := range columnOrder {
+	for _, state := range m.columnOrder {
 		tickets := m.Board.Columns[state]
 		if m.SelectedRows[state] >= len(tickets) && len(tickets) > 0 {
 			m.SelectedRows[state] = len(tickets) - 1
@@ -164,7 +164,7 @@ func (m Model) filteredTickets(state store.State) []store.StoredTicket {
 // If the selected ticket is not in the filtered results, it jumps to the first
 // (delta>0) or last (delta<0) filtered ticket.
 func (m *Model) moveInSearch(delta int) {
-	state := columnOrder[m.SelectedCol]
+	state := m.columnOrder[m.SelectedCol]
 	filtered := m.filteredTickets(state)
 	if len(filtered) == 0 {
 		return
@@ -227,7 +227,7 @@ func (m Model) renderSearchBar() string {
 	q := strings.TrimSpace(m.searchInput.Value())
 	if q != "" {
 		total := 0
-		for _, state := range columnOrder {
+		for _, state := range m.columnOrder {
 			total += len(m.filteredTickets(state))
 		}
 		b.WriteString("  ")

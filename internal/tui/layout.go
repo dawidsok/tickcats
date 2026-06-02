@@ -74,14 +74,14 @@ func (m Model) fullWidth() int {
 
 func (m Model) visibleColumnCount() int {
 	if m.Width <= 0 {
-		return len(columnOrder)
+		return len(m.columnOrder)
 	}
 	count := m.Width / minColumnWidth
 	if count < 1 {
 		count = 1
 	}
-	if count > len(columnOrder) {
-		count = len(columnOrder)
+	if count > len(m.columnOrder) {
+		count = len(m.columnOrder)
 	}
 	return count
 }

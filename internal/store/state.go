@@ -64,7 +64,7 @@ func (s State) DisplayName() string {
 	case StateWontDo:
 		return "Won't Do"
 	default:
-		return string(s)
+		return formatDisplayName(string(s))
 	}
 }
 

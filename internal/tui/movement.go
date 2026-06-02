@@ -18,17 +18,17 @@ func (m *Model) moveSelected(delta int) tea.Cmd {
 		return nil
 	}
 
-	from := columnOrder[m.SelectedCol]
+	from := m.columnOrder[m.SelectedCol]
 	toIndex := m.SelectedCol + delta
 	if toIndex < 0 {
-		m.Status = fmt.Sprintf("Ticket already in %s", columnOrder[0])
+		m.Status = fmt.Sprintf("Ticket already in %s", m.columnOrder[0])
 		return nil
 	}
-	if toIndex >= len(columnOrder) {
-		m.Status = fmt.Sprintf("Ticket already in %s", columnOrder[len(columnOrder)-1])
+	if toIndex >= len(m.columnOrder) {
+		m.Status = fmt.Sprintf("Ticket already in %s", m.columnOrder[len(m.columnOrder)-1])
 		return nil
 	}
-	to := columnOrder[toIndex]
+	to := m.columnOrder[toIndex]
 
 	if _, err := store.Move(m.Root, stored.Name, from, to); err != nil {
 		m.Status = "Move failed: " + err.Error()
@@ -52,7 +52,7 @@ func (m *Model) moveSelected(delta int) tea.Cmd {
 }
 
 func (m Model) selectedTicket() *store.StoredTicket {
-	state := columnOrder[m.SelectedCol]
+	state := m.columnOrder[m.SelectedCol]
 	tickets := m.Board.Columns[state]
 	if len(tickets) == 0 {
 		return nil
@@ -68,7 +68,7 @@ func (m Model) findDetailTicket() *store.StoredTicket {
 	if m.detailTicketName == "" {
 		return m.selectedTicket()
 	}
-	for _, state := range columnOrder {
+	for _, state := range m.columnOrder {
 		for i := range m.Board.Columns[state] {
 			if m.Board.Columns[state][i].Name == m.detailTicketName {
 				return &m.Board.Columns[state][i]
@@ -85,7 +85,7 @@ func (m *Model) resolveDetailCursor() {
 	if m.detailTicketName == "" {
 		return
 	}
-	for colIdx, state := range columnOrder {
+	for colIdx, state := range m.columnOrder {
 		for rowIdx, t := range m.Board.Columns[state] {
 			if t.Name == m.detailTicketName {
 				m.SelectedCol = colIdx

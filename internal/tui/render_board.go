@@ -26,7 +26,7 @@ func (m Model) renderPickNext() string {
 	} else if result.HasPick {
 		text = fmt.Sprintf("Next: [%s] %s", result.Ticket.Ticket.Priority, result.Ticket.Ticket.Title)
 	}
-	color := themeColor(m.Config.Theme, stateColIndex(store.StateDoing))
+	color := themeColor(m.Config.Theme, m.stateColIndex(store.StateDoing))
 	styled := lipgloss.NewStyle().Bold(true).Foreground(color).Render(text)
 	return lipgloss.NewStyle().
 		Width(m.fullWidth()).
@@ -38,35 +38,35 @@ func (m Model) renderPickNext() string {
 
 func (m Model) renderBoard() string {
 	visible := m.visibleColumnCount()
-	start := clamp(m.ColScrollOffset, 0, max(0, len(columnOrder)-visible))
-	end := min(start+visible, len(columnOrder))
+	start := clamp(m.ColScrollOffset, 0, max(0, len(m.columnOrder)-visible))
+	end := min(start+visible, len(m.columnOrder))
 	columns := make([]string, 0, end-start)
 	for i := start; i < end; i++ {
-		columns = append(columns, m.renderColumn(i, columnOrder[i]))
+		columns = append(columns, m.renderColumn(i, m.columnOrder[i]))
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, columns...)
 }
 
 func (m Model) renderHScrollIndicator() string {
 	visible := m.visibleColumnCount()
-	if visible >= len(columnOrder) {
+	if visible >= len(m.columnOrder) {
 		return ""
 	}
-	start := clamp(m.ColScrollOffset, 0, max(0, len(columnOrder)-visible))
+	start := clamp(m.ColScrollOffset, 0, max(0, len(m.columnOrder)-visible))
 	leftHidden := start
-	rightHidden := len(columnOrder) - (start + visible)
+	rightHidden := len(m.columnOrder) - (start + visible)
 	var parts []string
 	if leftHidden > 0 {
 		names := make([]string, leftHidden)
 		for i := range leftHidden {
-			names[i] = columnOrder[i].DisplayName()
+			names[i] = m.columnOrder[i].DisplayName()
 		}
 		parts = append(parts, fmt.Sprintf("← %s", strings.Join(names, ", ")))
 	}
 	if rightHidden > 0 {
 		names := make([]string, rightHidden)
 		for i := range rightHidden {
-			names[i] = columnOrder[start+visible+i].DisplayName()
+			names[i] = m.columnOrder[start+visible+i].DisplayName()
 		}
 		parts = append(parts, fmt.Sprintf("%s →", strings.Join(names, ", ")))
 	}
@@ -246,7 +246,7 @@ func (m Model) renderDeadlineBarSegment(state store.State, active int, total int
 	active = clamp(active, 0, total)
 	var b strings.Builder
 	if active > 0 {
-		b.WriteString(colStyle(m.Config.Theme, stateColIndex(state)).Render(strings.Repeat(marker, active)))
+		b.WriteString(colStyle(m.Config.Theme, m.stateColIndex(state)).Render(strings.Repeat(marker, active)))
 	}
 	if inactive := total - active; inactive > 0 {
 		b.WriteString(mutedStyle.Render(strings.Repeat(marker, inactive)))

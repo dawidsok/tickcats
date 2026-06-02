@@ -23,8 +23,41 @@ func TestNavigationClampsColumns(t *testing.T) {
 	for range 10 {
 		model.moveColumn(1)
 	}
-	if model.SelectedCol != len(columnOrder)-1 {
-		t.Fatalf("SelectedCol = %d, want %d", model.SelectedCol, len(columnOrder)-1)
+	if model.SelectedCol != len(model.columnOrder)-1 {
+		t.Fatalf("SelectedCol = %d, want %d", model.SelectedCol, len(model.columnOrder)-1)
+	}
+}
+
+func TestNavigationUsesDynamicColumnOrder(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"backlog", "triage", "done"} {
+		if err := os.MkdirAll(filepath.Join(root, name), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", name, err)
+		}
+	}
+	cfg := store.Config{Columns: []store.Column{
+		{ID: "backlog", DisplayName: "Backlog"},
+		{ID: "triage", DisplayName: "Triage"},
+		{ID: "done", DisplayName: "Done"},
+	}}
+	if err := store.SaveConfig(root, cfg); err != nil {
+		t.Fatalf("SaveConfig: %v", err)
+	}
+	board := store.Board{Columns: map[store.State][]store.StoredTicket{
+		store.StateBacklog:    {},
+		store.State("triage"): {},
+		store.StateDone:       {},
+	}}
+
+	model := NewModelWithRoot(root, board)
+	for range 10 {
+		model.moveColumn(1)
+	}
+	if model.SelectedCol != 2 {
+		t.Fatalf("SelectedCol = %d, want 2", model.SelectedCol)
+	}
+	if got := model.columnOrder[model.SelectedCol]; got != store.StateDone {
+		t.Fatalf("selected column = %q, want done", got)
 	}
 }
 
@@ -205,7 +238,7 @@ func TestColumnHeaderHasDividerLine(t *testing.T) {
 	m := NewModel(emptyBoard())
 	m.Width = 300
 	m.Height = 40
-	col := m.renderColumn(0, columnOrder[0])
+	col := m.renderColumn(0, m.columnOrder[0])
 	if !strings.Contains(col, "─") {
 		t.Fatal("column header missing divider line")
 	}
@@ -223,13 +256,14 @@ func TestColumnLineBudgetReservesLinesForHeaderBox(t *testing.T) {
 }
 
 func TestThemesDefineDistinctWontDoColor(t *testing.T) {
+	m := NewModel(emptyBoard())
 	for _, theme := range colorThemes {
 		t.Run(theme.name, func(t *testing.T) {
-			if len(theme.colors) != len(columnOrder) {
-				t.Fatalf("color count = %d, want %d", len(theme.colors), len(columnOrder))
+			if len(theme.colors) != len(m.columnOrder) {
+				t.Fatalf("color count = %d, want %d", len(theme.colors), len(m.columnOrder))
 			}
-			wontDoColor := theme.colors[stateColIndex(store.StateWontDo)]
-			doneColor := theme.colors[stateColIndex(store.StateDone)]
+			wontDoColor := theme.colors[m.stateColIndex(store.StateWontDo)]
+			doneColor := theme.colors[m.stateColIndex(store.StateDone)]
 			if wontDoColor == "" {
 				t.Fatal("Won't Do color is empty")
 			}
@@ -326,7 +360,7 @@ func TestBoardShowsSLAIndicatorForTicketWithDeadline(t *testing.T) {
 	stored.Ticket.Deadline = &deadline
 	board.Columns[store.StateReady] = []store.StoredTicket{stored}
 	m := NewModel(board)
-	m.SelectedCol = stateColIndex(store.StateReady)
+	m.SelectedCol = m.stateColIndex(store.StateReady)
 
 	view := m.View()
 	if !strings.Contains(view, "SLA") || !strings.Contains(view, deadlineBarPattern()) {
@@ -941,8 +975,8 @@ func (m Model) notifText() string {
 
 func emptyBoard() store.Board {
 	columns := make(map[store.State][]store.StoredTicket)
-	for _, state := range columnOrder {
-		columns[state] = []store.StoredTicket{}
+	for _, col := range store.DefaultColumns() {
+		columns[store.State(col.ID)] = []store.StoredTicket{}
 	}
 	return store.Board{Columns: columns}
 }
@@ -2094,8 +2128,8 @@ func TestVisibleColumnCountNarrowWide(t *testing.T) {
 	m := NewModel(emptyBoard())
 
 	m.Width = 0
-	if m.visibleColumnCount() != len(columnOrder) {
-		t.Fatalf("width=0: visibleColumnCount = %d, want %d", m.visibleColumnCount(), len(columnOrder))
+	if m.visibleColumnCount() != len(m.columnOrder) {
+		t.Fatalf("width=0: visibleColumnCount = %d, want %d", m.visibleColumnCount(), len(m.columnOrder))
 	}
 
 	m.Width = 300
@@ -2544,7 +2578,7 @@ func TestSearchNavigationSkipsFilteredOutTickets(t *testing.T) {
 	// j should jump from a.md (filtered[0]) to c.md (filtered[1])
 	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
 	m = got.(Model)
-	state := columnOrder[m.SelectedCol]
+	state := m.columnOrder[m.SelectedCol]
 	fullTickets := m.Board.Columns[state]
 	if m.SelectedRows[state] >= len(fullTickets) {
 		t.Fatalf("SelectedRows out of range: %d", m.SelectedRows[state])
@@ -2609,8 +2643,8 @@ func TestDetailViewTracksTicketAfterExternalMove(t *testing.T) {
 	if !strings.Contains(view, "Task: a") {
 		t.Fatalf("detail view missing ticket title after external move:\n%s", view)
 	}
-	if m.SelectedCol != stateColIndex(store.StateReady) {
-		t.Fatalf("SelectedCol = %d after move, want %d (ready)", m.SelectedCol, stateColIndex(store.StateReady))
+	if m.SelectedCol != m.stateColIndex(store.StateReady) {
+		t.Fatalf("SelectedCol = %d after move, want %d (ready)", m.SelectedCol, m.stateColIndex(store.StateReady))
 	}
 }
 
@@ -2664,8 +2698,8 @@ func TestEscFromDetailAfterMoveUpdatesCursorToNewColumn(t *testing.T) {
 	if m.Mode != ViewBoard {
 		t.Fatalf("Mode = %v after esc, want ViewBoard", m.Mode)
 	}
-	if m.SelectedCol != stateColIndex(store.StateReady) {
-		t.Fatalf("SelectedCol = %d, want %d (ready)", m.SelectedCol, stateColIndex(store.StateReady))
+	if m.SelectedCol != m.stateColIndex(store.StateReady) {
+		t.Fatalf("SelectedCol = %d, want %d (ready)", m.SelectedCol, m.stateColIndex(store.StateReady))
 	}
 	if m.detailTicketName != "" {
 		t.Fatalf("detailTicketName = %q, want empty after exit", m.detailTicketName)

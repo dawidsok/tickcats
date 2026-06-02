@@ -95,6 +95,11 @@ func (m *Model) loadAndResortBoard() bool {
 		return false
 	}
 	m.Board = board
+	if cfg, err := store.LoadConfig(m.Root); err == nil {
+		m.Config = cfg
+		m.columnOrder = statesFromColumns(cfg.GetColumns())
+	}
+	m.SelectedCol = clamp(m.SelectedCol, 0, len(m.columnOrder)-1)
 	m.syncManualOrder()
 	m.applySortToBoard()
 	return true
@@ -105,7 +110,7 @@ func (m *Model) loadAndResortBoard() bool {
 // reload key so the cursor does not jump unexpectedly when tickets are added or
 // removed externally.
 func (m *Model) reloadBoard() bool {
-	state := columnOrder[m.SelectedCol]
+	state := m.columnOrder[m.SelectedCol]
 	focusedName := ""
 	if tickets := m.Board.Columns[state]; m.SelectedRows[state] < len(tickets) {
 		focusedName = tickets[m.SelectedRows[state]].Name
@@ -197,7 +202,7 @@ func (m *Model) syncManualOrder() {
 }
 
 func (m *Model) applySortToBoard() {
-	for _, state := range columnOrder {
+	for _, state := range m.columnOrder {
 		tickets := m.Board.Columns[state]
 		if len(tickets) <= 1 {
 			continue
@@ -247,7 +252,7 @@ func (m *Model) applySortToBoard() {
 }
 
 func (m *Model) moveSelectedInColumn(delta int) {
-	state := columnOrder[m.SelectedCol]
+	state := m.columnOrder[m.SelectedCol]
 	stored := m.selectedTicket()
 	if stored == nil {
 		return
@@ -283,7 +288,7 @@ func (m *Model) toggleSelection() {
 	if stored == nil {
 		return
 	}
-	state := columnOrder[m.SelectedCol]
+	state := m.columnOrder[m.SelectedCol]
 	if m.MultiSelected[state] == nil {
 		m.MultiSelected[state] = make(map[string]bool)
 	}
@@ -322,7 +327,7 @@ type selectedRef struct {
 
 func (m *Model) allSelectedRefs() []selectedRef {
 	var refs []selectedRef
-	for colIdx, state := range columnOrder {
+	for colIdx, state := range m.columnOrder {
 		for name := range m.MultiSelected[state] {
 			refs = append(refs, selectedRef{name, state, colIdx})
 		}
@@ -345,10 +350,10 @@ func (m *Model) moveAllSelectedBy(delta int) tea.Cmd {
 	moved := 0
 	for _, r := range refs {
 		toIdx := r.colIdx + delta
-		if toIdx < 0 || toIdx >= len(columnOrder) {
+		if toIdx < 0 || toIdx >= len(m.columnOrder) {
 			continue
 		}
-		if _, err := store.Move(m.Root, r.name, r.state, columnOrder[toIdx]); err != nil {
+		if _, err := store.Move(m.Root, r.name, r.state, m.columnOrder[toIdx]); err != nil {
 			m.Status = "Move failed: " + err.Error()
 			return nil
 		}
@@ -362,17 +367,17 @@ func (m *Model) moveAllSelectedBy(delta int) tea.Cmd {
 	newSelected := make(map[store.State]map[string]bool)
 	for _, r := range refs {
 		newIdx := r.colIdx + delta
-		if newIdx < 0 || newIdx >= len(columnOrder) {
+		if newIdx < 0 || newIdx >= len(m.columnOrder) {
 			newIdx = r.colIdx
 		}
-		newState := columnOrder[newIdx]
+		newState := m.columnOrder[newIdx]
 		if newSelected[newState] == nil {
 			newSelected[newState] = make(map[string]bool)
 		}
 		newSelected[newState][r.name] = true
 	}
 	m.MultiSelected = newSelected
-	m.SelectedCol = clamp(m.SelectedCol+delta, 0, len(columnOrder)-1)
+	m.SelectedCol = clamp(m.SelectedCol+delta, 0, len(m.columnOrder)-1)
 	m.ensureColVisible()
 
 	if moved == 0 {
@@ -397,7 +402,7 @@ func (m *Model) moveAllSelectedTo(targetCol int) tea.Cmd {
 		if r.colIdx == targetCol {
 			continue
 		}
-		if _, err := store.Move(m.Root, r.name, r.state, columnOrder[targetCol]); err != nil {
+		if _, err := store.Move(m.Root, r.name, r.state, m.columnOrder[targetCol]); err != nil {
 			m.Status = "Move failed: " + err.Error()
 			return nil
 		}
@@ -409,7 +414,7 @@ func (m *Model) moveAllSelectedTo(targetCol int) tea.Cmd {
 	}
 
 	newSelected := make(map[store.State]map[string]bool)
-	targetState := columnOrder[targetCol]
+	targetState := m.columnOrder[targetCol]
 	newSelected[targetState] = make(map[string]bool)
 	for _, r := range refs {
 		newSelected[targetState][r.name] = true
@@ -419,8 +424,8 @@ func (m *Model) moveAllSelectedTo(targetCol int) tea.Cmd {
 	m.ensureColVisible()
 
 	if moved == 0 {
-		m.Status = fmt.Sprintf("Ticket(s) already at %s", columnOrder[targetCol])
+		m.Status = fmt.Sprintf("Ticket(s) already at %s", m.columnOrder[targetCol])
 		return nil
 	}
-	return m.notify(fmt.Sprintf("Moved %d ticket(s) to %s", moved, columnOrder[targetCol]), notifSuccess)
+	return m.notify(fmt.Sprintf("Moved %d ticket(s) to %s", moved, m.columnOrder[targetCol]), notifSuccess)
 }

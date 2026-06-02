@@ -42,16 +42,23 @@ type Warning struct {
 // rather than causing a hard failure. Tickets with missing or duplicate IDs
 // also produce warnings. Each column is sorted by filename for stable ordering.
 func LoadBoard(root string) (Board, error) {
+	cfg, err := LoadConfig(root)
+	if err != nil {
+		return Board{}, err
+	}
+	columns := cfg.GetColumns()
+
 	board := Board{
-		Columns:  make(map[State][]StoredTicket, len(ValidStates)),
+		Columns:  make(map[State][]StoredTicket, len(columns)),
 		Warnings: make([]Warning, 0),
 	}
-	for _, state := range ValidStates {
-		board.Columns[state] = []StoredTicket{}
+	for _, col := range columns {
+		board.Columns[State(col.ID)] = []StoredTicket{}
 	}
 
 	ids := make(map[string]StoredTicket)
-	for _, state := range ValidStates {
+	for _, col := range columns {
+		state := State(col.ID)
 		dir := filepath.Join(root, string(state))
 		entries, err := os.ReadDir(dir)
 		if os.IsNotExist(err) {
@@ -112,10 +119,10 @@ func LoadBoard(root string) (Board, error) {
 // atomic rename. It validates the filename, parses the source file to confirm
 // it is a valid ticket, and checks for conflicts before moving.
 func Move(root string, name string, from State, to State) (string, error) {
-	if _, err := ParseState(string(from)); err != nil {
+	if err := validateConfiguredColumn(root, from); err != nil {
 		return "", err
 	}
-	if _, err := ParseState(string(to)); err != nil {
+	if err := validateConfiguredColumn(root, to); err != nil {
 		return "", err
 	}
 
@@ -145,4 +152,17 @@ func Move(root string, name string, from State, to State) (string, error) {
 		return "", fmt.Errorf("move ticket %q to %q: %w", source, target, err)
 	}
 	return target, nil
+}
+
+func validateConfiguredColumn(root string, state State) error {
+	cfg, err := LoadConfig(root)
+	if err != nil {
+		return err
+	}
+	for _, col := range cfg.GetColumns() {
+		if State(col.ID) == state {
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid state %q", state)
 }

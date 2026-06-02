@@ -20,8 +20,6 @@ import (
 	"github.com/dawidsok/tickcats/internal/ticket"
 )
 
-var columnOrder = []store.State{store.StateBacklog, store.StateReady, store.StateDoing, store.StateDone, store.StateWontDo}
-
 const minColumnWidth = 60 // minimum total width per column (including borders/margin)
 
 var (
@@ -101,6 +99,7 @@ var colorThemes = []colorTheme{
 type Model struct {
 	Root             string                          // absolute path to the board root directory
 	Board            store.Board                     // last loaded board snapshot
+	columnOrder      []store.State                   // dynamic list of columns derived from config
 	SelectedCol      int                             // index into columnOrder for the focused column
 	ColScrollOffset  int                             // first visible column index when board is wider than terminal
 	SelectedRows     map[store.State]int             // focused row per column
@@ -149,6 +148,14 @@ func NewModel(board store.Board) Model {
 
 // NewModelWithRoot creates a Model with an explicit board root path. It loads
 // sort config and user config from disk and starts the file watcher goroutine.
+func statesFromColumns(columns []store.Column) []store.State {
+	states := make([]store.State, len(columns))
+	for i, col := range columns {
+		states[i] = store.State(col.ID)
+	}
+	return states
+}
+
 func NewModelWithRoot(root string, board store.Board) Model {
 	m := Model{
 		Root:          root,
@@ -160,9 +167,10 @@ func NewModelWithRoot(root string, board store.Board) Model {
 	cfg, _ := store.LoadSortConfig(root)
 	m.SortMode = cfg.Mode
 	m.ManualOrder = cfg.ManualOrder
+	m.Config, _ = store.LoadConfig(root)
+	m.columnOrder = statesFromColumns(m.Config.GetColumns())
 	m.syncManualOrder()
 	m.applySortToBoard()
-	m.Config, _ = store.LoadConfig(root)
 	if fw, err := newFileWatcher(root); err == nil {
 		m.watchCh = fw.ch
 	}

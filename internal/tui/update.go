@@ -151,7 +151,7 @@ func (m Model) updateMove(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "H":
 		return m, m.moveAllSelectedTo(0)
 	case "L":
-		return m, m.moveAllSelectedTo(len(columnOrder) - 1)
+		return m, m.moveAllSelectedTo(len(m.columnOrder) - 1)
 	case "j", "down":
 		if m.SortMode == store.SortManual {
 			m.moveSelectedInColumn(1)

@@ -8,9 +8,9 @@ package tui
 import "github.com/dawidsok/tickcats/internal/store"
 
 func (m *Model) moveColumn(delta int) {
-	m.SelectedCol = clamp(m.SelectedCol+delta, 0, len(columnOrder)-1)
+	m.SelectedCol = clamp(m.SelectedCol+delta, 0, len(m.columnOrder)-1)
 	m.ensureColVisible()
-	m.ensureSelectedVisible(columnOrder[m.SelectedCol])
+	m.ensureSelectedVisible(m.columnOrder[m.SelectedCol])
 }
 
 func (m *Model) ensureColVisible() {
@@ -21,11 +21,11 @@ func (m *Model) ensureColVisible() {
 	if m.SelectedCol >= m.ColScrollOffset+visible {
 		m.ColScrollOffset = m.SelectedCol - visible + 1
 	}
-	m.ColScrollOffset = clamp(m.ColScrollOffset, 0, max(0, len(columnOrder)-visible))
+	m.ColScrollOffset = clamp(m.ColScrollOffset, 0, max(0, len(m.columnOrder)-visible))
 }
 
 func (m *Model) moveRow(delta int) {
-	state := columnOrder[m.SelectedCol]
+	state := m.columnOrder[m.SelectedCol]
 	rows := len(m.Board.Columns[state])
 	if rows == 0 {
 		m.SelectedRows[state] = 0

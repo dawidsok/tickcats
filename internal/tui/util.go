@@ -162,8 +162,8 @@ func priorityStyle(p ticket.Priority) lipgloss.Style {
 	}
 }
 
-func stateColIndex(state store.State) int {
-	for i, s := range columnOrder {
+func (m Model) stateColIndex(state store.State) int {
+	for i, s := range m.columnOrder {
 		if s == state {
 			return i
 		}
