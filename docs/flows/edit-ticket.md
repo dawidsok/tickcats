@@ -42,7 +42,7 @@ graph LR
         ExternalEditor["external editor process\nnvim/vim/code/etc"]
     end
 
-    FS[("ticket .md file\nstate dirs")]
+    FS[("ticket .md file\ncolumn folders")]
 
     Update --> Editor
     Editor --> Board

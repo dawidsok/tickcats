@@ -1,6 +1,6 @@
 # Configuration
 
-Edit editor command and color theme through the TUI config form.
+Edit editor command, color theme, and board columns through the TUI config form.
 
 ## User flow
 
@@ -8,9 +8,9 @@ Edit editor command and color theme through the TUI config form.
 %%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
 flowchart TD
     Board["ViewBoard\nor ViewDetail"] -->|"c"| Enter["enterConfig()\nMode = ViewConfig\nmap current config to form\nconfigField = 0"]
-    Enter --> Form["ViewConfig form\nField 0: Editor preset selector\nField 1: Theme selector"]
+    Enter --> Form["ViewConfig form\nField 0: Editor preset selector\nField 1: Theme selector\nField 2: Columns table"]
 
-    Form -->|"tab / shift+tab"| CycleField["toggle configField 0 ↔ 1"]
+    Form -->|"tab / shift+tab"| CycleField["cycle configField 0 ↔ 1 ↔ 2"]
     CycleField --> Form
 
     Form -->|"h (field 0)"| PrevEditor["configEditorIdx -= 1\npresets: '' nvim vim nano code hx custom"]
@@ -23,7 +23,26 @@ flowchart TD
     Form -->|"h/l (field 1)"| CycleTheme["cycle theme\nmono gradient ocean fire forest"]
     CycleTheme --> Form
 
-    Form -->|"esc"| Discard["Mode = ViewBoard\nno changes saved"]
+    Form -->|"j/k (field 2)"| SelectColumn["select column row"]
+    SelectColumn --> Form
+
+    Form -->|"a (field 2)"| AddColumn["inline input\nstore.AddColumn(root, name)"]
+    AddColumn --> RefreshColumns["reload config\nrefresh columnOrder\nreload board"]
+    RefreshColumns --> Form
+
+    Form -->|"r (field 2)"| RenameColumn["inline input\nstore.RenameColumn(root, id, name)"]
+    RenameColumn --> RefreshColumns
+
+    Form -->|"K/J (field 2)"| ReorderColumn["store.ReorderColumns(root, order)"]
+    ReorderColumn --> RefreshColumns
+
+    Form -->|"d (field 2)"| DeleteColumn{"first column?"}
+    DeleteColumn -->|Yes| BlockDelete["show warning"]
+    BlockDelete --> Form
+    DeleteColumn -->|No, y confirm| DeleteStore["store.DeleteColumn(root, id)\nmove tickets to first column"]
+    DeleteStore --> RefreshColumns
+
+    Form -->|"esc"| Discard["Mode = ViewBoard\nno unsaved editor/theme changes saved"]
     Discard --> Board
 
     Form -->|"enter"| Save["saveConfig()\nConfig.Editor = selected preset or custom input\nConfig.Theme = selected theme\nSaveConfig(root, Config)"]
@@ -40,11 +59,11 @@ graph LR
     subgraph TUI
         Update["update.go\nkey dispatch"]
         ConfigView["config_view.go\nenterConfig\nupdateConfig\nsaveConfig\nrenderConfig"]
-        Model["model.go\nconfigField\nconfigEditorIdx\nconfigEditorInput\nConfig"]
+        Model["model.go\nconfigField\nconfigEditorIdx\nconfigEditorInput\nconfigColIdx\nconfigAction\nConfig"]
     end
 
     subgraph Store
-        Config["config.go\nConfig struct\nLoadConfig\nSaveConfig"]
+        Config["config.go\nConfig struct\nLoadConfig\nSaveConfig\nAdd/Rename/Reorder/DeleteColumn"]
     end
 
     FS[("config.json")]
@@ -53,6 +72,7 @@ graph LR
     ConfigView --> Config
     ConfigView --> Model
     Config --> FS
+    ConfigView --> BoardStore["board.go\nLoadBoard"]
 ```
 
 ## Module integration sequence
@@ -91,9 +111,22 @@ sequenceDiagram
     Update->>ConfigView: cycle theme index
     ConfigView->>Model: update theme selection
 
+    User->>Update: press tab (switch to Columns field)
+    Update->>ConfigView: updateConfig(msg)
+    ConfigView->>Model: configField = 2
+
+    alt add/rename/reorder/delete column
+        User->>Update: press a/r/K/J/d
+        Update->>ConfigView: updateConfig(msg)
+        ConfigView->>Store: Add/Rename/Reorder/DeleteColumn(...)
+        Store->>FS: update folders and config.json
+        ConfigView->>Store: LoadConfig(root) + LoadBoard(root)
+        ConfigView->>Model: refresh Config, columnOrder, Board, selected indexes
+    end
+
     User->>Update: press enter
     Update->>ConfigView: saveConfig()
-    ConfigView->>Store: SaveConfig(root, Config{Editor, Theme, SkipEditorPrompt})
+    ConfigView->>Store: SaveConfig(root, Config{Editor, Theme, SkipEditorPrompt, Columns})
     Store->>FS: write config.json (pretty-printed JSON)
     ConfigView->>Model: Mode = ViewBoard
     ConfigView-->>User: board view restored

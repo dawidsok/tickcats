@@ -1,6 +1,6 @@
 # TickCats Architecture Diagrams
 
-These Mermaid diagrams describe the v1 local CLI/TUI architecture. The source of truth is the filesystem: ticket status comes from the folder containing each markdown file, not from ticket frontmatter.
+These Mermaid diagrams describe the v1 local CLI/TUI architecture. The source of truth is the filesystem: ticket status comes from the column folder containing each markdown file, not from ticket frontmatter.
 
 ## System context
 
@@ -27,11 +27,14 @@ flowchart TD
     T --> D["doing/"]
     T --> N["done/"]
     T --> W["wont-do/"]
+    T --> X["custom-column/"]
     B --> B1["ticket markdown files"]
     Y --> Y1["ticket markdown files"]
     D --> D1["ticket markdown files"]
     N --> N1["ticket markdown files"]
     W --> W1["ticket markdown files"]
+    X --> X1["ticket markdown files"]
+    T --> CFG["config.json\ncolumn order/display names"]
 
     M[Ticket markdown] --> F[Frontmatter: title, priority, created, updated]
     M --> C[Body: Context, Acceptance Criteria]
@@ -48,7 +51,7 @@ flowchart TD
 
     CLI -->|init, new, list, move, pick-next| Store
     CLI -->|create markdown, parse kind/title helpers| Ticket
-    Store -->|load, move, initialize state dirs| FS
+    Store -->|load, move, initialize/sync column folders| FS
     Store -->|parse and validate ticket files| Ticket
     Ticket -->|markdown/frontmatter parsing| TicketParser[Ticket parser]
     Ticket -->|priority ordering| Priority[Priority rules]
@@ -76,7 +79,7 @@ sequenceDiagram
         CLI->>FS: write .tickcats/backlog/<slug>.md
     else list
         CLI->>Store: LoadBoard(".")
-        Store->>FS: read state directories and .md files
+        Store->>FS: read configured column folders and .md files
         Store->>Ticket: ParseMarkdown(file)
         Store-->>CLI: Board columns + warnings
         CLI-->>User: grouped ticket list
@@ -84,7 +87,7 @@ sequenceDiagram
         CLI->>Store: Move(root, name, from, to)
         Store->>FS: read source ticket
         Store->>Ticket: ParseMarkdown(source)
-        Store->>FS: rename into target state folder
+        Store->>FS: rename into target column folder
     else ids migrate
         CLI->>Store: MigrateIDs(root)
         Store->>FS: add missing frontmatter ids

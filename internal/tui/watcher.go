@@ -1,4 +1,4 @@
-// watcher.go watches the board state directories for external file changes
+// watcher.go watches the configured board column directories for external file changes
 // (e.g. the user editing a ticket in their editor while the TUI is open) and
 // sends a signal on a channel so the TUI can reload the board.
 //
@@ -28,8 +28,12 @@ func newFileWatcher(root string) (*fileWatcher, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, state := range store.ValidStates {
-		_ = w.Add(filepath.Join(root, string(state)))
+	cfg, err := store.LoadConfig(root)
+	if err != nil {
+		cfg = store.Config{}
+	}
+	for _, col := range cfg.GetColumns() {
+		_ = w.Add(filepath.Join(root, col.ID))
 	}
 	fw := &fileWatcher{
 		ch:      make(chan struct{}, 1),

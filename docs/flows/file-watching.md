@@ -7,7 +7,7 @@ Automatic board reload when ticket files are changed externally (editor, CLI, gi
 ```mermaid
 %%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
 flowchart TD
-    Init["Model.Init()\nnewFileWatcher(root)\nwatch all 5 state dirs"]
+    Init["Model.Init()\nnewFileWatcher(root)\nwatch configured column dirs"]
     Init --> Arm["waitForWatchEvent(watchCh)\nregistered as tea.Cmd"]
     Arm --> Waiting["TUI running normally\nblocking on watchCh"]
 
@@ -39,7 +39,7 @@ graph LR
 
     subgraph External["External"]
         FSNotify["fsnotify.Watcher\nkernel FS events"]
-        StateDirs["state directories\nbacklog/ ready/\ndoing/ done/ wont-do/"]
+        StateDirs["column directories\nconfigured in config"]
     end
 
     Init --> Watcher
@@ -57,15 +57,15 @@ sequenceDiagram
     participant Init as model.go Init()
     participant Watcher as watcher.go
     participant FSNotify as fsnotify
-    participant FS as state directories
+    participant FS as column directories
     participant Update as update.go
     participant Actions as actions.go
     participant Store as store/board.go
 
     Init->>Watcher: newFileWatcher(root)
     Watcher->>FSNotify: fsnotify.NewWatcher()
-    loop for each state dir
-        Watcher->>FSNotify: watcher.Add(stateDir)
+    loop for each configured column dir
+        Watcher->>FSNotify: watcher.Add(columnDir)
     end
     Init->>Watcher: waitForWatchEvent(watchCh)
     Note over Watcher: goroutine listening on FSNotify.Events

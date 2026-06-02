@@ -57,14 +57,33 @@ tickcats                # open the board (no command defaults to tui)
 |---|---|
 | `tickcats init` | Create board folders and update `.gitignore` |
 | `tickcats new feat\|task\|bug <title>` | Create a ticket in backlog |
-| `tickcats list` | List tickets grouped by state |
-| `tickcats move <ticket> <from> <to>` | Move a ticket between states (`backlog`, `ready`, `doing`, `done`, `wont-do`) |
+| `tickcats list` | List tickets grouped by configured column |
+| `tickcats move <ticket> <from> <to>` | Move a ticket between columns; accepts folder IDs (`code-review`) or display names (`Code Review`) |
 | `tickcats pick-next` | Print the next recommended ready ticket |
 | `tickcats ids migrate` | Add IDs to existing tickets and rename migrated files |
 | `tickcats` | Open the terminal board (default when no command given) |
 | `tickcats tui` | Open the terminal board (explicit) |
 
 All commands accept `--path <dir>` to target a board other than `.tickcats`.
+
+## Shell completion
+
+Homebrew installs shell completions automatically. If you installed with `go install`, copy or source the scripts from `completions/` yourself:
+
+```sh
+# bash: source directly or copy into your bash-completion directory
+source completions/tickcats.bash
+
+# zsh: copy into a directory listed in $fpath, then restart your shell
+mkdir -p ~/.zsh/completions
+cp completions/_tickcats.zsh ~/.zsh/completions/_tickcats
+
+# fish
+mkdir -p ~/.config/fish/completions
+cp completions/tickcats.fish ~/.config/fish/completions/tickcats.fish
+```
+
+The completion scripts call hidden helpers (`tickcats __complete tickets` and `tickcats __complete columns`) so ticket and column candidates reflect your local `.tickcats/` board.
 
 ## TUI keyboard reference
 
@@ -84,7 +103,7 @@ All commands accept `--path <dir>` to target a board other than `.tickcats`.
 | `x` | Delete (with confirmation) |
 | `s` | Cycle sort: priority → title → date → manual |
 | `r` | Reload board from disk |
-| `c` | Open config |
+| `c` | Open config (editor, theme, columns) |
 | `q` | Quit |
 
 ### Move mode (`m`)
@@ -149,6 +168,30 @@ State is derived from which folder the file lives in — not from frontmatter. `
 
 The `.tickcats/` directory is gitignored by default so the board stays local.
 
+## Custom columns
+
+Columns are folders under `.tickcats/`. The folder name is the column ID used on disk and by the CLI. Display names and order are stored in `.tickcats/config.json`:
+
+```json
+{
+  "columns": [
+    { "id": "backlog", "name": "Backlog" },
+    { "id": "ready", "name": "Ready" },
+    { "id": "code-review", "name": "Code Review" },
+    { "id": "done", "name": "Done" }
+  ]
+}
+```
+
+On load, TickCats reconciles config with folders on disk:
+
+- a folder on disk but missing from config is appended as a column,
+- a config column whose folder is missing is removed,
+- hidden/system folders such as `.trash` are ignored,
+- missing folders are not recreated just because config mentions them.
+
+`tickcats move` accepts both folder IDs and display names. The pick-next rule remains tied to `.tickcats/ready/`.
+
 ## Configuration
 
 Press `c` in the TUI to open the config page. Settings are saved to `.tickcats/config.json`.
@@ -157,6 +200,7 @@ Press `c` in the TUI to open the config page. Settings are saved to `.tickcats/c
 |---|---|
 | Editor | External editor command (`nvim`, `vim`, `nano`, `code`, …) or `$EDITOR` |
 | Theme | Color theme: mono, gradient, ocean, fire, forest |
+| Columns | Add, rename, reorder, or delete board columns. Deleted column tickets move to the first column. |
 
 ## Philosophy
 

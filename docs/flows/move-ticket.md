@@ -1,6 +1,6 @@
 # Move Ticket
 
-Single-ticket column movement, bulk move mode, and manual reordering within a column.
+Single-ticket column movement, bulk move mode, and manual reordering within a column. Columns come from config/folders, so first/last and next/previous use dynamic `Model.columnOrder`.
 
 ## User flow
 
@@ -22,7 +22,7 @@ flowchart TD
     MoveMode -->|"H"| BulkFirst["moveAllSelectedTo(0)\nBacklog"]
     MoveMode -->|"L"| BulkLast["moveAllSelectedTo(4)\nWon't Do"]
 
-    BulkLeft --> BulkStore["store.Move() for each selected ticket\ndedup by state to avoid double-move"]
+    BulkLeft --> BulkStore["store.Move() for each selected ticket\ndedup by source column to avoid double-move"]
     BulkRight --> BulkStore
     BulkFirst --> BulkStore
     BulkLast --> BulkStore
@@ -57,7 +57,7 @@ graph LR
         Sort["sort.go\nSaveSortConfig()\nSortMode"]
     end
 
-    FS[("state dirs\nsort.json")]
+    FS[("column folders\nsort.json")]
 
     Update --> Actions
     Update --> Movement
@@ -109,7 +109,7 @@ sequenceDiagram
     Note over User,FS: Manual reorder within column
     User->>Update: press j (in move mode)
     Update->>Movement: moveSelectedInColumn(+1)
-    Movement->>Sort: swap order in ManualOrder[state]
+    Movement->>Sort: swap order in ManualOrder[column]
     Movement->>Sort: SaveSortConfig(...)
     Sort->>FS: write sort.json
     Movement->>Store: LoadBoard(root)
