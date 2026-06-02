@@ -40,7 +40,7 @@ func (m Model) visibleTicketRows() int {
 }
 
 func (m Model) columnLineBudget() int {
-	lines := m.boardColumnInnerHeight() - 1 // reserve one line for the column header
+	lines := m.boardColumnInnerHeight() - 3 // reserve 3 lines for bordered header box
 	if lines < 1 {
 		return 1
 	}

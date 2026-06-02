@@ -72,27 +72,37 @@ func (m Model) renderHScrollIndicator() string {
 }
 
 func (m Model) renderColumn(index int, state store.State) string {
-	var b strings.Builder
 	header := strings.ToUpper(state.DisplayName())
+	var headerBorderColor lipgloss.Color
 	if index == m.SelectedCol {
 		header = m.colStyle(index).Render(header)
-	}
-	b.WriteString(header)
-	b.WriteString("\n")
-
-	for _, line := range m.renderColumnLines(index, state) {
-		b.WriteString(line)
-		b.WriteString("\n")
+		headerBorderColor = m.themeColor(index)
+	} else {
+		headerBorderColor = lipgloss.Color("240")
 	}
 
-	return lipgloss.NewStyle().
+	headerBox := lipgloss.NewStyle().
 		Width(m.columnWidth()).
-		Height(m.boardColumnHeight()).
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(headerBorderColor).
+		Padding(0, 1).
+		Render(header)
+
+	var body strings.Builder
+	for _, line := range m.renderColumnLines(index, state) {
+		body.WriteString(line)
+		body.WriteString("\n")
+	}
+	bodyBox := lipgloss.NewStyle().
+		Width(m.columnWidth()).
+		Height(m.boardColumnInnerHeight() - 3).
 		Border(lipgloss.NormalBorder()).
 		BorderForeground(lipgloss.Color("240")).
 		Padding(0, 1).
 		MarginRight(1).
-		Render(b.String())
+		Render(body.String())
+
+	return lipgloss.JoinVertical(lipgloss.Left, headerBox, bodyBox)
 }
 
 func (m Model) renderColumnLines(index int, state store.State) []string {

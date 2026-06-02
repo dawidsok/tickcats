@@ -201,6 +201,27 @@ func TestBoardRendersWontDoColumnAfterDone(t *testing.T) {
 	}
 }
 
+func TestColumnHeaderHasDividerLine(t *testing.T) {
+	m := NewModel(emptyBoard())
+	m.Width = 300
+	m.Height = 40
+	col := m.renderColumn(0, columnOrder[0])
+	if !strings.Contains(col, "─") {
+		t.Fatal("column header missing divider line")
+	}
+}
+
+func TestColumnLineBudgetReservesLinesForHeaderBox(t *testing.T) {
+	m := NewModel(emptyBoard())
+	m.Width = 300
+	m.Height = 40
+	budget := m.columnLineBudget()
+	inner := m.boardColumnInnerHeight()
+	if budget != inner-3 {
+		t.Fatalf("columnLineBudget() = %d, want %d (inner %d - 3)", budget, inner-3, inner)
+	}
+}
+
 func TestThemesDefineDistinctWontDoColor(t *testing.T) {
 	for _, theme := range colorThemes {
 		t.Run(theme.name, func(t *testing.T) {
