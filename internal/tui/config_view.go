@@ -39,6 +39,17 @@ func (m Model) enterConfig() (tea.Model, tea.Cmd) {
 
 func (m Model) updateConfig(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if m.configField == 0 && m.configEditorIdx == len(editorPresets) {
+			switch keyMsg.String() {
+			case "ctrl+c", "esc", "tab", "shift+tab", "enter":
+				// handled by the normal config switch below
+			default:
+				var cmd tea.Cmd
+				m.configEditorInput, cmd = m.configEditorInput.Update(keyMsg)
+				return m, cmd
+			}
+		}
+
 		switch keyMsg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
