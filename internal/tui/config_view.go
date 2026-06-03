@@ -123,9 +123,14 @@ func (m Model) updateConfig(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.configField == 2 {
 				cols := m.Config.GetColumns()
 				if m.configColIdx >= 0 && m.configColIdx < len(cols) {
+					col := cols[m.configColIdx]
+					if store.IsLockedDefaultColumnID(col.ID) {
+						m.Status = fmt.Sprintf("The %s column cannot be renamed", col.DisplayName)
+						return m, nil
+					}
 					m.configAction = configActionRename
 					input := textinput.New()
-					input.SetValue(cols[m.configColIdx].DisplayName)
+					input.SetValue(col.DisplayName)
 					input.CharLimit = 80
 					input.Focus()
 					m.configColumnInput = input
@@ -137,8 +142,8 @@ func (m Model) updateConfig(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.configField == 2 {
 				cols := m.Config.GetColumns()
 				if m.configColIdx >= 0 && m.configColIdx < len(cols) {
-					if m.configColIdx == 0 {
-						m.Status = "The first column cannot be deleted"
+					if reason := blockedColumnDeleteReason(cols[m.configColIdx], m.configColIdx); reason != "" {
+						m.Status = reason
 						return m, nil
 					}
 					m.configAction = configActionDeleteConfirm
@@ -275,6 +280,16 @@ func (m *Model) cancelConfigAction() {
 	m.configAction = configActionNone
 	m.configColumnInput = textinput.Model{}
 	m.Status = ""
+}
+
+func blockedColumnDeleteReason(col store.Column, index int) string {
+	if store.IsLockedDefaultColumnID(col.ID) {
+		return fmt.Sprintf("The %s column cannot be deleted", col.DisplayName)
+	}
+	if index == 0 {
+		return "The first column cannot be deleted"
+	}
+	return ""
 }
 
 func (m *Model) syncConfigAndOrder() {
@@ -420,8 +435,11 @@ func (m Model) renderConfigColumnsBlock(columnsLabel lipgloss.Style, width int) 
 		if m.configField == 2 && i == m.configColIdx {
 			marker = ">"
 		}
-		actions := "a r K/J"
-		if i == 0 {
+		actions := "a K/J"
+		if !store.IsLockedDefaultColumnID(col.ID) {
+			actions = "a r K/J"
+		}
+		if blockedColumnDeleteReason(col, i) != "" {
 			actions += " -"
 		} else {
 			actions += " d"

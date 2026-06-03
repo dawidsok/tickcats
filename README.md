@@ -200,7 +200,7 @@ Press `c` in the TUI to open the config page. Settings are saved to `.tickcats/c
 |---|---|
 | Editor | External editor command (`nvim`, `vim`, `nano`, `code`, …) or `$EDITOR` |
 | Theme | Color theme: mono, gradient, ocean, fire, forest |
-| Columns | Add, rename, reorder, or delete board columns. Deleted column tickets move to the first column. |
+| Columns | Add, rename, reorder, or delete board columns. Backlog and Done are locked default columns. Deleted column tickets move to the first column. |
 
 ## Philosophy
 

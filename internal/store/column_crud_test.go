@@ -146,14 +146,41 @@ func TestDeleteColumnMigratesTicketsAndRemovesFolderAndConfigEntry(t *testing.T)
 	}
 }
 
-func TestDeleteColumnRejectsFirstColumn(t *testing.T) {
+func TestDeleteColumnRejectsBacklogColumn(t *testing.T) {
 	root := t.TempDir()
 	mustInit(t, root)
+	if err := ReorderColumns(root, []string{"ready", "backlog", "doing", "done", "wont-do"}); err != nil {
+		t.Fatalf("ReorderColumns() error = %v", err)
+	}
 
 	if err := DeleteColumn(root, "backlog"); err == nil {
-		t.Fatal("DeleteColumn() expected first-column error")
+		t.Fatal("DeleteColumn() expected backlog error")
 	}
 	if _, err := os.Stat(filepath.Join(root, "backlog")); err != nil {
 		t.Fatalf("backlog folder should remain: %v", err)
+	}
+}
+
+func TestDeleteColumnRejectsDoneColumn(t *testing.T) {
+	root := t.TempDir()
+	mustInit(t, root)
+
+	if err := DeleteColumn(root, "done"); err == nil {
+		t.Fatal("DeleteColumn() expected done error")
+	}
+	if _, err := os.Stat(filepath.Join(root, "done")); err != nil {
+		t.Fatalf("done folder should remain: %v", err)
+	}
+}
+
+func TestRenameColumnRejectsLockedDefaultColumn(t *testing.T) {
+	root := t.TempDir()
+	mustInit(t, root)
+
+	if err := RenameColumn(root, "done", "Finished"); err == nil {
+		t.Fatal("RenameColumn() expected done error")
+	}
+	if _, err := os.Stat(filepath.Join(root, "done")); err != nil {
+		t.Fatalf("done folder should remain: %v", err)
 	}
 }

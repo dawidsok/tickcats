@@ -551,7 +551,7 @@ func TestDetailViewDoesNotOverflowTerminalWidth(t *testing.T) {
 	}
 }
 
-func TestBoardShowsSLAIndicatorForTicketWithDeadline(t *testing.T) {
+func TestBoardShowsDeadlineDateForTicketWithDeadline(t *testing.T) {
 	board := emptyBoard()
 	stored := storedTicket("a.md", store.StateReady, "Task: has deadline")
 	deadline := time.Now().UTC().AddDate(0, 0, 2)
@@ -561,63 +561,61 @@ func TestBoardShowsSLAIndicatorForTicketWithDeadline(t *testing.T) {
 	m.SelectedCol = m.stateColIndex(store.StateReady)
 
 	view := m.View()
-	if !strings.Contains(view, "✝︎") || !strings.Contains(view, deadlineBarPattern()) {
-		t.Fatalf("view missing deadline bar indicator:\n%s", view)
-	}
-	if strings.Contains(view, "█") {
-		t.Fatalf("view shows block SLA bars instead of spacing-safe markers:\n%s", view)
-	}
-	if strings.Contains(view, deadline.Format(time.DateOnly)) {
-		t.Fatalf("board view shows deadline date instead of visual indicator:\n%s", view)
+	if !strings.Contains(view, deadline.Format(time.DateOnly)) {
+		t.Fatalf("view missing deadline date:\n%s", view)
 	}
 }
 
-func TestDeadlineBarPatternUsesDistinctGroupMarkers(t *testing.T) {
-	if got := deadlineBarPattern(); got != "|||::." {
-		t.Fatalf("deadlineBarPattern() = %q, want |||::.", got)
-	}
-}
-
-func TestDeadlineBarStatesUseReadyDoingDoneColors(t *testing.T) {
-	want := []store.State{
-		store.StateReady,
-		store.StateReady,
-		store.StateReady,
-		store.StateDoing,
-		store.StateDoing,
-		store.StateDone,
-	}
-	got := deadlineBarStates()
-	if len(got) != len(want) {
-		t.Fatalf("deadlineBarStates len = %d, want %d", len(got), len(want))
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("deadlineBarStates()[%d] = %s, want %s", i, got[i], want[i])
-		}
-	}
-}
-
-func TestDeadlineBarCountIncreasesAsDeadlineApproaches(t *testing.T) {
+func TestDeadlineDateColorUsesThemeGradientAsDeadlineApproaches(t *testing.T) {
 	now := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	themeIdx := 0
 	tests := []struct {
 		name     string
 		deadline time.Time
-		want     int
+		wantStep int
 	}{
-		{name: "far", deadline: now.AddDate(0, 0, 30), want: 1},
-		{name: "two weeks", deadline: now.AddDate(0, 0, 14), want: 2},
-		{name: "week", deadline: now.AddDate(0, 0, 7), want: 3},
-		{name: "three days", deadline: now.AddDate(0, 0, 3), want: 4},
-		{name: "tomorrow", deadline: now.AddDate(0, 0, 1), want: 5},
-		{name: "due today", deadline: now, want: 6},
+		{name: "far", deadline: now.AddDate(0, 0, 30), wantStep: 0},
+		{name: "two weeks", deadline: now.AddDate(0, 0, 14), wantStep: 1},
+		{name: "week", deadline: now.AddDate(0, 0, 7), wantStep: 2},
+		{name: "three days", deadline: now.AddDate(0, 0, 3), wantStep: 3},
+		{name: "tomorrow", deadline: now.AddDate(0, 0, 1), wantStep: 4},
+		{name: "due today", deadline: now, wantStep: 4},
+		{name: "overdue", deadline: now.AddDate(0, 0, -1), wantStep: 4},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := deadlineBarCount(tt.deadline, now); got != tt.want {
-				t.Fatalf("deadlineBarCount() = %d, want %d", got, tt.want)
+			want := themeColor(themeIdx, 1+(4-tt.wantStep), 6)
+			if got := deadlineDateColor(themeIdx, store.StateReady, tt.deadline, now); got != want {
+				t.Fatalf("deadlineDateColor() = %q, want %q", got, want)
 			}
 		})
+	}
+}
+
+func TestDeadlineDateColorUsesCurrentlySelectedTheme(t *testing.T) {
+	now := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	deadline := now.AddDate(0, 0, 1)
+	model := NewModel(emptyBoard())
+	model.Config.Theme = 3
+
+	want := themeColor(model.Config.Theme, 1, 6)
+	if got := model.deadlineDateColor(store.StateReady, deadline, now); got != want {
+		t.Fatalf("deadline date color = %q, want selected theme color %q", got, want)
+	}
+}
+
+func TestDeadlineDateColorFadesDoneColumn(t *testing.T) {
+	now := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	deadline := now.AddDate(0, 0, 1)
+	model := NewModel(emptyBoard())
+	model.Config.Theme = 3
+
+	if got := model.deadlineDateColor(store.StateDone, deadline, now); got != lipgloss.Color("240") {
+		t.Fatalf("done deadline color = %q, want muted", got)
+	}
+	want := mutedStyle.Render(deadline.Format(time.DateOnly))
+	if got := model.renderDeadlineDate(store.StateDone, deadline, now); got != want {
+		t.Fatalf("done deadline render = %q, want muted %q", got, want)
 	}
 }
 
@@ -2276,7 +2274,7 @@ func TestConfigColumnsDeleteFlow(t *testing.T) {
 	}
 }
 
-func TestConfigColumnsFirstColumnDeleteBlocked(t *testing.T) {
+func TestConfigColumnsBacklogDeleteBlocked(t *testing.T) {
 	root, m := newConfigTestModel(t)
 	m = openConfigColumns(t, m)
 
@@ -2285,11 +2283,57 @@ func TestConfigColumnsFirstColumnDeleteBlocked(t *testing.T) {
 	if m.configAction != configActionNone {
 		t.Fatalf("configAction = %v, want none", m.configAction)
 	}
-	if !strings.Contains(m.Status, "first column") {
-		t.Fatalf("Status = %q, want first column warning", m.Status)
+	if !strings.Contains(m.Status, "Backlog column cannot be deleted") {
+		t.Fatalf("Status = %q, want backlog warning", m.Status)
 	}
 	if _, err := os.Stat(filepath.Join(root, "backlog")); err != nil {
 		t.Fatalf("backlog folder should remain: %v", err)
+	}
+}
+
+func TestConfigColumnsDoneDeleteBlocked(t *testing.T) {
+	root, m := newConfigTestModel(t)
+	m = openConfigColumns(t, m)
+	for i, col := range m.Config.GetColumns() {
+		if col.ID == string(store.StateDone) {
+			m.configColIdx = i
+			break
+		}
+	}
+
+	m = updateRune(t, m, 'd')
+
+	if m.configAction != configActionNone {
+		t.Fatalf("configAction = %v, want none", m.configAction)
+	}
+	if !strings.Contains(m.Status, "Done column cannot be deleted") {
+		t.Fatalf("Status = %q, want done warning", m.Status)
+	}
+	if _, err := os.Stat(filepath.Join(root, "done")); err != nil {
+		t.Fatalf("done folder should remain: %v", err)
+	}
+}
+
+func TestConfigColumnsDoneRenameBlocked(t *testing.T) {
+	root, m := newConfigTestModel(t)
+	m = openConfigColumns(t, m)
+	for i, col := range m.Config.GetColumns() {
+		if col.ID == string(store.StateDone) {
+			m.configColIdx = i
+			break
+		}
+	}
+
+	m = updateRune(t, m, 'r')
+
+	if m.configAction != configActionNone {
+		t.Fatalf("configAction = %v, want none", m.configAction)
+	}
+	if !strings.Contains(m.Status, "Done column cannot be renamed") {
+		t.Fatalf("Status = %q, want done rename warning", m.Status)
+	}
+	if _, err := os.Stat(filepath.Join(root, "done")); err != nil {
+		t.Fatalf("done folder should remain: %v", err)
 	}
 }
 

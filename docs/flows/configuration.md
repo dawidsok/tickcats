@@ -30,13 +30,16 @@ flowchart TD
     AddColumn --> RefreshColumns["reload config\nrefresh columnOrder\nreload board"]
     RefreshColumns --> Form
 
-    Form -->|"r (field 2)"| RenameColumn["inline input\nstore.RenameColumn(root, id, name)"]
-    RenameColumn --> RefreshColumns
+    Form -->|"r (field 2)"| RenameColumn{"locked default?"}
+    RenameColumn -->|Yes| BlockRename["show warning"]
+    BlockRename --> Form
+    RenameColumn -->|No| RenameStore["inline input\nstore.RenameColumn(root, id, name)"]
+    RenameStore --> RefreshColumns
 
     Form -->|"K/J (field 2)"| ReorderColumn["store.ReorderColumns(root, order)"]
     ReorderColumn --> RefreshColumns
 
-    Form -->|"d (field 2)"| DeleteColumn{"first column?"}
+    Form -->|"d (field 2)"| DeleteColumn{"locked or first column?"}
     DeleteColumn -->|Yes| BlockDelete["show warning"]
     BlockDelete --> Form
     DeleteColumn -->|No, y confirm| DeleteStore["store.DeleteColumn(root, id)\nmove tickets to first column"]

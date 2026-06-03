@@ -34,6 +34,15 @@ func DefaultColumns() []Column {
 	}
 }
 
+func IsLockedDefaultColumnID(id string) bool {
+	switch State(id) {
+	case StateBacklog, StateDone:
+		return true
+	default:
+		return false
+	}
+}
+
 // GetColumns returns configured columns, falling back to the v1 default board
 // columns when config.json has no column list yet.
 func (c Config) GetColumns() []Column {
@@ -111,6 +120,9 @@ func RenameColumn(boardRoot string, oldID string, newDisplayName string) error {
 	if idx < 0 {
 		return fmt.Errorf("column %q not found", oldID)
 	}
+	if IsLockedDefaultColumnID(oldID) {
+		return fmt.Errorf("the %s column cannot be renamed", State(oldID).DisplayName())
+	}
 	if existing := columnIndex(columns, newID); existing >= 0 && existing != idx {
 		return fmt.Errorf("column %q already exists", newID)
 	}
@@ -167,8 +179,9 @@ func ReorderColumns(boardRoot string, newOrder []string) error {
 	return SaveConfig(boardRoot, cfg)
 }
 
-// DeleteColumn removes a non-first column. Tickets in that column are moved to
-// the first configured column before the folder and config entry are removed.
+// DeleteColumn removes a non-locked, non-first column. Tickets in that column
+// are moved to the first configured column before the folder and config entry
+// are removed.
 func DeleteColumn(boardRoot string, id string) error {
 	cfg, err := LoadConfig(boardRoot)
 	if err != nil {
@@ -178,6 +191,9 @@ func DeleteColumn(boardRoot string, id string) error {
 	idx := columnIndex(columns, id)
 	if idx < 0 {
 		return fmt.Errorf("column %q not found", id)
+	}
+	if IsLockedDefaultColumnID(id) {
+		return fmt.Errorf("the %s column cannot be deleted", State(id).DisplayName())
 	}
 	if idx == 0 {
 		return fmt.Errorf("the first column (%s) cannot be deleted", columns[0].DisplayName)

@@ -1,11 +1,8 @@
 // render_board.go renders the kanban board view: the pick-next banner, the
 // horizontal scroll indicator, and each visible column with its tickets.
 //
-// Deadline SLA bar: tickets with a deadline show a compact progress indicator
-// "SLA |||::." where each segment represents a state (ready=|||, doing=::,
-// done=.). Active segments are coloured with the column's theme colour; inactive
-// segments are muted. The number of active segments encodes time remaining:
-// 6 = overdue, 5 = ≤1 day, 4 = ≤3 days, 3 = ≤7 days, 2 = ≤14 days, 1 = >14 days.
+// Deadlines: tickets with a deadline show the date directly below the title.
+// The date color becomes more urgent as the deadline approaches.
 package tui
 
 import (
@@ -164,7 +161,7 @@ func (m Model) ticketColumnLines(state store.State, row int, innerWidth int) []s
 	}
 	lines := wrapText(fmt.Sprintf("%s[%s] %s", prefix, stored.Ticket.Priority, stored.Ticket.Title), innerWidth)
 	if stored.Ticket.Deadline != nil {
-		lines = append(lines, deadlineIndicatorPlain(*stored.Ticket.Deadline, time.Now()))
+		lines = append(lines, deadlineDatePlain(*stored.Ticket.Deadline, time.Now()))
 	}
 	return lines
 }
@@ -211,7 +208,7 @@ func (m Model) styledTicketColumnLines(index int, state store.State, row int, in
 		}
 	}
 	if stored.Ticket.Deadline != nil {
-		wrapped = append(wrapped, m.renderDeadlineIndicator(*stored.Ticket.Deadline, time.Now()))
+		wrapped = append(wrapped, m.renderDeadlineDate(state, *stored.Ticket.Deadline, time.Now()))
 	}
 	return wrapped
 }
@@ -228,62 +225,48 @@ func appendColumnOverflow(lines []string, width int, below int, lastRenderedRow 
 	return lines
 }
 
-func deadlineIndicatorPlain(deadline time.Time, now time.Time) string {
-	return "✝︎" + deadlineBarPattern()
+func deadlineDatePlain(deadline time.Time, now time.Time) string {
+	return deadline.Format(time.DateOnly)
 }
 
-func (m Model) renderDeadlineIndicator(deadline time.Time, now time.Time) string {
-	activeBars := deadlineBarCount(deadline, now)
-	var b strings.Builder
-	b.WriteString(mutedStyle.Render("✝︎"))
-	b.WriteString(m.renderDeadlineBarSegment(store.StateReady, min(activeBars, 3), 3, "|"))
-	b.WriteString(m.renderDeadlineBarSegment(store.StateDoing, clamp(activeBars-3, 0, 2), 2, ":"))
-	b.WriteString(m.renderDeadlineBarSegment(store.StateDone, clamp(activeBars-5, 0, 1), 1, "."))
-	return b.String()
-}
-
-func (m Model) renderDeadlineBarSegment(state store.State, active int, total int, marker string) string {
-	active = clamp(active, 0, total)
-	var b strings.Builder
-	if active > 0 {
-		b.WriteString(m.colStyle(m.stateColIndex(state)).Render(strings.Repeat(marker, active)))
+func (m Model) renderDeadlineDate(state store.State, deadline time.Time, now time.Time) string {
+	if state == store.StateDone {
+		return mutedStyle.Render(deadlineDatePlain(deadline, now))
 	}
-	if inactive := total - active; inactive > 0 {
-		b.WriteString(mutedStyle.Render(strings.Repeat(marker, inactive)))
+	style := lipgloss.NewStyle().Foreground(m.deadlineDateColor(state, deadline, now))
+	if daysUntil(deadline, now) <= 1 {
+		style = style.Bold(true)
 	}
-	return b.String()
+	return style.Render(deadlineDatePlain(deadline, now))
 }
 
-func deadlineBarPattern() string {
-	return "|||::."
+func (m Model) deadlineDateColor(state store.State, deadline time.Time, now time.Time) lipgloss.Color {
+	return deadlineDateColor(m.Config.Theme, state, deadline, now)
 }
 
-func deadlineBarStates() []store.State {
-	return []store.State{
-		store.StateReady,
-		store.StateReady,
-		store.StateReady,
-		store.StateDoing,
-		store.StateDoing,
-		store.StateDone,
+func deadlineDateColor(themeIdx int, state store.State, deadline time.Time, now time.Time) lipgloss.Color {
+	if state == store.StateDone {
+		return lipgloss.Color("240")
 	}
+	step := deadlineUrgencyStep(deadline, now)
+	// Use five virtual gradient stops from the currently selected theme:
+	// closest deadlines use the theme's start color, distant deadlines use its end color.
+	return themeColor(themeIdx, 1+(4-step), 6)
 }
 
-func deadlineBarCount(deadline time.Time, now time.Time) int {
+func deadlineUrgencyStep(deadline time.Time, now time.Time) int {
 	days := daysUntil(deadline, now)
 	switch {
-	case days <= 0:
-		return 6
 	case days <= 1:
-		return 5
-	case days <= 3:
 		return 4
-	case days <= 7:
+	case days <= 3:
 		return 3
-	case days <= 14:
+	case days <= 7:
 		return 2
-	default:
+	case days <= 14:
 		return 1
+	default:
+		return 0
 	}
 }
 
