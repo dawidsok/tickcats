@@ -26,7 +26,8 @@ func (m Model) renderDetail() string {
 	}
 
 	contentWidth, metadataWidth := m.detailWidths()
-	contentInnerWidth := contentWidth - 2
+	contentInnerWidth := max(1, contentWidth-2)
+	metadataInnerWidth := max(1, metadataWidth-2)
 	lines := m.detailDisplayLines(contentInnerWidth)
 	visible, above, below := m.visibleDetailLines(lines)
 	contentText := strings.Join(visible, "\n")
@@ -51,10 +52,10 @@ func (m Model) renderDetail() string {
 		Border(lipgloss.NormalBorder()).
 		BorderForeground(lipgloss.Color("240")).
 		Padding(0, 1).
-		Render(strings.Join(wrapLines(strings.Split(m.renderDetailMetadata(*stored), "\n"), metadataWidth-2), "\n"))
+		Render(strings.Join(wrapLines(strings.Split(m.renderDetailMetadata(*stored), "\n"), metadataInnerWidth), "\n"))
 
 	var b strings.Builder
-	b.WriteString(bannerStyle.Render(stored.Ticket.Title))
+	b.WriteString(bannerStyle.Render(fitText(stored.Ticket.Title, m.fullWidth())))
 	b.WriteString("\n\n")
 	b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, content, metadata))
 	b.WriteString("\n")
@@ -93,15 +94,24 @@ func displayTicketID(id string) string {
 }
 
 func (m Model) detailWidths() (int, int) {
-	width := m.safeWidth(96)
-	metadata := width / 3
-	content := width - metadata - 3
-	if metadata < 24 {
-		metadata = 24
+	// lipgloss Width includes padding but excludes borders and margins.
+	// The detail row renders two bordered panels, with a right margin on the
+	// content panel, so reserve those five cells before splitting the remaining
+	// width between content and metadata.
+	available := m.fullWidth() - 5
+	if available < 2 {
+		available = 2
 	}
-	if content < 40 {
-		content = 40
+
+	metadata := available / 3
+	if available >= 38 && metadata < 18 {
+		metadata = 18
 	}
+	if available >= 38 && available-metadata < 20 {
+		metadata = available - 20
+	}
+	metadata = clamp(metadata, 1, available-1)
+	content := available - metadata
 	return content, metadata
 }
 

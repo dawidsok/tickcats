@@ -29,7 +29,7 @@ func (m Model) renderPickNext() string {
 	color := m.themeColor(m.stateColIndex(store.StateDoing))
 	styled := lipgloss.NewStyle().Bold(true).Foreground(color).Render(text)
 	return lipgloss.NewStyle().
-		Width(m.fullWidth()).
+		Width(max(1, m.fullWidth()-2)).
 		Border(lipgloss.NormalBorder()).
 		BorderForeground(color).
 		Padding(0, 1).
@@ -70,7 +70,7 @@ func (m Model) renderHScrollIndicator() string {
 		}
 		parts = append(parts, fmt.Sprintf("%s →", strings.Join(names, ", ")))
 	}
-	return mutedStyle.Render(strings.Join(parts, "  ")) + "\n"
+	return mutedStyle.Render(fitText(strings.Join(parts, "  "), m.fullWidth())) + "\n"
 }
 
 func (m Model) renderColumn(index int, state store.State) string {

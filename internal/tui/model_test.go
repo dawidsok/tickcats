@@ -283,8 +283,8 @@ func TestWindowSizeUpdatesModel(t *testing.T) {
 	if got.Width != 120 || got.Height != 40 {
 		t.Fatalf("size = %dx%d, want 120x40", got.Width, got.Height)
 	}
-	if got.columnWidth() != 58 {
-		t.Fatalf("columnWidth = %d, want 58", got.columnWidth())
+	if got.columnWidth() != 57 {
+		t.Fatalf("columnWidth = %d, want 57", got.columnWidth())
 	}
 }
 
@@ -293,6 +293,24 @@ func TestBoardRendersColumnBorders(t *testing.T) {
 	view := model.View()
 	if !strings.Contains(view, "┌") || !strings.Contains(view, "└") {
 		t.Fatalf("View() missing borders:\n%s", view)
+	}
+}
+
+func TestBoardViewDoesNotOverflowTerminalWidth(t *testing.T) {
+	longTitle := "Task: " + strings.Repeat("board overflow ", 12)
+	longWordTitle := "Bug: " + strings.Repeat("x", 120)
+	board := emptyBoard()
+	board.Columns[store.StateReady] = []store.StoredTicket{storedTicket("ready.md", store.StateReady, longTitle)}
+	board.Columns[store.StateBacklog] = []store.StoredTicket{storedTicket("backlog.md", store.StateBacklog, longWordTitle)}
+
+	for _, width := range []int{60, 80, 119, 120} {
+		t.Run(fmt.Sprintf("width-%d", width), func(t *testing.T) {
+			m := NewModel(board)
+			m.Width = width
+			m.Height = 24
+
+			assertRenderedWidthAtMost(t, m.View(), width)
+		})
 	}
 }
 
@@ -499,6 +517,40 @@ func TestDetailRenderingDoesNotModifyTicketMarkdown(t *testing.T) {
 	}
 }
 
+func TestDetailViewDoesNotOverflowTerminalWidth(t *testing.T) {
+	longWord := strings.Repeat("x", 120)
+	stored := storedTicket("very-long-ticket-name.md", store.StateBacklog, "Task: "+strings.Repeat("long title ", 20))
+	stored.Ticket.ID = "TC-A7K9Q2"
+	stored.Ticket.Body = strings.Join([]string{
+		"## Context",
+		"A paragraph with enough words to wrap within the content panel instead of pushing the right border outward.",
+		longWord,
+		"```",
+		longWord,
+		"```",
+	}, "\n")
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{stored}
+
+	for _, tt := range []struct {
+		name  string
+		width int
+	}{
+		{name: "narrow", width: 60},
+		{name: "medium", width: 120},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			m := NewModel(board)
+			m.Width = tt.width
+			m.Height = 24
+			m.Mode = ViewDetail
+			m.detailTicketName = stored.Name
+
+			assertRenderedWidthAtMost(t, m.View(), tt.width)
+		})
+	}
+}
+
 func TestBoardShowsSLAIndicatorForTicketWithDeadline(t *testing.T) {
 	board := emptyBoard()
 	stored := storedTicket("a.md", store.StateReady, "Task: has deadline")
@@ -569,12 +621,28 @@ func TestDeadlineBarCountIncreasesAsDeadlineApproaches(t *testing.T) {
 	}
 }
 
-func TestDetailWidthsSplitTwoThirdsOneThird(t *testing.T) {
-	model := NewModel(emptyBoard())
-	model.Width = 120
-	content, metadata := model.detailWidths()
-	if content != 77 || metadata != 40 {
-		t.Fatalf("widths = %d/%d, want 77/40", content, metadata)
+func TestDetailWidthsReserveRenderedChrome(t *testing.T) {
+	tests := []struct {
+		width        int
+		wantContent  int
+		wantMetadata int
+	}{
+		{width: 60, wantContent: 37, wantMetadata: 18},
+		{width: 120, wantContent: 77, wantMetadata: 38},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("width-%d", tt.width), func(t *testing.T) {
+			model := NewModel(emptyBoard())
+			model.Width = tt.width
+			content, metadata := model.detailWidths()
+			if content != tt.wantContent || metadata != tt.wantMetadata {
+				t.Fatalf("widths = %d/%d, want %d/%d", content, metadata, tt.wantContent, tt.wantMetadata)
+			}
+			if got := content + metadata + 5; got > tt.width {
+				t.Fatalf("render budget = %d, want <= %d", got, tt.width)
+			}
+		})
 	}
 }
 
@@ -2272,6 +2340,16 @@ var ansiEscapeForTest = regexp.MustCompile(`\x1b\[[0-9;:]*m`)
 
 func stripANSIForTest(value string) string {
 	return ansiEscapeForTest.ReplaceAllString(value, "")
+}
+
+func assertRenderedWidthAtMost(t *testing.T, view string, width int) {
+	t.Helper()
+	for i, line := range strings.Split(view, "\n") {
+		plain := stripANSIForTest(line)
+		if got := lipgloss.Width(plain); got > width {
+			t.Fatalf("line %d width = %d, want <= %d\nline: %q\nview:\n%s", i+1, got, width, plain, view)
+		}
+	}
 }
 
 func hasConfigColumn(cols []store.Column, id string) bool {

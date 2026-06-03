@@ -87,11 +87,15 @@ func (m Model) visibleColumnCount() int {
 }
 
 func (m Model) columnWidth() int {
-	visible := m.visibleColumnCount()
 	if m.Width <= 0 {
 		return 32
 	}
-	width := (m.Width / visible) - 2
+	visible := m.visibleColumnCount()
+	// A rendered column uses the configured Width plus two border cells and a
+	// one-cell right margin on the body box. Reserve those three cells per
+	// visible column so awkward terminal widths do not push the final border past
+	// the terminal edge.
+	width := (m.fullWidth() / visible) - 3
 	if width < 20 {
 		return 20
 	}
@@ -108,7 +112,7 @@ func (m Model) columnInnerWidth() int {
 
 func (m Model) renderFooter() string {
 	line := m.renderFooterSeparator()
-	return line + "\n" + mutedStyle.Render(m.footerText()) + "\n"
+	return line + "\n" + mutedStyle.Render(fitText(m.footerText(), m.fullWidth())) + "\n"
 }
 
 func (m Model) footerText() string {
