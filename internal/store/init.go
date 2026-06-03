@@ -13,10 +13,16 @@ import (
 )
 
 func Init(boardRoot string) error {
-	for _, state := range ValidStates {
-		path := filepath.Join(boardRoot, string(state))
-		if err := os.MkdirAll(path, 0o755); err != nil {
-			return fmt.Errorf("create state directory %q: %w", path, err)
+	initialized, err := hasExistingBoardState(boardRoot)
+	if err != nil {
+		return err
+	}
+	if !initialized {
+		for _, state := range ValidStates {
+			path := filepath.Join(boardRoot, string(state))
+			if err := os.MkdirAll(path, 0o755); err != nil {
+				return fmt.Errorf("create state directory %q: %w", path, err)
+			}
 		}
 	}
 
@@ -27,6 +33,25 @@ func Init(boardRoot string) error {
 	}
 
 	return nil
+}
+
+func hasExistingBoardState(boardRoot string) (bool, error) {
+	entries, err := os.ReadDir(boardRoot)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	for _, entry := range entries {
+		if entry.Name() == "config.json" {
+			return true, nil
+		}
+		if entry.IsDir() && !ignoredColumnFolder(entry.Name()) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func ensureGitignoreEntry(path string, entry string) error {

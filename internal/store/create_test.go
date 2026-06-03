@@ -125,3 +125,27 @@ func TestCreateInitsBoard(t *testing.T) {
 		}
 	}
 }
+
+func TestCreateDoesNotRecreateRemovedColumns(t *testing.T) {
+	boardRoot := filepath.Join(t.TempDir(), ".tickcats")
+	now := time.Date(2026, 5, 31, 10, 0, 0, 0, time.UTC)
+	if err := Init(boardRoot); err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+	for _, state := range []State{StateDoing, StateWontDo} {
+		if err := os.RemoveAll(filepath.Join(boardRoot, string(state))); err != nil {
+			t.Fatalf("remove %s: %v", state, err)
+		}
+	}
+
+	if _, err := Create(boardRoot, ticket.KindBug, "no default recreation", nil, ticket.PriorityP3, now); err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	for _, state := range []State{StateDoing, StateWontDo} {
+		path := filepath.Join(boardRoot, string(state))
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("Create recreated removed column %q; stat err = %v", state, err)
+		}
+	}
+}

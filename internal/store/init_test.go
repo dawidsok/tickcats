@@ -51,6 +51,29 @@ func TestInitIsIdempotentAndPreservesTickets(t *testing.T) {
 	}
 }
 
+func TestInitDoesNotRecreateRemovedColumnsOnExistingBoard(t *testing.T) {
+	boardRoot := filepath.Join(t.TempDir(), ".tickcats")
+	if err := Init(boardRoot); err != nil {
+		t.Fatalf("Init() first error = %v", err)
+	}
+	for _, state := range []State{StateDoing, StateWontDo} {
+		if err := os.RemoveAll(filepath.Join(boardRoot, string(state))); err != nil {
+			t.Fatalf("remove %s: %v", state, err)
+		}
+	}
+
+	if err := Init(boardRoot); err != nil {
+		t.Fatalf("Init() second error = %v", err)
+	}
+
+	for _, state := range []State{StateDoing, StateWontDo} {
+		path := filepath.Join(boardRoot, string(state))
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("Init recreated removed column %q; stat err = %v", state, err)
+		}
+	}
+}
+
 func TestInitCreatesGitignore(t *testing.T) {
 	tempDir := t.TempDir()
 	boardRoot := filepath.Join(tempDir, ".tickcats")
