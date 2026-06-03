@@ -6,6 +6,7 @@ package tui
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -26,7 +27,7 @@ func (m Model) renderDetail() string {
 
 	contentWidth, metadataWidth := m.detailWidths()
 	contentInnerWidth := contentWidth - 2
-	lines := wrapLines(m.detailLines(), contentInnerWidth)
+	lines := m.detailDisplayLines(contentInnerWidth)
 	visible, above, below := m.visibleDetailLines(lines)
 	contentText := strings.Join(visible, "\n")
 	if above > 0 {
@@ -132,7 +133,203 @@ func (m Model) detailLines() []string {
 	}
 	body := strings.TrimRight(stored.Ticket.Body, "\n")
 	if body == "" {
-		return []string{mutedStyle.Render("empty body")}
+		return []string{"empty body"}
 	}
 	return strings.Split(body, "\n")
+}
+
+func (m Model) detailDisplayLines(width int) []string {
+	plainLines := m.detailLines()
+	if len(plainLines) == 0 {
+		return nil
+	}
+	if len(plainLines) == 1 && plainLines[0] == "empty body" {
+		return []string{mutedStyle.Render("empty body")}
+	}
+
+	lines := make([]string, 0, len(plainLines))
+	inFence := false
+	for _, line := range plainLines {
+		trimmed := strings.TrimSpace(line)
+		if isFenceLine(trimmed) {
+			for _, wrapped := range wrapCodeDetailLine(line, width) {
+				lines = append(lines, m.detailCodeStyle().Render(wrapped))
+			}
+			inFence = !inFence
+			continue
+		}
+		if inFence {
+			for _, wrapped := range wrapCodeDetailLine(line, width) {
+				lines = append(lines, m.detailCodeStyle().Render(wrapped))
+			}
+			continue
+		}
+		for _, wrapped := range wrapDetailLine(line, width) {
+			lines = append(lines, m.highlightDetailLine(wrapped))
+		}
+	}
+	return lines
+}
+
+func isFenceLine(trimmed string) bool {
+	return strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~")
+}
+
+var (
+	headingLineRe = regexp.MustCompile(`^\s{0,3}#{1,6}(\s|$)`)
+	listLineRe    = regexp.MustCompile(`^(\s*)((?:[-*+])|(?:\d+[.)]))(\s+)`)
+	hrLineRe      = regexp.MustCompile(`^\s{0,3}[-*_][\s\-*_]*$`)
+)
+
+func isHorizontalRule(line string) bool {
+	if !hrLineRe.MatchString(line) {
+		return false
+	}
+	trimmed := strings.ReplaceAll(strings.TrimSpace(line), " ", "")
+	if len(trimmed) < 3 {
+		return false
+	}
+	first := trimmed[0]
+	if first != '-' && first != '*' && first != '_' {
+		return false
+	}
+	for i := 1; i < len(trimmed); i++ {
+		if trimmed[i] != first {
+			return false
+		}
+	}
+	return true
+}
+
+func (m Model) highlightDetailLine(line string) string {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" {
+		return line
+	}
+	if headingLineRe.MatchString(line) {
+		return m.detailHeadingStyle().Render(line)
+	}
+	if isHorizontalRule(line) {
+		return mutedStyle.Render(line)
+	}
+	if strings.HasPrefix(trimmed, ">") {
+		return m.detailQuoteStyle().Render(line)
+	}
+	if match := listLineRe.FindStringSubmatchIndex(line); match != nil {
+		indent := line[match[2]:match[3]]
+		marker := line[match[4]:match[5]]
+		space := line[match[6]:match[7]]
+		rest := line[match[7]:]
+		return indent + m.detailMarkerStyle().Render(marker) + space + m.highlightInlineMarkdown(rest)
+	}
+	return m.highlightInlineMarkdown(line)
+}
+
+func (m Model) highlightInlineMarkdown(line string) string {
+	var b strings.Builder
+	for i := 0; i < len(line); {
+		switch line[i] {
+		case '`':
+			if end := strings.IndexByte(line[i+1:], '`'); end >= 0 {
+				end += i + 1
+				b.WriteString(m.detailCodeStyle().Render(line[i : end+1]))
+				i = end + 1
+				continue
+			}
+		case '[':
+			if closeText := strings.Index(line[i:], "]("); closeText >= 0 {
+				closeText += i
+				if closeURL := strings.IndexByte(line[closeText+2:], ')'); closeURL >= 0 {
+					closeURL += closeText + 2
+					b.WriteString(m.detailLinkStyle().Render(line[i : closeURL+1]))
+					i = closeURL + 1
+					continue
+				}
+			}
+		}
+		b.WriteByte(line[i])
+		i++
+	}
+	return b.String()
+}
+
+func (m Model) detailHeadingStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Bold(true).Foreground(m.themeColor(m.stateColIndex(store.StateReady)))
+}
+
+func (m Model) detailMarkerStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Bold(true).Foreground(m.themeColor(m.stateColIndex(store.StateBacklog)))
+}
+
+func (m Model) detailCodeStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(lipgloss.Color("229")).Background(lipgloss.Color("236"))
+}
+
+func (m Model) detailLinkStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Underline(true).Foreground(m.themeColor(m.stateColIndex(store.StateDoing)))
+}
+
+func (m Model) detailQuoteStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Italic(true).Foreground(m.themeColor(m.stateColIndex(store.StateDone)))
+}
+
+func wrapDetailLine(line string, width int) []string {
+	if width <= 0 {
+		return []string{""}
+	}
+	if line == "" {
+		return []string{""}
+	}
+	indentLen := len(line) - len(strings.TrimLeft(line, " \t"))
+	indent := line[:indentLen]
+	words := strings.Fields(strings.TrimSpace(line))
+	if len(words) == 0 {
+		return []string{line}
+	}
+
+	lines := make([]string, 0, 1)
+	current := indent
+	for _, word := range words {
+		for lipgloss.Width(word) > width {
+			part, rest := splitToWidth(word, width)
+			if strings.TrimSpace(current) != "" {
+				lines = append(lines, current)
+				current = indent
+			}
+			lines = append(lines, part)
+			word = rest
+		}
+		if strings.TrimSpace(current) == "" {
+			current = indent + word
+			continue
+		}
+		candidate := current + " " + word
+		if lipgloss.Width(candidate) <= width {
+			current = candidate
+			continue
+		}
+		lines = append(lines, current)
+		current = indent + word
+	}
+	if current != indent || line == indent {
+		lines = append(lines, current)
+	}
+	return lines
+}
+
+func wrapCodeDetailLine(line string, width int) []string {
+	if width <= 0 {
+		return []string{""}
+	}
+	if line == "" {
+		return []string{""}
+	}
+	lines := make([]string, 0, 1)
+	for lipgloss.Width(line) > width {
+		part, rest := splitToWidth(line, width)
+		lines = append(lines, part)
+		line = rest
+	}
+	lines = append(lines, line)
+	return lines
 }

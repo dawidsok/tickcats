@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 
 	"github.com/dawidsok/tickcats/internal/store"
 	"github.com/dawidsok/tickcats/internal/ticket"
@@ -423,6 +426,79 @@ func TestDetailMetadataShowsDeadlineWhenPresent(t *testing.T) {
 	}
 }
 
+func TestDetailMarkdownHighlightsCommonSyntax(t *testing.T) {
+	oldProfile := lipgloss.ColorProfile()
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	t.Cleanup(func() { lipgloss.SetColorProfile(oldProfile) })
+
+	stored := storedTicket("a.md", store.StateBacklog, "Task: markdown")
+	stored.Ticket.Body = strings.Join([]string{
+		"# Heading",
+		"- bullet with `code` and [docs](https://example.com)",
+		"1. numbered item",
+		"> quoted text",
+		"---",
+		"```go",
+		"fmt.Println(\"hi\")",
+		"```",
+	}, "\n")
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{stored}
+	m := NewModel(board)
+
+	got := strings.Join(m.detailDisplayLines(80), "\n")
+	plain := stripANSIForTest(got)
+	for _, want := range []string{"# Heading", "-", "bullet", "`code`", "[docs](https://example.com)", "1.", "> quoted text", "---", "```go", "fmt.Println"} {
+		if !strings.Contains(plain, want) {
+			t.Fatalf("highlighted detail missing %q:\n%s", want, got)
+		}
+	}
+	if !strings.Contains(got, "\x1b[") {
+		t.Fatalf("highlighted detail has no ANSI styling:\n%s", got)
+	}
+}
+
+func TestDetailPlainBodyTextRemainsUnstyled(t *testing.T) {
+	m := NewModel(emptyBoard())
+	line := "Plain body text remains plain"
+	if got := m.highlightDetailLine(line); got != line {
+		t.Fatalf("plain line = %q, want %q", got, line)
+	}
+}
+
+func TestDetailMarkdownHighlightingWrapsAndScrolls(t *testing.T) {
+	stored := storedTicket("a.md", store.StateBacklog, "Task: wrapped markdown")
+	stored.Ticket.Body = "## Heading With Many Words That Should Wrap\n- bullet item with enough words to wrap while keeping the marker readable"
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{stored}
+	m := NewModel(board)
+
+	lines := m.detailDisplayLines(24)
+	if len(lines) < 4 {
+		t.Fatalf("wrapped highlighted lines len = %d, want at least 4: %#v", len(lines), lines)
+	}
+	m.moveDetailScroll(100)
+	if m.DetailScroll == 0 {
+		t.Fatal("DetailScroll did not advance for wrapped highlighted content")
+	}
+}
+
+func TestDetailRenderingDoesNotModifyTicketMarkdown(t *testing.T) {
+	stored := storedTicket("a.md", store.StateBacklog, "Task: presentation")
+	body := "## Heading\n\nBody with `code`."
+	stored.Ticket.Body = body
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{stored}
+	m := NewModel(board)
+	m.Mode = ViewDetail
+	m.detailTicketName = "a.md"
+
+	_ = m.View()
+	if got := m.Board.Columns[store.StateBacklog][0].Ticket.Body; got != body {
+		t.Fatalf("body changed after render = %q, want %q", got, body)
+	}
+}
+
 func TestBoardShowsSLAIndicatorForTicketWithDeadline(t *testing.T) {
 	board := emptyBoard()
 	stored := storedTicket("a.md", store.StateReady, "Task: has deadline")
@@ -433,8 +509,8 @@ func TestBoardShowsSLAIndicatorForTicketWithDeadline(t *testing.T) {
 	m.SelectedCol = m.stateColIndex(store.StateReady)
 
 	view := m.View()
-	if !strings.Contains(view, "SLA") || !strings.Contains(view, deadlineBarPattern()) {
-		t.Fatalf("view missing SLA bar indicator:\n%s", view)
+	if !strings.Contains(view, "✝︎") || !strings.Contains(view, deadlineBarPattern()) {
+		t.Fatalf("view missing deadline bar indicator:\n%s", view)
 	}
 	if strings.Contains(view, "█") {
 		t.Fatalf("view shows block SLA bars instead of spacing-safe markers:\n%s", view)
@@ -2190,6 +2266,12 @@ func updateKey(t *testing.T, m Model, msg tea.KeyMsg) Model {
 	t.Helper()
 	got, _ := m.Update(msg)
 	return got.(Model)
+}
+
+var ansiEscapeForTest = regexp.MustCompile(`\x1b\[[0-9;:]*m`)
+
+func stripANSIForTest(value string) string {
+	return ansiEscapeForTest.ReplaceAllString(value, "")
 }
 
 func hasConfigColumn(cols []store.Column, id string) bool {

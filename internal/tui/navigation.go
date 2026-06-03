@@ -89,7 +89,8 @@ func (m Model) columnRangeFits(state store.State, start int, selected int, budge
 }
 
 func (m *Model) moveDetailScroll(delta int) {
-	maxScroll := len(m.detailLines()) - 1
+	contentWidth, _ := m.detailWidths()
+	maxScroll := len(m.detailDisplayLines(contentWidth-2)) - 1
 	if maxScroll < 0 {
 		maxScroll = 0
 	}
