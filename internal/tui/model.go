@@ -94,6 +94,7 @@ var colorThemes = []colorTheme{
 	{name: "ocean", backlogColor: "#88a", startColor: "#8df", endColor: "#88a"},
 	{name: "fire", backlogColor: "#88a", startColor: "#fd8", endColor: "#a88"},
 	{name: "forest", backlogColor: "#88a", startColor: "#5fd787", endColor: "#8a8"},
+	{name: "dim-sum", backlogColor: "#86837a", startColor: "#b77a4a", endColor: "#87965f"},
 }
 
 type configAction int

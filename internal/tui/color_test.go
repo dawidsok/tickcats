@@ -25,6 +25,13 @@ func TestThemeColorEdgeCases(t *testing.T) {
 	}
 }
 
+func TestDimSumThemeUsesDimSumPalette(t *testing.T) {
+	theme := colorThemes[len(colorThemes)-1]
+	if theme.name != "dim-sum" || string(theme.backlogColor) != "#86837a" || string(theme.startColor) != "#b77a4a" || string(theme.endColor) != "#87965f" {
+		t.Fatalf("dim-sum theme = %+v", theme)
+	}
+}
+
 func TestThemeColorIsDeterministicForAllThemesAndColumnCounts(t *testing.T) {
 	for themeIdx := range colorThemes {
 		for totalColumns := 1; totalColumns <= 32; totalColumns++ {

@@ -30,10 +30,10 @@ First public release.
 - Delete with confirmation (`x` + `y`)
 - External editor integration (`e`) — respects `$EDITOR`, configurable via config page
 - Filesystem auto-refresh via `fsnotify` — board updates when files change on disk
-- Config page (`c`): editor preset selector with custom input, five color themes
+- Config page (`c`): editor preset selector with custom input, six color themes
 - Horizontal column scrolling — adapts to terminal width; narrow terminals show fewer columns with scroll indicators
 - Quit confirmation (`q` → `y/n`)
-- Color themes: mono, gradient, ocean, fire, forest
+- Color themes: mono, gradient, ocean, fire, forest, dim-sum
 
 ### Storage
 

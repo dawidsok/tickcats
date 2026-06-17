@@ -20,7 +20,7 @@ flowchart TD
     CheckCustom -->|Yes| FocusInput["focus text input\nconfigEditorInput"]
     CheckCustom -->|No| Form
 
-    Form -->|"h/l (field 1)"| CycleTheme["cycle theme\nmono gradient ocean fire forest"]
+    Form -->|"h/l (field 1)"| CycleTheme["cycle theme\nmono gradient ocean fire forest dim-sum"]
     CycleTheme --> Form
 
     Form -->|"j/k (field 2)"| SelectColumn["select column row"]
