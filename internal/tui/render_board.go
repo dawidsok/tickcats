@@ -129,6 +129,9 @@ func (m Model) renderColumnLines(index int, state store.State) []string {
 	}
 
 	selectedRow := m.SelectedRows[state]
+	if m.searchActive() {
+		selectedRow = m.selectedFilteredRow(state)
+	}
 	separator := mutedStyle.Render(strings.Repeat("─", innerWidth))
 	for row := scroll; row < len(tickets); row++ {
 		if row > scroll {
@@ -173,9 +176,9 @@ func (m Model) styledTicketColumnLines(index int, state store.State, row int, in
 	}
 	stored := tickets[row]
 	var isFocused bool
-	if m.InteractionMode == InteractionSearch {
-		// In search mode the filtered list has different indices than the full
-		// list, so identify the selected ticket by name instead.
+	if m.searchActive() {
+		// The filtered list has different indices than the full list, so identify
+		// the selected ticket by name instead.
 		selectedName := ""
 		if full := m.Board.Columns[state]; m.SelectedRows[state] < len(full) {
 			selectedName = full[m.SelectedRows[state]].Name

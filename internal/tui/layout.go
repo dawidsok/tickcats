@@ -22,7 +22,7 @@ func (m Model) boardColumnInnerHeight() int {
 		return 18
 	}
 	height := m.Height - 11
-	if m.InteractionMode == InteractionSearch {
+	if m.InteractionMode == InteractionSearch || m.searchActive() {
 		height -= 2
 	}
 	if height < 6 {
@@ -139,10 +139,10 @@ func (m Model) footerText() string {
 		return "MOVE: h/l move  H/L ends  j/k reorder  ? help  esc board  q quit"
 	}
 	if m.InteractionMode == InteractionSearch {
-		if m.searchFocused {
-			return "SEARCH: type query  enter confirm  esc exit"
-		}
-		return "SEARCH: j/k navigate  h/l columns  enter open  / retype  esc exit"
+		return "SEARCH: type query  enter apply  esc clear"
+	}
+	if m.searchActive() {
+		return "FILTER: j/k tickets  enter detail  m move  / edit filter  ? help  q quit"
 	}
 	if m.Mode == ViewDetail {
 		return "DETAIL: j/k scroll  e edit  ? help  esc board  q quit"

@@ -14,9 +14,12 @@ import (
 )
 
 func (m Model) enterSearch() (tea.Model, tea.Cmd) {
+	query := m.searchInput.Value()
 	input := textinput.New()
 	input.Placeholder = "fuzzy filter..."
 	input.CharLimit = 100
+	input.SetValue(query)
+	input.SetCursor(len([]rune(query)))
 	m.searchInput = input
 	m.searchFocused = true
 	m.InteractionMode = InteractionSearch
@@ -56,31 +59,8 @@ func (m Model) updateSearchTyping(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		m.searchFocused = false
 		m.searchInput.Blur()
-		// Jump cursor to first filtered result in current column if the current
-		// selection is not in the filtered results.
-		state := m.columnOrder[m.SelectedCol]
-		filtered := m.filteredTickets(state)
-		if len(filtered) > 0 {
-			selectedName := ""
-			if full := m.Board.Columns[state]; m.SelectedRows[state] < len(full) {
-				selectedName = full[m.SelectedRows[state]].Name
-			}
-			inResults := false
-			for _, t := range filtered {
-				if t.Name == selectedName {
-					inResults = true
-					break
-				}
-			}
-			if !inResults {
-				for i, t := range m.Board.Columns[state] {
-					if t.Name == filtered[0].Name {
-						m.SelectedRows[state] = i
-						break
-					}
-				}
-			}
-		}
+		m.InteractionMode = InteractionBoard
+		m.ensureSelectedVisible(m.columnOrder[m.SelectedCol])
 		return m, nil
 	}
 	var cmd tea.Cmd
@@ -137,13 +117,14 @@ func (m Model) exitSearch() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) searchActive() bool {
+	return strings.TrimSpace(m.searchInput.Value()) != ""
+}
+
 // filteredTickets returns the ticket slice for state filtered by the current
 // search query. Returns the full slice when search is inactive or the query is
 // empty.
 func (m Model) filteredTickets(state store.State) []store.StoredTicket {
-	if m.InteractionMode != InteractionSearch {
-		return m.Board.Columns[state]
-	}
 	q := strings.ToLower(strings.TrimSpace(m.searchInput.Value()))
 	if q == "" {
 		return m.Board.Columns[state]
@@ -201,6 +182,37 @@ func (m *Model) moveInSearch(delta int) {
 			return
 		}
 	}
+}
+
+func (m *Model) ensureSearchSelection(state store.State) {
+	filtered := m.filteredTickets(state)
+	if len(filtered) == 0 {
+		m.ColumnScroll[state] = 0
+		return
+	}
+	if m.selectedFilteredRow(state) >= 0 {
+		return
+	}
+	for i, t := range m.Board.Columns[state] {
+		if t.Name == filtered[0].Name {
+			m.SelectedRows[state] = i
+			return
+		}
+	}
+}
+
+func (m Model) selectedFilteredRow(state store.State) int {
+	full := m.Board.Columns[state]
+	if len(full) == 0 || m.SelectedRows[state] >= len(full) {
+		return -1
+	}
+	selectedName := full[m.SelectedRows[state]].Name
+	for i, t := range m.filteredTickets(state) {
+		if t.Name == selectedName {
+			return i
+		}
+	}
+	return -1
 }
 
 // fuzzyMatch reports whether every rune in pattern appears in text in order

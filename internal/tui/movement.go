@@ -57,6 +57,16 @@ func (m Model) selectedTicket() *store.StoredTicket {
 	if len(tickets) == 0 {
 		return nil
 	}
+	if m.searchActive() {
+		filtered := m.filteredTickets(state)
+		if len(filtered) == 0 {
+			return nil
+		}
+		if row := m.selectedFilteredRow(state); row >= 0 {
+			return &filtered[row]
+		}
+		return &filtered[0]
+	}
 	row := clamp(m.SelectedRows[state], 0, len(tickets)-1)
 	return &tickets[row]
 }

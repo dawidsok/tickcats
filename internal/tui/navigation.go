@@ -25,6 +25,10 @@ func (m *Model) ensureColVisible() {
 }
 
 func (m *Model) moveRow(delta int) {
+	if m.searchActive() {
+		m.moveInSearch(delta)
+		return
+	}
 	state := m.columnOrder[m.SelectedCol]
 	rows := len(m.Board.Columns[state])
 	if rows == 0 {
@@ -42,6 +46,33 @@ func (m *Model) moveRow(delta int) {
 // down only as far as needed. This ensures the selection is always rendered
 // as close to the top as possible while staying in view.
 func (m *Model) ensureSelectedVisible(state store.State) {
+	if m.searchActive() {
+		m.ensureSearchSelection(state)
+		rows := len(m.filteredTickets(state))
+		if rows == 0 {
+			return
+		}
+		selected := m.selectedFilteredRow(state)
+		if selected < 0 {
+			selected = 0
+		}
+		scroll := clamp(m.ColumnScroll[state], 0, rows-1)
+		if scroll > selected {
+			scroll = selected
+		}
+
+		budget := m.columnLineBudget()
+		innerWidth := m.columnInnerWidth()
+		for scroll < selected && !m.columnRangeFits(state, scroll, selected, budget, innerWidth) {
+			scroll++
+		}
+		for scroll > 0 && m.columnRangeFits(state, scroll-1, selected, budget, innerWidth) {
+			scroll--
+		}
+		m.ColumnScroll[state] = clamp(scroll, 0, rows-1)
+		return
+	}
+
 	rows := len(m.Board.Columns[state])
 	if rows == 0 {
 		m.SelectedRows[state] = 0

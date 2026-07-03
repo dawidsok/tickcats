@@ -296,7 +296,7 @@ func (m Model) View() string {
 	var b strings.Builder
 	b.WriteString(m.renderPickNext())
 	b.WriteString("\n")
-	if m.InteractionMode == InteractionSearch {
+	if m.InteractionMode == InteractionSearch || m.searchActive() {
 		b.WriteString(m.renderSearchBar())
 		b.WriteString("\n")
 	}

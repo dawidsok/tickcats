@@ -2851,7 +2851,7 @@ func TestSearchSelectionNotMovedOnEsc(t *testing.T) {
 	}
 }
 
-func TestSearchEscInNavClearsQueryBeforeExiting(t *testing.T) {
+func TestSearchEnterAppliesFilterAndSlashEditsIt(t *testing.T) {
 	board := emptyBoard()
 	board.Columns[store.StateBacklog] = []store.StoredTicket{
 		storedTicket("a.md", store.StateBacklog, "Task: alpha"),
@@ -2867,25 +2867,23 @@ func TestSearchEscInNavClearsQueryBeforeExiting(t *testing.T) {
 	}
 	m = enterSearchNav(t, m)
 
-	// First esc: clears query, stays in search
-	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	m = got.(Model)
-	if m.InteractionMode != InteractionSearch {
-		t.Fatalf("InteractionMode = %v after first esc, want InteractionSearch", m.InteractionMode)
+	if m.InteractionMode != InteractionBoard {
+		t.Fatalf("InteractionMode = %v after enter, want board", m.InteractionMode)
 	}
-	if m.searchInput.Value() != "" {
-		t.Fatalf("searchInput not cleared after first esc: %q", m.searchInput.Value())
+	if m.searchInput.Value() != "alpha" {
+		t.Fatalf("searchInput = %q, want alpha", m.searchInput.Value())
 	}
-	// All tickets visible again
-	if len(m.filteredTickets(store.StateBacklog)) != 2 {
-		t.Fatalf("filteredTickets = %d after query clear, want 2", len(m.filteredTickets(store.StateBacklog)))
+	if len(m.filteredTickets(store.StateBacklog)) != 1 {
+		t.Fatalf("filteredTickets = %d, want 1", len(m.filteredTickets(store.StateBacklog)))
 	}
 
-	// Second esc: exits search
-	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
 	m = got.(Model)
-	if m.InteractionMode != InteractionBoard {
-		t.Fatalf("InteractionMode = %v after second esc, want InteractionBoard", m.InteractionMode)
+	if m.InteractionMode != InteractionSearch || !m.searchFocused {
+		t.Fatalf("slash with active filter did not reopen search: mode=%v focused=%v", m.InteractionMode, m.searchFocused)
+	}
+	if m.searchInput.Value() != "alpha" {
+		t.Fatalf("searchInput after slash = %q, want alpha", m.searchInput.Value())
 	}
 }
 
@@ -2953,6 +2951,9 @@ func enterSearchNav(t *testing.T, m Model) Model {
 	m2 := got.(Model)
 	if m2.searchFocused {
 		t.Fatal("searchFocused still true after enter")
+	}
+	if m2.InteractionMode != InteractionBoard {
+		t.Fatalf("InteractionMode = %v after enter, want board", m2.InteractionMode)
 	}
 	return m2
 }
@@ -3037,6 +3038,32 @@ func TestSearchNavigationSkipsFilteredOutTickets(t *testing.T) {
 	selected := fullTickets[m.SelectedRows[state]]
 	if selected.Name != "c.md" {
 		t.Fatalf("after j in filtered list, selected = %q, want c.md (skipping b.md)", selected.Name)
+	}
+}
+
+func TestFilteredBoardEnterOpensFocusedResult(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{
+		storedTicket("a.md", store.StateBacklog, "Task: alpha"),
+		storedTicket("b.md", store.StateBacklog, "Task: beta"),
+		storedTicket("c.md", store.StateBacklog, "Task: alpha two"),
+	}
+	m := NewModel(board)
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	m = got.(Model)
+	for _, ch := range "alpha" {
+		got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
+		m = got.(Model)
+	}
+	m = enterSearchNav(t, m)
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m = got.(Model)
+
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = got.(Model)
+	if m.Mode != ViewDetail || m.detailTicketName != "c.md" {
+		t.Fatalf("opened mode=%v ticket=%q, want detail c.md", m.Mode, m.detailTicketName)
 	}
 }
 
