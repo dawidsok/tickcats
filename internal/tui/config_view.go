@@ -67,13 +67,15 @@ func (m Model) updateConfig(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Status = ""
 			return m, nil
 		case "tab":
-			m.configField = (m.configField + 1) % 3
+			m.configField = (m.configField + 1) % 4
 			return m.focusConfigField()
 		case "shift+tab":
-			m.configField = (m.configField + 2) % 3
+			m.configField = (m.configField + 3) % 4
 			return m.focusConfigField()
 		case "h", "left":
-			if m.configField == 1 {
+			if m.configField == 2 {
+				m.Config.DisableMatrixPrioritisation = !m.Config.DisableMatrixPrioritisation
+			} else if m.configField == 1 {
 				m.Config.Theme = clamp(m.Config.Theme-1, 0, len(colorThemes)-1)
 			} else if m.configField == 0 {
 				if m.configEditorIdx > 0 {
@@ -85,7 +87,9 @@ func (m Model) updateConfig(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "l", "right":
-			if m.configField == 1 {
+			if m.configField == 2 {
+				m.Config.DisableMatrixPrioritisation = !m.Config.DisableMatrixPrioritisation
+			} else if m.configField == 1 {
 				m.Config.Theme = clamp(m.Config.Theme+1, 0, len(colorThemes)-1)
 			} else if m.configField == 0 {
 				if m.configEditorIdx < len(editorPresets) {
@@ -99,17 +103,17 @@ func (m Model) updateConfig(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "j", "down":
-			if m.configField == 2 {
+			if m.configField == 3 {
 				m.moveConfigColumnSelection(1)
 			}
 			return m, nil
 		case "k", "up":
-			if m.configField == 2 {
+			if m.configField == 3 {
 				m.moveConfigColumnSelection(-1)
 			}
 			return m, nil
 		case "a":
-			if m.configField == 2 {
+			if m.configField == 3 {
 				m.configAction = configActionAddName
 				input := textinput.New()
 				input.Placeholder = "New column name"
@@ -120,7 +124,7 @@ func (m Model) updateConfig(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		case "r":
-			if m.configField == 2 {
+			if m.configField == 3 {
 				cols := m.Config.GetColumns()
 				if m.configColIdx >= 0 && m.configColIdx < len(cols) {
 					col := cols[m.configColIdx]
@@ -139,7 +143,7 @@ func (m Model) updateConfig(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case "d":
-			if m.configField == 2 {
+			if m.configField == 3 {
 				cols := m.Config.GetColumns()
 				if m.configColIdx >= 0 && m.configColIdx < len(cols) {
 					if reason := blockedColumnDeleteReason(cols[m.configColIdx], m.configColIdx); reason != "" {
@@ -152,11 +156,11 @@ func (m Model) updateConfig(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case "K":
-			if m.configField == 2 {
+			if m.configField == 3 {
 				return m.reorderSelectedColumn(-1)
 			}
 		case "J":
-			if m.configField == 2 {
+			if m.configField == 3 {
 				return m.reorderSelectedColumn(1)
 			}
 		case "enter":
@@ -358,7 +362,8 @@ func (m Model) renderConfig() string {
 
 	editorRow := m.renderConfigEditorRow(activeStyle(m.configField == 0))
 	themeRow := m.renderConfigThemeRow(activeStyle(m.configField == 1))
-	columnsBlock := m.renderConfigColumnsBlock(activeStyle(m.configField == 2), formWidth-labelW)
+	matrixRow := m.renderConfigMatrixRow(activeStyle(m.configField == 2))
+	columnsBlock := m.renderConfigColumnsBlock(activeStyle(m.configField == 3), formWidth-labelW)
 
 	var rows []string
 	rows = append(rows, editorRow)
@@ -371,7 +376,7 @@ func (m Model) renderConfig() string {
 		rows = append(rows, "", labelStyle.Render("")+m.configEditorInput.View())
 	}
 
-	rows = append(rows, "", themeRow, "", columnsBlock)
+	rows = append(rows, "", themeRow, "", matrixRow, "", columnsBlock)
 	rows = append(rows, "", mutedStyle.Render("tab field  h/l select  j/k row  a add  r rename  K/J reorder  d delete  enter save  esc cancel"))
 	content := strings.Join(rows, "\n")
 
@@ -426,13 +431,20 @@ func (m Model) renderConfigThemeRow(themeLabel lipgloss.Style) string {
 	return themeLabel.Render("Theme") + strings.Join(themeParts, "  ")
 }
 
+func (m Model) renderConfigMatrixRow(matrixLabel lipgloss.Style) string {
+	if m.Config.MatrixPrioritisationEnabled() {
+		return matrixLabel.Render("Matrix") + selectedStyle.Render("[on]") + "  " + mutedStyle.Render("off")
+	}
+	return matrixLabel.Render("Matrix") + mutedStyle.Render("on") + "  " + selectedStyle.Render("[off]")
+}
+
 func (m Model) renderConfigColumnsBlock(columnsLabel lipgloss.Style, width int) string {
 	cols := m.Config.GetColumns()
 	var lines []string
 	lines = append(lines, columnsLabel.Render("Columns")+mutedStyle.Render("#  Name                  Folder ID             Actions"))
 	for i, col := range cols {
 		marker := " "
-		if m.configField == 2 && i == m.configColIdx {
+		if m.configField == 3 && i == m.configColIdx {
 			marker = ">"
 		}
 		actions := "a K/J"
@@ -445,7 +457,7 @@ func (m Model) renderConfigColumnsBlock(columnsLabel lipgloss.Style, width int) 
 			actions += " d"
 		}
 		line := fmt.Sprintf("%s %d  %-20s  %-20s  %s", marker, i+1, fitText(col.DisplayName, 20), fitText(col.ID, 20), actions)
-		if m.configField == 2 && i == m.configColIdx {
+		if m.configField == 3 && i == m.configColIdx {
 			line = selectedStyle.Render(line)
 		} else {
 			line = mutedStyle.Render(line)

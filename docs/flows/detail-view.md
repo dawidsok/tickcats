@@ -1,6 +1,6 @@
 # Detail View
 
-Open a ticket's full content in a two-panel layout with scrollable body and metadata.
+Open a ticket's full content in a two-panel layout with scrollable body and metadata, including direct importance toggling.
 
 ## User flow
 
@@ -24,6 +24,9 @@ flowchart TD
     Loop -->|"u"| PageUp["DetailScroll -= half panel height"]
     PageUp --> Render
 
+    Loop -->|"i"| Important["toggleImportant()\nrewrite important frontmatter\nreload metadata"]
+    Important --> Render
+
     Loop -->|"e"| Edit["editSelected()\nlaunch external editor\n(see edit-ticket flow)"]
 
     Loop -->|"c"| Config["enterConfig()\n(see configuration flow)"]
@@ -43,6 +46,7 @@ graph LR
         Layout["layout.go\ndetailWidths\ndetailPanelHeight"]
         Model["model.go\nMode, DetailScroll\nWidth, Height"]
         Editor["editor.go\neditSelected"]
+        Actions["actions.go\ntoggleImportant"]
     end
 
     subgraph Store
@@ -54,6 +58,7 @@ graph LR
     end
 
     Update --> Model
+    Update --> Actions
     RenderDetail --> Layout
     RenderDetail --> Model
     RenderDetail --> Ticket
@@ -86,6 +91,11 @@ sequenceDiagram
     Model-->>Render: View() called
     Render->>Render: slice body lines by DetailScroll offset
     Render-->>User: scrolled body content
+
+    User->>Update: press i
+    Update->>Model: toggle important and reload board
+    Model-->>Render: View() called
+    Render-->>User: metadata shows updated importance
 
     User->>Update: press esc
     Update->>Model: Mode = ViewBoard

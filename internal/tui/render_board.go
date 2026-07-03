@@ -162,7 +162,7 @@ func (m Model) ticketColumnLines(state store.State, row int, innerWidth int) []s
 	if m.MultiSelected[state] != nil && m.MultiSelected[state][stored.Name] {
 		prefix = "* "
 	}
-	lines := wrapText(fmt.Sprintf("%s[%s] %s", prefix, stored.Ticket.Priority, stored.Ticket.Title), innerWidth)
+	lines := wrapText(fmt.Sprintf("%s[%s] %s", prefix, ticketPriorityText(stored), stored.Ticket.Title), innerWidth)
 	if stored.Ticket.Deadline != nil {
 		lines = append(lines, deadlineDatePlain(*stored.Ticket.Deadline, time.Now()))
 	}
@@ -201,7 +201,7 @@ func (m Model) styledTicketColumnLines(index int, state store.State, row int, in
 		prefix = "  "
 	}
 
-	wrapped := wrapText(fmt.Sprintf("%s[%s] %s", prefix, stored.Ticket.Priority, stored.Ticket.Title), innerWidth)
+	wrapped := wrapText(fmt.Sprintf("%s[%s] %s", prefix, ticketPriorityText(stored), stored.Ticket.Title), innerWidth)
 	for i, line := range wrapped {
 		switch {
 		case isFocused:
@@ -214,6 +214,14 @@ func (m Model) styledTicketColumnLines(index int, state store.State, row int, in
 		wrapped = append(wrapped, m.renderDeadlineDate(state, *stored.Ticket.Deadline, time.Now()))
 	}
 	return wrapped
+}
+
+func ticketPriorityText(stored store.StoredTicket) string {
+	text := string(stored.Ticket.Priority)
+	if stored.Ticket.Important {
+		text += "!"
+	}
+	return text
 }
 
 // appendColumnOverflow replaces the last rendered line with a "↓ N below"

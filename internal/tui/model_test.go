@@ -1359,7 +1359,7 @@ func TestProgressBackNoSelectionShowsMessage(t *testing.T) {
 func TestFooterShowsCriticalShortcutsOnly(t *testing.T) {
 	model := NewModel(emptyBoard())
 	footer := model.footerText()
-	for _, want := range []string{"h/l columns", "j/k tickets", "enter detail", "m move", "n new", "? help", "q quit"} {
+	for _, want := range []string{"h/l columns", "j/k tickets", "enter detail", "m move", "n new", "i important", "? help", "q quit"} {
 		if !strings.Contains(footer, want) {
 			t.Fatalf("footer = %q, want %q", footer, want)
 		}
@@ -1380,7 +1380,7 @@ func TestQuestionMarkOpensKeyboardShortcutDialog(t *testing.T) {
 		t.Fatalf("InteractionMode = %v, want InteractionHelp", m.InteractionMode)
 	}
 	view := m.View()
-	for _, want := range []string{"Keyboard Shortcuts", "Board", "Move mode", "Detail", "s", "cycle sort mode", "p / b", "progress / move back"} {
+	for _, want := range []string{"Keyboard Shortcuts", "Board", "Move mode", "Detail", "s", "cycle sort mode", "p / b", "progress / move back", "i", "toggle important"} {
 		if !strings.Contains(view, want) {
 			t.Fatalf("help view missing %q:\n%s", want, view)
 		}
@@ -2056,6 +2056,74 @@ func TestManualMoveReordersTickets(t *testing.T) {
 	}
 }
 
+func TestBoardITogglesImportantAndResorts(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	writeTUITestTicket(t, root, store.StateBacklog, "a.md", "Task: a")
+	writeTUITestTicket(t, root, store.StateBacklog, "b.md", "Task: b")
+	board, _ := store.LoadBoard(root)
+	m := NewModelWithRoot(root, board)
+	m.SelectedRows[store.StateBacklog] = 1
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'i'}})
+	m = got.(Model)
+
+	if m.Board.Columns[store.StateBacklog][0].Name != "b.md" {
+		t.Fatalf("first ticket = %q, want b.md after important sort", m.Board.Columns[store.StateBacklog][0].Name)
+	}
+	selected := m.selectedTicket()
+	if selected == nil || selected.Name != "b.md" || !selected.Ticket.Important {
+		t.Fatalf("selected = %#v, want important b.md", selected)
+	}
+	data, err := os.ReadFile(filepath.Join(root, string(store.StateBacklog), "b.md"))
+	if err != nil {
+		t.Fatalf("read ticket: %v", err)
+	}
+	if !strings.Contains(string(data), "important: true") {
+		t.Fatalf("ticket missing important frontmatter:\n%s", data)
+	}
+}
+
+func TestDetailITogglesImportant(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	writeTUITestTicket(t, root, store.StateBacklog, "a.md", "Task: a")
+	board, _ := store.LoadBoard(root)
+	m := NewModelWithRoot(root, board)
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = got.(Model)
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'i'}})
+	m = got.(Model)
+
+	if m.Mode != ViewDetail {
+		t.Fatalf("Mode = %v, want detail", m.Mode)
+	}
+	stored := m.findDetailTicket()
+	if stored == nil || !stored.Ticket.Important {
+		t.Fatalf("detail ticket = %#v, want important", stored)
+	}
+}
+
+func TestImportantRendering(t *testing.T) {
+	stored := storedTicket("a.md", store.StateBacklog, "Task: important")
+	stored.Ticket.Important = true
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{stored}
+	m := NewModel(board)
+
+	if lines := strings.Join(m.ticketColumnLines(store.StateBacklog, 0, 80), "\n"); !strings.Contains(lines, "[P2!]") {
+		t.Fatalf("board lines missing important marker:\n%s", lines)
+	}
+	if meta := m.renderDetailMetadata(stored); !strings.Contains(meta, "Important: yes") {
+		t.Fatalf("detail metadata missing important yes:\n%s", meta)
+	}
+}
+
 func TestCKeyOpensConfigPage(t *testing.T) {
 	m := newModelForSort(t, emptyBoard())
 	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
@@ -2165,6 +2233,29 @@ func TestConfigThemeCyclesWithHL(t *testing.T) {
 	m4 := got4.(Model)
 	if m4.Config.Theme != 0 {
 		t.Fatalf("theme after h = %d, want 0", m4.Config.Theme)
+	}
+}
+
+func TestConfigMatrixTogglePersists(t *testing.T) {
+	root, m := newConfigTestModel(t)
+	m = updateRune(t, m, 'c')
+	m = updateKey(t, m, tea.KeyMsg{Type: tea.KeyTab})
+	m = updateKey(t, m, tea.KeyMsg{Type: tea.KeyTab})
+	if m.configField != 2 {
+		t.Fatalf("configField = %d, want matrix field 2", m.configField)
+	}
+	if !m.Config.MatrixPrioritisationEnabled() {
+		t.Fatal("matrix should default on")
+	}
+	m = updateRune(t, m, 'l')
+	m = updateKey(t, m, tea.KeyMsg{Type: tea.KeyEnter})
+
+	cfg, err := store.LoadConfig(root)
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if cfg.MatrixPrioritisationEnabled() {
+		t.Fatal("matrix should be disabled after toggle")
 	}
 }
 
@@ -2356,8 +2447,9 @@ func openConfigColumns(t *testing.T, m Model) Model {
 	m = updateRune(t, m, 'c')
 	m = updateKey(t, m, tea.KeyMsg{Type: tea.KeyTab})
 	m = updateKey(t, m, tea.KeyMsg{Type: tea.KeyTab})
-	if m.Mode != ViewConfig || m.configField != 2 {
-		t.Fatalf("Mode/configField = %v/%d, want config/2", m.Mode, m.configField)
+	m = updateKey(t, m, tea.KeyMsg{Type: tea.KeyTab})
+	if m.Mode != ViewConfig || m.configField != 3 {
+		t.Fatalf("Mode/configField = %v/%d, want config/3", m.Mode, m.configField)
 	}
 	return m
 }

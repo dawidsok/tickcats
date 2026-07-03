@@ -131,6 +131,8 @@ func (m Model) updateBoard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.moveSelected(-1)
 	case "e":
 		return m.editSelected()
+	case "i":
+		return m, m.toggleImportant()
 	case "x":
 		m.enterDeleteConfirm()
 	case "r":
@@ -270,6 +272,8 @@ func (m Model) updateDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.moveDetailScroll(-m.detailHalfPage())
 	case "e":
 		return m.editSelected()
+	case "i":
+		return m, m.toggleImportant()
 	case "c":
 		return m.enterConfig()
 	}

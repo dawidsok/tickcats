@@ -143,7 +143,7 @@ type Model struct {
 	ManualOrder map[store.State][]string
 
 	Config            store.Config
-	configField       int // 0=editor, 1=theme, 2=columns
+	configField       int // 0=editor, 1=theme, 2=matrix, 3=columns
 	configEditorIdx   int
 	configEditorInput textinput.Model
 	configColIdx      int

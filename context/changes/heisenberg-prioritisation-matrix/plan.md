@@ -332,9 +332,9 @@ Existing tickets need no migration: missing `important` means false. Existing co
 
 #### Automated
 
-- [ ] 3.1 TUI toggle/config/render tests pass.
-- [ ] 3.2 `go test ./...` passes.
-- [ ] 3.3 `go vet ./...` passes.
+- [x] 3.1 TUI toggle/config/render tests pass.
+- [x] 3.2 `go test ./...` passes.
+- [x] 3.3 `go vet ./...` passes.
 
 #### Manual
 

@@ -145,9 +145,9 @@ func (m Model) footerText() string {
 		return "FILTER: j/k tickets  enter detail  m move  / edit filter  ? help  q quit"
 	}
 	if m.Mode == ViewDetail {
-		return "DETAIL: j/k scroll  e edit  ? help  esc board  q quit"
+		return "DETAIL: j/k scroll  i important  e edit  ? help  esc board  q quit"
 	}
-	return "BOARD: h/l columns  j/k tickets  enter detail  m move  n new  / search  ? help  q quit"
+	return "BOARD: h/l columns  j/k tickets  enter detail  m move  n new  i important  / search  ? help  q quit"
 }
 
 func (m Model) renderFooterSeparator() string {

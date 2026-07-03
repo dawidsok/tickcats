@@ -1,6 +1,6 @@
 # Board Navigation
 
-Column/row movement, vim-style count prefixes, multi-select, horizontal scroll, and vertical scroll within columns.
+Column/row movement, vim-style count prefixes, important toggling, multi-select, horizontal scroll, and vertical scroll within columns.
 
 ## User flow
 
@@ -32,6 +32,10 @@ flowchart TD
     MultiSel --> Toggle["toggleSelection()\nMultiSelected[state][name]"]
     Toggle --> Loop
 
+    Loop --> Important{"i"}
+    Important --> ToggleImportant["toggleImportant()\nrewrite important frontmatter\nreload and re-sort"]
+    ToggleImportant --> Loop
+
     Loop --> HScroll{"terminal\ntoo narrow"}
     HScroll --> HScrollLogic["visibleColumnCount = width/60\nColScrollOffset tracks\nfirst visible column"]
     HScrollLogic --> Loop
@@ -45,7 +49,7 @@ graph LR
     subgraph TUI
         Update["update.go\nkey dispatch"]
         Nav["navigation.go\nmoveColumn, moveRow\nensureColVisible\nensureSelectedVisible\npageRows"]
-        Actions["actions.go\ntoggleSelection"]
+        Actions["actions.go\ntoggleSelection\ntoggleImportant"]
         Layout["layout.go\ncolumnWidth\ncolumnLineBudget\nvisibleColumnCount"]
         Render["render_board.go\ncolumn rendering\nscroll indicators"]
         Model["model.go\nSelectedCol, ColScrollOffset\nSelectedRows, ColumnScroll\ncountPrefix\nMultiSelected, Width/Height"]
@@ -92,6 +96,10 @@ sequenceDiagram
     User->>Update: press v
     Update->>Nav: toggleSelection()
     Nav->>Model: toggle MultiSelected[state][name]
+
+    User->>Update: press i
+    Update->>Nav: toggleImportant()
+    Nav->>Model: reload board and preserve focused ticket
 
     Model->>Render: View() called
     Render->>Layout: columnWidth(), visibleColumnCount()

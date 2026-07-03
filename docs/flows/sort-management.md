@@ -1,13 +1,13 @@
 # Sort Management
 
-Cycle sort modes, persist to disk, and manage manual ordering within columns.
+Cycle sort modes, persist to disk, and manage manual ordering within columns. Priority sort uses the urgency/importance matrix when enabled in config.
 
 ## User flow
 
 ```mermaid
 %%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
 flowchart TD
-    Board["ViewBoard"] -->|"s"| Cycle["cycleSortMode()\nPriority → Title → Date → Manual → Priority"]
+    Board["ViewBoard"] -->|"s"| Cycle["cycleSortMode()\nPriority → Title → Date → Deadline → Manual → Priority"]
     Cycle --> Save["SaveSortConfig(root, SortConfig{Mode, ManualOrder})"]
     Save --> Reload["reloadBoard()\napplySortToBoard()"]
     Reload --> Board
@@ -23,9 +23,10 @@ flowchart TD
     SwitchManual --> Board
 
     subgraph "applySortToBoard internals"
-        SortPriority["SortPriority\nby Priority.Rank()\nthen by filename"]
+        SortPriority["SortPriority\nby matrix bucket when enabled\nelse Priority.Rank()"]
         SortTitle["SortTitle\nalphabetical by title"]
         SortDate["SortDate\nby Created timestamp"]
+        SortDeadline["SortDeadline\nby Deadline date\nmissing deadlines last"]
         SortManualMode["SortManual\nby ManualOrder[state] index\nnew tickets append to end"]
     end
 

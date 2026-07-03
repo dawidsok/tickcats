@@ -1,6 +1,6 @@
 # Configuration
 
-Edit editor command, color theme, and board columns through the TUI config form.
+Edit editor command, color theme, matrix prioritisation, and board columns through the TUI config form.
 
 ## User flow
 
@@ -8,9 +8,9 @@ Edit editor command, color theme, and board columns through the TUI config form.
 %%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
 flowchart TD
     Board["ViewBoard\nor ViewDetail"] -->|"c"| Enter["enterConfig()\nMode = ViewConfig\nmap current config to form\nconfigField = 0"]
-    Enter --> Form["ViewConfig form\nField 0: Editor preset selector\nField 1: Theme selector\nField 2: Columns table"]
+    Enter --> Form["ViewConfig form\nField 0: Editor preset selector\nField 1: Theme selector\nField 2: Matrix on/off\nField 3: Columns table"]
 
-    Form -->|"tab / shift+tab"| CycleField["cycle configField 0 ↔ 1 ↔ 2"]
+    Form -->|"tab / shift+tab"| CycleField["cycle configField 0 ↔ 1 ↔ 2 ↔ 3"]
     CycleField --> Form
 
     Form -->|"h (field 0)"| PrevEditor["configEditorIdx -= 1\npresets: '' nvim vim nano code hx custom"]
@@ -23,23 +23,26 @@ flowchart TD
     Form -->|"h/l (field 1)"| CycleTheme["cycle theme\nmono gradient ocean fire forest dim-sum"]
     CycleTheme --> Form
 
-    Form -->|"j/k (field 2)"| SelectColumn["select column row"]
+    Form -->|"h/l (field 2)"| ToggleMatrix["toggle matrix prioritisation\ndefault on"]
+    ToggleMatrix --> Form
+
+    Form -->|"j/k (field 3)"| SelectColumn["select column row"]
     SelectColumn --> Form
 
-    Form -->|"a (field 2)"| AddColumn["inline input\nstore.AddColumn(root, name)"]
+    Form -->|"a (field 3)"| AddColumn["inline input\nstore.AddColumn(root, name)"]
     AddColumn --> RefreshColumns["reload config\nrefresh columnOrder\nreload board"]
     RefreshColumns --> Form
 
-    Form -->|"r (field 2)"| RenameColumn{"locked default?"}
+    Form -->|"r (field 3)"| RenameColumn{"locked default?"}
     RenameColumn -->|Yes| BlockRename["show warning"]
     BlockRename --> Form
     RenameColumn -->|No| RenameStore["inline input\nstore.RenameColumn(root, id, name)"]
     RenameStore --> RefreshColumns
 
-    Form -->|"K/J (field 2)"| ReorderColumn["store.ReorderColumns(root, order)"]
+    Form -->|"K/J (field 3)"| ReorderColumn["store.ReorderColumns(root, order)"]
     ReorderColumn --> RefreshColumns
 
-    Form -->|"d (field 2)"| DeleteColumn{"locked or first column?"}
+    Form -->|"d (field 3)"| DeleteColumn{"locked or first column?"}
     DeleteColumn -->|Yes| BlockDelete["show warning"]
     BlockDelete --> Form
     DeleteColumn -->|No, y confirm| DeleteStore["store.DeleteColumn(root, id)\nmove tickets to first column"]
@@ -118,6 +121,14 @@ sequenceDiagram
     Update->>ConfigView: updateConfig(msg)
     ConfigView->>Model: configField = 2
 
+    User->>Update: press l on field 2 (Matrix)
+    Update->>ConfigView: toggle matrix prioritisation
+    ConfigView->>Model: Config.DisableMatrixPrioritisation changes
+
+    User->>Update: press tab (switch to Columns field)
+    Update->>ConfigView: updateConfig(msg)
+    ConfigView->>Model: configField = 3
+
     alt add/rename/reorder/delete column
         User->>Update: press a/r/K/J/d
         Update->>ConfigView: updateConfig(msg)
@@ -129,7 +140,7 @@ sequenceDiagram
 
     User->>Update: press enter
     Update->>ConfigView: saveConfig()
-    ConfigView->>Store: SaveConfig(root, Config{Editor, Theme, SkipEditorPrompt, Columns})
+    ConfigView->>Store: SaveConfig(root, Config{Editor, Theme, DisableMatrixPrioritisation, SkipEditorPrompt, Columns})
     Store->>FS: write config.json (pretty-printed JSON)
     ConfigView->>Model: Mode = ViewBoard
     ConfigView-->>User: board view restored

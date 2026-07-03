@@ -74,6 +74,28 @@ func (m Model) editSelected() (tea.Model, tea.Cmd) {
 	})
 }
 
+func (m *Model) toggleImportant() tea.Cmd {
+	stored := m.selectedTicket()
+	if m.Mode == ViewDetail {
+		stored = m.findDetailTicket()
+	}
+	if stored == nil {
+		m.Status = "No ticket selected"
+		return nil
+	}
+
+	important := !stored.Ticket.Important
+	if err := store.SetImportant(m.Root, stored.Name, stored.State, important); err != nil {
+		m.Status = "Important toggle failed: " + err.Error()
+		return nil
+	}
+	m.reloadBoard()
+	if important {
+		return m.notify("Marked important", notifSuccess)
+	}
+	return m.notify("Marked not important", notifSuccess)
+}
+
 type editorFinishedMsg struct {
 	err error
 }

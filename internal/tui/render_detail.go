@@ -72,6 +72,11 @@ func (m Model) renderDetailMetadata(stored store.StoredTicket) string {
 	fmt.Fprintf(&b, "Title: %s\n", stored.Ticket.Title)
 	b.WriteString("State: " + m.colStyle(m.stateColIndex(stored.State)).Render(string(stored.State)) + "\n")
 	b.WriteString("Priority: " + priorityStyle(stored.Ticket.Priority).Render(string(stored.Ticket.Priority)) + "\n")
+	important := "no"
+	if stored.Ticket.Important {
+		important = "yes"
+	}
+	fmt.Fprintf(&b, "Important: %s\n", important)
 	fmt.Fprintf(&b, "File: %s\n", stored.Name)
 	if len(stored.Ticket.ParsedTitle.Labels) > 0 {
 		fmt.Fprintf(&b, "Labels: %s\n", strings.Join(stored.Ticket.ParsedTitle.Labels, ", "))

@@ -96,12 +96,13 @@ The completion scripts call hidden helpers (`tickcats __complete tickets` and `t
 | `d` / `u` | Half-page down / up |
 | `v` | Toggle selection on focused ticket |
 | `m` | Enter move mode |
+| `i` | Toggle important on focused ticket |
 | `p` | Progress focused ticket to the next column |
 | `enter` / `o` | Open detail view |
 | `e` | Open ticket in external editor |
 | `n` | New ticket form |
 | `x` | Delete (with confirmation) |
-| `s` | Cycle sort: priority → title → date → manual |
+| `s` | Cycle sort: priority → title → date → deadline → manual |
 | `r` | Reload board from disk |
 | `c` | Open config (editor, theme, columns) |
 | `q` | Quit |
@@ -123,6 +124,7 @@ Use `v` in board mode to build a multi-ticket selection before entering move mod
 |---|---|
 | `j` / `k` | Scroll content |
 | `d` / `u` | Half-page scroll |
+| `i` | Toggle important on open ticket |
 | `e` | Open in external editor |
 | `esc` | Return to board |
 
@@ -135,6 +137,7 @@ Tickets are markdown files with YAML frontmatter:
 title: "Feat: Add dark mode support [to refine]"
 id: TC-A7K9Q2
 priority: P1
+important: true
 created: 2026-05-30T10:00:00Z
 updated: 2026-05-31T14:22:00Z
 deadline: 2026-06-15
@@ -150,7 +153,7 @@ Users have requested a dark mode option for the dashboard.
 - Preference is persisted across sessions
 ```
 
-State is derived from which folder the file lives in — not from frontmatter. `id` is a stable ticket reference used in new filenames and commit references. `deadline` is optional and, when present, uses `YYYY-MM-DD`; new tickets omit deadlines by default.
+State is derived from which folder the file lives in — not from frontmatter. `id` is a stable ticket reference used in new filenames and commit references. `important` is optional and can be toggled with `i` in board/detail views. `deadline` is optional and, when present, uses `YYYY-MM-DD`; new tickets omit deadlines by default.
 
 ## Board layout
 
@@ -200,6 +203,7 @@ Press `c` in the TUI to open the config page. Settings are saved to `.tickcats/c
 |---|---|
 | Editor | External editor command (`nvim`, `vim`, `nano`, `code`, …) or `$EDITOR` |
 | Theme | Color theme: mono, gradient, ocean, fire, forest, dim-sum |
+| Matrix | Toggle urgency/importance matrix prioritisation for priority sort. On by default. |
 | Columns | Add, rename, reorder, or delete board columns. Backlog and Done are locked default columns. Deleted column tickets move to the first column. |
 
 ## Philosophy
