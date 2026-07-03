@@ -96,6 +96,7 @@ The completion scripts call hidden helpers (`tickcats __complete tickets` and `t
 | `d` / `u` | Half-page down / up |
 | `v` | Toggle selection on focused ticket |
 | `m` | Enter move mode |
+| `D` | Set or clear deadline/SLA |
 | `i` | Toggle important on focused ticket |
 | `p` | Progress focused ticket to the next column |
 | `enter` / `o` | Open detail view |
@@ -124,6 +125,7 @@ Use `v` in board mode to build a multi-ticket selection before entering move mod
 |---|---|
 | `j` / `k` | Scroll content |
 | `d` / `u` | Half-page scroll |
+| `D` | Set or clear deadline/SLA |
 | `i` | Toggle important on open ticket |
 | `e` | Open in external editor |
 | `esc` | Return to board |
@@ -203,7 +205,7 @@ Press `c` in the TUI to open the config page. Settings are saved to `.tickcats/c
 |---|---|
 | Editor | External editor command (`nvim`, `vim`, `nano`, `code`, …) or `$EDITOR` |
 | Theme | Color theme: mono, gradient, ocean, fire, forest, dim-sum |
-| Matrix | Toggle urgency/importance matrix prioritisation for priority sort. On by default. |
+| Matrix | Toggle urgency/importance matrix prioritisation for priority sort. On by default; when enabled, board cards hide raw P0-P3 labels. |
 | Columns | Add, rename, reorder, or delete board columns. Backlog and Done are locked default columns. Deleted column tickets move to the first column. |
 
 ## Philosophy

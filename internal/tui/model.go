@@ -70,6 +70,7 @@ const (
 	InteractionQuitConfirm                          // "quit?" prompt
 	InteractionHelp                                 // help dialog overlay
 	InteractionSearch                               // fuzzy search bar overlay
+	InteractionDeadline                             // deadline/SLA picker dialog
 )
 
 var createKinds = []ticket.Kind{ticket.KindFeature, ticket.KindTask, ticket.KindBug}
@@ -152,6 +153,9 @@ type Model struct {
 
 	searchInput   textinput.Model
 	searchFocused bool // true = typing in field; false = navigating results
+
+	deadlineInput  textinput.Model
+	deadlineCustom bool
 
 	watchCh <-chan struct{}
 

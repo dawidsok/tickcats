@@ -25,6 +25,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.InteractionMode == InteractionSearch {
 		return m.updateSearch(msg)
 	}
+	if m.InteractionMode == InteractionDeadline {
+		if keyMsg, ok := msg.(tea.KeyMsg); ok {
+			return m.updateDeadlineDialog(keyMsg)
+		}
+	}
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -133,6 +138,8 @@ func (m Model) updateBoard(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.editSelected()
 	case "i":
 		return m, m.toggleImportant()
+	case "D":
+		return m.enterDeadlineDialog()
 	case "x":
 		m.enterDeleteConfirm()
 	case "r":
@@ -274,6 +281,8 @@ func (m Model) updateDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.editSelected()
 	case "i":
 		return m, m.toggleImportant()
+	case "D":
+		return m.enterDeadlineDialog()
 	case "c":
 		return m.enterConfig()
 	}
@@ -289,6 +298,9 @@ func (m Model) View() string {
 	}
 	if m.InteractionMode == InteractionHelp {
 		return m.renderHelpDialog()
+	}
+	if m.InteractionMode == InteractionDeadline {
+		return m.renderDeadlineDialog()
 	}
 	if m.InteractionMode == InteractionPostCreate {
 		return m.renderPostCreateDialog()

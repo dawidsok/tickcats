@@ -1096,6 +1096,76 @@ func TestDeleteEmptyColumn(t *testing.T) {
 	}
 }
 
+func TestBoardDeadlineDialogTomorrowAndOff(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	writeTUITestTicket(t, root, store.StateBacklog, "a.md", "Task: a")
+	board, _ := store.LoadBoard(root)
+	m := NewModelWithRoot(root, board)
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
+	m = got.(Model)
+	if m.InteractionMode != InteractionDeadline {
+		t.Fatalf("InteractionMode = %v, want deadline", m.InteractionMode)
+	}
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	m = got.(Model)
+	stored := m.selectedTicket()
+	if stored == nil || stored.Ticket.Deadline == nil {
+		t.Fatalf("deadline not set: %#v", stored)
+	}
+
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
+	m = got.(Model)
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'o'}})
+	m = got.(Model)
+	stored = m.selectedTicket()
+	if stored == nil || stored.Ticket.Deadline != nil {
+		t.Fatalf("deadline not cleared: %#v", stored)
+	}
+}
+
+func TestDetailDeadlineDialogCustomInput(t *testing.T) {
+	root := t.TempDir()
+	if err := store.Init(root); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	writeTUITestTicket(t, root, store.StateBacklog, "a.md", "Task: a")
+	board, _ := store.LoadBoard(root)
+	m := NewModelWithRoot(root, board)
+
+	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = got.(Model)
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
+	m = got.(Model)
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+	m = got.(Model)
+	m = typeRunes(t, m, "2026-06-20")
+	got, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = got.(Model)
+
+	if m.Mode != ViewDetail {
+		t.Fatalf("Mode = %v, want detail", m.Mode)
+	}
+	stored := m.findDetailTicket()
+	want := time.Date(2026, 6, 20, 0, 0, 0, 0, time.UTC)
+	if stored == nil || stored.Ticket.Deadline == nil || !stored.Ticket.Deadline.Equal(want) {
+		t.Fatalf("deadline = %v, want %s", stored, want)
+	}
+}
+
+func TestBoardOmitsPriorityWhenMatrixEnabled(t *testing.T) {
+	board := emptyBoard()
+	board.Columns[store.StateBacklog] = []store.StoredTicket{storedTicket("a.md", store.StateBacklog, "Task: a")}
+	m := NewModel(board)
+	line := strings.Join(m.ticketColumnLines(store.StateBacklog, 0, 80), "\n")
+	if strings.Contains(line, "P2") {
+		t.Fatalf("board line shows priority with matrix enabled: %q", line)
+	}
+}
+
 func TestDetailScrollIndicators(t *testing.T) {
 	board := emptyBoard()
 	bodyLines := make([]string, 0, 20)
@@ -2116,8 +2186,9 @@ func TestImportantRendering(t *testing.T) {
 	board.Columns[store.StateBacklog] = []store.StoredTicket{stored}
 	m := NewModel(board)
 
-	if lines := strings.Join(m.ticketColumnLines(store.StateBacklog, 0, 80), "\n"); !strings.Contains(lines, "[P2!]") {
-		t.Fatalf("board lines missing important marker:\n%s", lines)
+	lines := strings.Join(m.ticketColumnLines(store.StateBacklog, 0, 80), "\n")
+	if strings.Contains(lines, "P2") || !strings.Contains(lines, "[!]") {
+		t.Fatalf("board lines should hide priority and show important marker:\n%s", lines)
 	}
 	if meta := m.renderDetailMetadata(stored); !strings.Contains(meta, "Important: yes") {
 		t.Fatalf("detail metadata missing important yes:\n%s", meta)

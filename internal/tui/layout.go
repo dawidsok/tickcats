@@ -122,6 +122,9 @@ func (m Model) footerText() string {
 	if m.InteractionMode == InteractionHelp {
 		return "HELP: ?/enter/esc close  q quit"
 	}
+	if m.InteractionMode == InteractionDeadline {
+		return "DEADLINE: t today  m tomorrow  w next week  c custom  o off  esc cancel"
+	}
 	if m.InteractionMode == InteractionPostCreate {
 		return "y open editor  n/esc stay  d don't ask again"
 	}
@@ -145,9 +148,9 @@ func (m Model) footerText() string {
 		return "FILTER: j/k tickets  enter detail  m move  / edit filter  ? help  q quit"
 	}
 	if m.Mode == ViewDetail {
-		return "DETAIL: j/k scroll  i important  e edit  ? help  esc board  q quit"
+		return "DETAIL: j/k scroll  D deadline  i important  e edit  ? help  esc board  q quit"
 	}
-	return "BOARD: h/l columns  j/k tickets  enter detail  m move  n new  i important  / search  ? help  q quit"
+	return "BOARD: h/l columns  j/k tickets  enter detail  D deadline  m move  n new  i important  / search  ? help  q quit"
 }
 
 func (m Model) renderFooterSeparator() string {

@@ -27,6 +27,9 @@ flowchart TD
     Loop -->|"i"| Important["toggleImportant()\nrewrite important frontmatter\nreload metadata"]
     Important --> Render
 
+    Loop -->|"D"| Deadline["deadline dialog\ntoday/tomorrow/next week/custom/off"]
+    Deadline --> Render
+
     Loop -->|"e"| Edit["editSelected()\nlaunch external editor\n(see edit-ticket flow)"]
 
     Loop -->|"c"| Config["enterConfig()\n(see configuration flow)"]

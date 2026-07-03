@@ -36,6 +36,10 @@ flowchart TD
     Important --> ToggleImportant["toggleImportant()\nrewrite important frontmatter\nreload and re-sort"]
     ToggleImportant --> Loop
 
+    Loop --> Deadline{"D"}
+    Deadline --> DeadlineDialog["deadline dialog\ntoday/tomorrow/next week/custom/off"]
+    DeadlineDialog --> Loop
+
     Loop --> HScroll{"terminal\ntoo narrow"}
     HScroll --> HScrollLogic["visibleColumnCount = width/60\nColScrollOffset tracks\nfirst visible column"]
     HScrollLogic --> Loop
@@ -49,7 +53,7 @@ graph LR
     subgraph TUI
         Update["update.go\nkey dispatch"]
         Nav["navigation.go\nmoveColumn, moveRow\nensureColVisible\nensureSelectedVisible\npageRows"]
-        Actions["actions.go\ntoggleSelection\ntoggleImportant"]
+        Actions["actions.go\ntoggleSelection\ntoggleImportant\nset deadline"]
         Layout["layout.go\ncolumnWidth\ncolumnLineBudget\nvisibleColumnCount"]
         Render["render_board.go\ncolumn rendering\nscroll indicators"]
         Model["model.go\nSelectedCol, ColScrollOffset\nSelectedRows, ColumnScroll\ncountPrefix\nMultiSelected, Width/Height"]
