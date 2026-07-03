@@ -13,6 +13,7 @@ import (
 type Column struct {
 	ID          string `json:"id"`
 	DisplayName string `json:"name"`
+	Color       string `json:"color,omitempty"`
 }
 
 // Config holds user preferences that are saved between TUI sessions.
@@ -145,7 +146,7 @@ func RenameColumn(boardRoot string, oldID string, newDisplayName string) error {
 		}
 	}
 
-	columns[idx] = Column{ID: newID, DisplayName: newDisplayName}
+	columns[idx] = Column{ID: newID, DisplayName: newDisplayName, Color: columns[idx].Color}
 	cfg.Columns = columns
 	return SaveConfig(boardRoot, cfg)
 }
@@ -235,6 +236,30 @@ func DeleteColumn(boardRoot string, id string) error {
 		return fmt.Errorf("remove column folder %q: %w", id, err)
 	}
 	cfg.Columns = append(columns[:idx], columns[idx+1:]...)
+	return SaveConfig(boardRoot, cfg)
+}
+
+// SetColumnColor persists a custom display color for an existing column.
+// The empty string clears the custom color and returns the column to the TUI's
+// theme fallback.
+func SetColumnColor(boardRoot string, id string, color string) error {
+	normalized, err := NormalizeColumnColor(color)
+	if err != nil {
+		return err
+	}
+
+	cfg, err := LoadConfig(boardRoot)
+	if err != nil {
+		return err
+	}
+	columns := cfg.GetColumns()
+	idx := columnIndex(columns, id)
+	if idx < 0 {
+		return fmt.Errorf("column %q not found", id)
+	}
+
+	columns[idx].Color = normalized
+	cfg.Columns = columns
 	return SaveConfig(boardRoot, cfg)
 }
 
