@@ -2040,6 +2040,7 @@ func TestManualMoveReordersTickets(t *testing.T) {
 	got, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
 	got, _ = got.(Model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
 	got, _ = got.(Model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	got, _ = got.(Model).Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
 	m2 := got.(Model)
 	if m2.SortMode != store.SortManual {
 		t.Fatalf("SortMode = %v, want manual", m2.SortMode)

@@ -11,10 +11,11 @@ const (
 	SortPriority SortMode = "priority"
 	SortTitle    SortMode = "title"
 	SortDate     SortMode = "date"
+	SortDeadline SortMode = "deadline"
 	SortManual   SortMode = "manual"
 )
 
-var SortModes = []SortMode{SortPriority, SortTitle, SortDate, SortManual}
+var SortModes = []SortMode{SortPriority, SortTitle, SortDate, SortDeadline, SortManual}
 
 type SortConfig struct {
 	Mode        SortMode           `json:"mode"`

@@ -62,6 +62,9 @@ func TestNewMarkdownOmitsOptionalFieldsByDefault(t *testing.T) {
 	if strings.Contains(content, "id:") {
 		t.Fatalf("NewMarkdown() included id by default:\n%s", content)
 	}
+	if strings.Contains(content, "important:") {
+		t.Fatalf("NewMarkdown() included important by default:\n%s", content)
+	}
 	got, err := ParseMarkdown([]byte(content))
 	if err != nil {
 		t.Fatalf("ParseMarkdown() error = %v", err)
@@ -71,6 +74,34 @@ func TestNewMarkdownOmitsOptionalFieldsByDefault(t *testing.T) {
 	}
 	if got.ID != "" {
 		t.Fatalf("ID = %q, want empty", got.ID)
+	}
+	if got.Important {
+		t.Fatalf("Important = true, want false")
+	}
+}
+
+func TestParseMarkdownOptionalImportant(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		want bool
+	}{
+		{name: "absent", raw: "", want: false},
+		{name: "true", raw: "important: true\n", want: true},
+		{name: "false", raw: "important: false\n", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			content := strings.Replace(validTicketContent("Task: important", "- done"), "updated: 2026-05-30T10:00:00Z\n", "updated: 2026-05-30T10:00:00Z\n"+tt.raw, 1)
+			got, err := ParseMarkdown([]byte(content))
+			if err != nil {
+				t.Fatalf("ParseMarkdown() error = %v", err)
+			}
+			if got.Important != tt.want {
+				t.Fatalf("Important = %v, want %v", got.Important, tt.want)
+			}
+		})
 	}
 }
 
@@ -194,6 +225,7 @@ func TestParseMarkdownMalformedFrontmatter(t *testing.T) {
 		{name: "invalid priority", content: strings.Replace(validTicketContent("Task: x", "- done"), "priority: P2", "priority: high", 1), wantErr: "invalid priority"},
 		{name: "invalid created", content: strings.Replace(validTicketContent("Task: x", "- done"), "created: 2026-05-30T10:00:00Z", "created: yesterday", 1), wantErr: "invalid created timestamp"},
 		{name: "invalid deadline", content: strings.Replace(validTicketContent("Task: x", "- done"), "updated: 2026-05-30T10:00:00Z\n", "updated: 2026-05-30T10:00:00Z\ndeadline: soon\n", 1), wantErr: "invalid deadline date"},
+		{name: "invalid important", content: strings.Replace(validTicketContent("Task: x", "- done"), "updated: 2026-05-30T10:00:00Z\n", "updated: 2026-05-30T10:00:00Z\nimportant: maybe\n", 1), wantErr: "invalid important bool"},
 	}
 
 	for _, tt := range tests {

@@ -18,10 +18,15 @@ type Column struct {
 // Config holds user preferences that are saved between TUI sessions.
 // SkipEditorPrompt suppresses the "open in editor?" dialog after ticket creation.
 type Config struct {
-	Editor           string   `json:"editor,omitempty"`
-	Theme            int      `json:"theme,omitempty"`
-	SkipEditorPrompt bool     `json:"skip_editor_prompt,omitempty"`
-	Columns          []Column `json:"columns,omitempty"`
+	Editor                      string   `json:"editor,omitempty"`
+	Theme                       int      `json:"theme,omitempty"`
+	SkipEditorPrompt            bool     `json:"skip_editor_prompt,omitempty"`
+	DisableMatrixPrioritisation bool     `json:"disable_matrix_prioritisation,omitempty"`
+	Columns                     []Column `json:"columns,omitempty"`
+}
+
+func (c Config) MatrixPrioritisationEnabled() bool {
+	return !c.DisableMatrixPrioritisation
 }
 
 func DefaultColumns() []Column {

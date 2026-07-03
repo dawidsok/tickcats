@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -202,6 +203,7 @@ func (m *Model) syncManualOrder() {
 }
 
 func (m *Model) applySortToBoard() {
+	now := time.Now().UTC()
 	for _, state := range m.columnOrder {
 		tickets := m.Board.Columns[state]
 		if len(tickets) <= 1 {
@@ -211,13 +213,19 @@ func (m *Model) applySortToBoard() {
 		copy(sorted, tickets)
 		switch m.SortMode {
 		case store.SortPriority:
-			sort.SliceStable(sorted, func(i, j int) bool {
-				ri, rj := sorted[i].Ticket.Priority.Rank(), sorted[j].Ticket.Priority.Rank()
-				if ri != rj {
-					return ri < rj
-				}
-				return sorted[i].Name < sorted[j].Name
-			})
+			if m.Config.MatrixPrioritisationEnabled() {
+				sort.SliceStable(sorted, func(i, j int) bool {
+					return matrixTicketLess(sorted[i], sorted[j], now)
+				})
+			} else {
+				sort.SliceStable(sorted, func(i, j int) bool {
+					ri, rj := sorted[i].Ticket.Priority.Rank(), sorted[j].Ticket.Priority.Rank()
+					if ri != rj {
+						return ri < rj
+					}
+					return sorted[i].Name < sorted[j].Name
+				})
+			}
 		case store.SortTitle:
 			sort.SliceStable(sorted, func(i, j int) bool {
 				return sorted[i].Ticket.Title < sorted[j].Ticket.Title
@@ -225,6 +233,10 @@ func (m *Model) applySortToBoard() {
 		case store.SortDate:
 			sort.SliceStable(sorted, func(i, j int) bool {
 				return sorted[i].Ticket.Created.Before(sorted[j].Ticket.Created)
+			})
+		case store.SortDeadline:
+			sort.SliceStable(sorted, func(i, j int) bool {
+				return deadlinePriorityCreatedNameLess(sorted[i], sorted[j])
 			})
 		case store.SortManual:
 			order := m.ManualOrder[state]

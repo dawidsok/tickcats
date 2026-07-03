@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -24,6 +25,7 @@ type Ticket struct {
 	Created               time.Time
 	Updated               time.Time
 	Deadline              *time.Time
+	Important             bool
 	Body                  string
 	HasAcceptanceCriteria bool
 }
@@ -120,6 +122,10 @@ func ParseMarkdown(data []byte) (Ticket, error) {
 	if err != nil {
 		return Ticket{}, err
 	}
+	important, err := parseOptionalBool(fields, "important")
+	if err != nil {
+		return Ticket{}, err
+	}
 
 	bodyText := string(body)
 	return Ticket{
@@ -130,6 +136,7 @@ func ParseMarkdown(data []byte) (Ticket, error) {
 		Created:               created,
 		Updated:               updated,
 		Deadline:              deadline,
+		Important:             important,
 		Body:                  bodyText,
 		HasAcceptanceCriteria: hasNonEmptySection(bodyText, "Acceptance Criteria"),
 	}, nil
@@ -209,6 +216,18 @@ func parseOptionalDate(fields map[string]string, key string) (*time.Time, error)
 		return nil, fmt.Errorf("invalid %s date %q: expected YYYY-MM-DD: %w", key, value, err)
 	}
 	return &parsed, nil
+}
+
+func parseOptionalBool(fields map[string]string, key string) (bool, error) {
+	value := strings.TrimSpace(fields[key])
+	if value == "" {
+		return false, nil
+	}
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return false, fmt.Errorf("invalid %s bool %q: %w", key, value, err)
+	}
+	return parsed, nil
 }
 
 // hasNonEmptySection reports whether a level-2 markdown section (## heading)
