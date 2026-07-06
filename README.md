@@ -208,6 +208,22 @@ Press `c` in the TUI to open the config page. Settings are saved to `.tickcats/c
 | Matrix | Toggle urgency/importance matrix prioritisation for priority sort. On by default; when enabled, board cards hide raw P0-P3 labels. |
 | Columns | Add, rename, reorder, or delete board columns. Backlog and Done are locked default columns. Deleted column tickets move to the first column. |
 
+## Claude Code skills
+
+[`skills/`](skills/) ships a set of Claude Code skills that drive a full idea-to-implementation workflow on a tickcats board — each ticket becomes a self-contained, human-readable implementation spec (requirements, mermaid architecture, phased plan, progress tracking):
+
+| Skill | Job |
+|---|---|
+| `tc-shape` → `tc-prd` | Idea → discovery notes → PRD (`context/foundation/`) |
+| `tc-decompose` | PRD → ticket stubs (foundations = `task`, slices = `feat`), priorities + `[blocked]`/`Prerequisites:` wiring |
+| `tc-refine` | Grilling-style backlog refinement: sharpen, split, or kill tickets; turn vague pains into new tickets |
+| `tc-plan` | Refine one ticket into a full implementation plan written into the ticket body |
+| `tc-plan-review` / `tc-impl-review` | Review the plan / the implementation; findings appended to the ticket |
+| `tc-implement` | Execute the ticket: `ready → doing → done`, per-phase commits, unblocks dependents |
+| `tickcats-from-roadmap` | Convert an existing 10x `roadmap.md` into tickets |
+
+Install by copying (or symlinking) the directories into `~/.config/skills/` or a project's `.claude/skills/`. Note: the tc-* workflow commits `.tickcats/` (tickets double as shared specs) — the skills remove it from `.gitignore` on first run.
+
 ## Philosophy
 
 - **Local first** — board data never leaves your machine
