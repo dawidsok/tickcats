@@ -214,6 +214,7 @@ Press `c` in the TUI to open the config page. Settings are saved to `.tickcats/c
 
 | Skill | Job |
 |---|---|
+| `tc-workflow` | Not sure where you are? Inspects the board + foundation docs, shows your pipeline position, recommends (and offers to run) the next skill |
 | `tc-shape` → `tc-prd` | Idea → discovery notes → PRD (`context/foundation/`) |
 | `tc-decompose` | PRD → ticket stubs (foundations = `task`, slices = `feat`), priorities + `[blocked]`/`Prerequisites:` wiring |
 | `tc-refine` | Grilling-style backlog refinement: sharpen, split, or kill tickets; turn vague pains into new tickets |
