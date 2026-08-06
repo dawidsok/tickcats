@@ -12,7 +12,7 @@ TickCats has 6,191 lines of non-test Go and 5,878 lines of Go tests across CLI, 
 
 Current matrix state:
 
-- **68 feature/integration rows:** 15 already retained by contract/interview, 1 already dropped (`go install`), 52 awaiting review.
+- **68 feature/integration rows:** 15 retained by contract/interview, 1 replaced, 1 dropped (`go install`), 51 awaiting review.
 - **16 persisted-data rows:** all preservation is mandatory.
 - **7 known defect/ambiguity rows:** all require an explicit disposition before parity fixtures are frozen.
 
@@ -35,6 +35,7 @@ The repo ships one Rust `tickcats` binary. Existing `.tickcats/` boards load wit
 | Testing | Feature-to-contract matrix | Verifies behavior without translating every Go test. |
 | Distribution | Current surface | Retains five targets, GitHub archives/checksums, completions, and Homebrew. |
 | Cutover | Release proof first | Go stays until product, integration, and artifact checks all pass. |
+| Workflow columns | Fixed Backlog/Ready/WIP/Done | Drops Won't Do from the new default; WIP keeps the existing `doing/` folder ID to avoid migration. |
 
 ## Scope
 
@@ -93,6 +94,6 @@ Go removal
 
 ## Success Criteria Summary
 
-- All 52 feature and 7 defect Review rows are resolved before Rust implementation.
+- All 51 feature and 7 defect Review rows are resolved before Rust implementation.
 - Existing boards and every known persisted field survive Rust read/write operations.
 - Retained CLI/TUI/integration checks and five-platform release proof pass before Go deletion.

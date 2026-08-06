@@ -74,6 +74,7 @@ The cutover is complete when:
 ### Allowed feature decisions
 
 - **Retain** — port and verify in Rust.
+- **Replace** — intentionally substitute a simpler approved behavior and verify the new contract.
 - **Preserve-data-only** — keep persisted values round-trippable but omit the user interaction.
 - **Drop** — intentionally remove; update docs/integrations.
 - **Defer** — exclude from initial Rust cutover and record a follow-up.
@@ -91,7 +92,7 @@ The cutover is complete when:
 | CORE-02 | Status comes from configured column folders, never ticket frontmatter (`internal/store/board.go`) | Shipped | Folder paths | Retain (contract) | Moving a file changes status; a frontmatter `status` key has no effect. |
 | CORE-03 | Exact pick-next eligibility and ranking (`internal/store/pick.go`) | Shipped | Reads Ready tickets | Retain (contract) | Shared fixtures cover eligibility, priority, oldest-created ordering, filename order, and exact ties. |
 | CORE-04 | Plain Markdown tickets editable outside TickCats (`internal/ticket/markdown.go`) | Shipped | Ticket bytes | Retain (contract) | Existing real tickets load before and after external edits. |
-| CORE-05 | Five default columns: Backlog, Ready, Doing, Done, Won't Do (`internal/store/config.go:29-41`) | Shipped; exceeds PRD | Folders/config | Review — user | Fresh init creates only the approved default folders/order. |
+| CORE-05 | Five default columns: Backlog, Ready, Doing, Done, Won't Do (`internal/store/config.go:29-41`) | Shipped; exceeds PRD | Folders/config | Replace — fixed Backlog/Ready/WIP/Done; WIP displays from `doing/` (user, 2026-08-06) | Fresh init creates only `backlog/`, `ready/`, `doing/`, and `done/`; UI labels `doing/` as WIP. |
 | CORE-06 | Arbitrary configured columns and display-name/slug resolution (`internal/store/config.go`; `internal/store/state.go`) | Shipped | Folders/config | Review — user | Approved add/resolve/move scenarios pass on copied boards. |
 | CORE-07 | Config reconciles with folders: remove missing, append discovered, ignore dot-folders (`internal/store/config.go:268-327`) | Shipped; partly undocumented | May rewrite config | Review — user | Fixture asserts approved reconciliation and side effects. |
 | CORE-08 | Stable `TC-XXXXXX` IDs, warnings, and migration/rename command (`internal/ticket/id.go`; `internal/store/ids.go`) | Shipped | `id`, filenames | Review — user | Existing IDs round-trip; approved migration behavior passes collision fixtures. |
@@ -176,7 +177,7 @@ The cutover is complete when:
 Before Phase 1:
 
 1. Review each `Review` row with the user.
-2. Replace it with Retain, Preserve-data-only, Drop, or Defer.
+2. Replace it with Retain, Replace, Preserve-data-only, Drop, or Defer.
 3. Add a one-sentence rationale and decision date in the `Decision / owner` cell.
 4. Ensure each Retain row has a concrete acceptance check; each Drop/Defer row names affected docs/integrations.
 5. Summarize counts in `plan-brief.md`.
