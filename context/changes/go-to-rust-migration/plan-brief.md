@@ -12,9 +12,9 @@ TickCats has 6,191 lines of non-test Go and 5,878 lines of Go tests across CLI, 
 
 Current matrix state:
 
-- **68 feature/integration rows:** 15 retained by contract/interview, 1 replaced, 1 dropped (`go install`), 51 awaiting review.
+- **68 feature/integration rows:** 15 retained by contract/interview, 2 replaced, 3 dropped, 48 awaiting review.
 - **16 persisted-data rows:** all preservation is mandatory.
-- **7 known defect/ambiguity rows:** all require an explicit disposition before parity fixtures are frozen.
+- **7 known defect/ambiguity rows:** 2 resolved, 5 awaiting review.
 
 ## Desired End State
 
@@ -36,6 +36,7 @@ The repo ships one Rust `tickcats` binary. Existing `.tickcats/` boards load wit
 | Distribution | Current surface | Retains five targets, GitHub archives/checksums, completions, and Homebrew. |
 | Cutover | Release proof first | Go stays until product, integration, and artifact checks all pass. |
 | Workflow columns | Fixed Backlog/Ready/WIP/Done | Drops Won't Do from the new default; WIP keeps the existing `doing/` folder ID to avoid migration. |
+| Legacy columns | Leave untouched and warn | Custom and `wont-do/` folders stay on disk but are excluded from the fixed board and reported with ticket counts. |
 
 ## Scope
 
@@ -88,12 +89,12 @@ Go removal
 ## Open Risks & Assumptions
 
 - TUI and release parity will cost more than ticket/store porting.
-- `pick-next --path`, custom-column ID migration/delete, watcher lifecycle, and partial multi-file failures need intended-behavior decisions.
+- `pick-next --path`, custom-column ID migration, and partial multi-file failures still need intended-behavior decisions.
 - Agent Skills consume CLI paths/output and may expose contracts absent from unit tests.
 - Existing unknown config/frontmatter fields are not preserved more strongly than current Go behavior; all **known** fields are.
 
 ## Success Criteria Summary
 
-- All 51 feature and 7 defect Review rows are resolved before Rust implementation.
+- All 48 feature and 5 defect Review rows are resolved before Rust implementation.
 - Existing boards and every known persisted field survive Rust read/write operations.
 - Retained CLI/TUI/integration checks and five-platform release proof pass before Go deletion.

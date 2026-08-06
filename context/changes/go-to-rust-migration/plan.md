@@ -93,8 +93,8 @@ The cutover is complete when:
 | CORE-03 | Exact pick-next eligibility and ranking (`internal/store/pick.go`) | Shipped | Reads Ready tickets | Retain (contract) | Shared fixtures cover eligibility, priority, oldest-created ordering, filename order, and exact ties. |
 | CORE-04 | Plain Markdown tickets editable outside TickCats (`internal/ticket/markdown.go`) | Shipped | Ticket bytes | Retain (contract) | Existing real tickets load before and after external edits. |
 | CORE-05 | Five default columns: Backlog, Ready, Doing, Done, Won't Do (`internal/store/config.go:29-41`) | Shipped; exceeds PRD | Folders/config | Replace — fixed Backlog/Ready/WIP/Done; WIP displays from `doing/` (user, 2026-08-06) | Fresh init creates only `backlog/`, `ready/`, `doing/`, and `done/`; UI labels `doing/` as WIP. |
-| CORE-06 | Arbitrary configured columns and display-name/slug resolution (`internal/store/config.go`; `internal/store/state.go`) | Shipped | Folders/config | Review — user | Approved add/resolve/move scenarios pass on copied boards. |
-| CORE-07 | Config reconciles with folders: remove missing, append discovered, ignore dot-folders (`internal/store/config.go:268-327`) | Shipped; partly undocumented | May rewrite config | Review — user | Fixture asserts approved reconciliation and side effects. |
+| CORE-06 | Arbitrary configured columns and display-name/slug resolution (`internal/store/config.go`; `internal/store/state.go`) | Shipped | Folders/config | Drop — Rust board supports only Backlog/Ready/WIP/Done; legacy folders remain untouched and emit ticket-count warnings (user, 2026-08-06) | `wont-do/` and custom folders are excluded without file/config mutation and reported with ticket counts. |
+| CORE-07 | Config reconciles with folders: remove missing, append discovered, ignore dot-folders (`internal/store/config.go:268-327`) | Shipped; partly undocumented | May rewrite config | Replace — fixed-column loading never reconciles folder state into config (user, 2026-08-06) | Loading a board does not rewrite `config.json`; only four fixed folders are actionable. |
 | CORE-08 | Stable `TC-XXXXXX` IDs, warnings, and migration/rename command (`internal/ticket/id.go`; `internal/store/ids.go`) | Shipped | `id`, filenames | Review — user | Existing IDs round-trip; approved migration behavior passes collision fixtures. |
 | CORE-09 | Optional deadline/SLA metadata and mutation (`internal/store/deadline.go`) | Shipped; post-PRD | `deadline`, `updated` | Review — user | Retained or data-only decision preserves dates through read/write. |
 | CORE-10 | Optional important flag and urgency/importance matrix (`internal/store/important.go`; `internal/tui/sort.go`) | Shipped; post-PRD | `important`, config | Review — user | Retained or data-only decision preserves flags and approved ordering. |
@@ -145,7 +145,7 @@ The cutover is complete when:
 | TUI-18 | Config editor presets/custom command (`internal/tui/config_view.go`) | Shipped | `config.editor` | Review — user | Approved presets/custom value persist and reload. |
 | TUI-19 | Six themes with deterministic dynamic-column gradient (`internal/tui/model.go:79-99`; `color_test.go`) | Shipped | `config.theme` | Review — user | Approved theme identities and deterministic colors pass. |
 | TUI-20 | Config matrix on/off (`internal/tui/config_view.go`) | Shipped | `disable_matrix_prioritisation` | Review — user | Toggle persists without erasing other config fields. |
-| TUI-21 | Config column add/rename/reorder/delete with Backlog/Done/first-column restrictions (`internal/tui/config_view.go`) | Shipped | Folders/config | Review — user | Every approved mutation/restriction passes on copied boards. |
+| TUI-21 | Config column add/rename/reorder/delete with Backlog/Done/first-column restrictions (`internal/tui/config_view.go`) | Shipped | Folders/config | Drop — fixed workflow has no column administration (user, 2026-08-06) | Rust TUI has no column CRUD/reorder controls; legacy column config remains preserved on disk. |
 | TUI-22 | Column color picker/rendering described in root `plan.md`; storage only is committed | In flight | `columns[].color` | Review — user | If retained, picker/render/reset workflow and data persistence pass; otherwise preserve data only. |
 | TUI-23 | Scrollable help overlay and mode-specific key reference (`internal/tui/help_dialog.go`) | Shipped | None | Review — user | Open/scroll/close and approved help contents pass. |
 | TUI-24 | Quit confirmation from board/detail/move; Ctrl-C immediate (`internal/tui/update.go:18-70`) | Shipped | None | Review — user | Confirm/cancel restores the prior state correctly. |
@@ -189,7 +189,7 @@ These rows are already **Preserve (decided)**. A feature may be dropped while it
 
 | ID | Persisted contract | Current behavior/evidence | Required Rust check |
 |---|---|---|---|
-| DATA-01 | Column folder determines status | Configured folders scanned; hidden folders ignored (`internal/store/board.go`) | Existing default/custom-column trees load with identical state. |
+| DATA-01 | Column folder determines status | Configured folders scanned; hidden folders ignored (`internal/store/board.go`) | Fixed folders load as Backlog/Ready/WIP/Done; unsupported legacy folders remain byte-untouched and emit ticket-count warnings. |
 | DATA-02 | Ticket frontmatter dialect | Simple first-colon parser, quote trimming, duplicate-last-wins, CRLF accepted (`internal/ticket/markdown.go`) | Fixture corpus freezes approved parser semantics; do not substitute full YAML semantics. |
 | DATA-03 | Required ticket fields | `title`, `priority`, `created`, `updated` | Missing/blank/invalid fixtures fail with approved errors. |
 | DATA-04 | Optional ticket fields | `id`, `deadline`, `important` | Every known optional value survives read/write even if its UI is dropped. |
@@ -214,8 +214,8 @@ Each row must be explicitly Preserve, Fix-before-freeze, Fix-in-Rust-with-contra
 |---|---|---|---|---|
 | DEF-01 | Global `--path <dir>` consumes `pick-next --path`, making path-only output unreachable through the real binary | `cmd/tickcats/main.go:28-39,150-165` | Review | Choose a non-conflicting intended CLI, then test the real process rather than the helper. |
 | DEF-02 | `ids migrate` scans only legacy states and silently misses custom columns | `internal/store/ids.go:41-42` | Review | Define all-configured-column behavior or explicitly drop ID migration. |
-| DEF-03 | Soft delete accepts only legacy states while move accepts configured columns | `internal/store/delete.go:17-19` | Review | Define dynamic-column delete behavior before TUI parity. |
-| DEF-04 | Watcher subscribes only to columns present at startup | `internal/tui/watcher.go:31-42` | Review | Decide whether newly added/renamed columns must be watched immediately. |
+| DEF-03 | Soft delete accepts only legacy states while move accepts configured columns | `internal/store/delete.go:17-19` | Drop with custom-column feature (user, 2026-08-06) | Rust delete applies only to visible fixed-column tickets; unsupported legacy folders are never mutated. |
+| DEF-04 | Watcher subscribes only to columns present at startup | `internal/tui/watcher.go:31-42` | Resolve via fixed columns (user, 2026-08-06) | If file watching is retained, subscribe only to the four fixed folders; no dynamic subscription exists. |
 | DEF-05 | Column deletion and ID migration can partially mutate files before a later error | `internal/store/config.go:219-239`; `internal/store/ids.go` | Review | Preserve partial behavior or specify preflight/rollback semantics. |
 | DEF-06 | Read-like commands can rewrite `config.json` during reconciliation | `internal/store/config.go:55-79` | Review | Preserve, separate sync from reads, or constrain side effects explicitly. |
 | DEF-07 | External editor command uses whitespace splitting, not shell quoting | `internal/tui/editor.go` | Review | Freeze simple token behavior or adopt and document a different command contract. |
