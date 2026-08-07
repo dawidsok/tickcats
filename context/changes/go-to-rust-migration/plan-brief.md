@@ -12,7 +12,7 @@ TickCats has 6,191 lines of non-test Go and 5,878 lines of Go tests across CLI, 
 
 Current matrix state:
 
-- **69 feature/integration rows:** 34 retained, 16 replaced, 1 preserve-data-only, 9 dropped, 9 awaiting review.
+- **69 feature/integration rows:** 34 retained, 17 replaced, 1 preserve-data-only, 9 dropped, 8 awaiting review.
 - **16 persisted-data rows:** all preservation is mandatory.
 - **7 known defect/ambiguity rows:** 6 resolved, 1 awaiting review.
 
@@ -64,6 +64,7 @@ The repo ships one Rust `tickcats` binary. Existing `.tickcats/` boards load wit
 | Multi-select | Drop | Every action targets one focused ticket; selection state, markers, and bulk-move failure handling disappear. |
 | Search | Retain current fuzzy model | Keeps priority/title/body subsequence matching, typing/navigation phases, counts, and cross-column results. |
 | TUI help | Retain `?` overlay | Keeps the reduced mode-specific keymap discoverable after the first-run ticket is gone. |
+| Quit | Immediate `q`/Ctrl-C | Removes confirmation state because the TUI has no unsaved edits; terminal restoration remains mandatory. |
 
 ## Scope
 
@@ -122,6 +123,6 @@ Go removal
 
 ## Success Criteria Summary
 
-- All 9 feature and 1 defect Review rows are resolved before Rust implementation.
+- All 8 feature and 1 defect Review rows are resolved before Rust implementation.
 - Existing boards and every known persisted field survive Rust read/write operations.
 - Retained CLI/TUI/integration checks and five-platform release proof pass before Go deletion.
