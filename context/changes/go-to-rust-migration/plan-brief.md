@@ -4,7 +4,7 @@
 
 ## What & Why
 
-Replace TickCats' Go implementation with Rust as the long-term maintenance stack. The migration starts with a feature-retention gate: current behavior is listed individually so the user can retain, preserve-data-only, drop, or defer it before any Rust porting work begins.
+Replace TickCats' Go implementation with Rust as the long-term maintenance stack. The completed feature-retention gate lists current behavior individually and records what Rust retains, replaces, preserves only as data, or drops before porting begins.
 
 ## Starting Point
 
@@ -42,7 +42,7 @@ The repo ships one Rust `tickcats` binary. Existing `.tickcats/` boards load wit
 | Legacy ID repair | Explicit `ids migrate` command | Migration touches only four fixed columns, warns about skipped legacy folders, and never runs during load. |
 | Deadlines | Read-only matrix input | Dates appear on cards/detail and drive matrix urgency; editing and deadline sorting are removed. |
 | Importance matrix | Retain with direct `M` toggle | Important toggle and urgency buckets remain; `M` replaces the config screen and persists the mode immediately. |
-| Board sorting | Fixed priority/matrix order | Removes title/date/manual modes, sort cycling, reorder prompts, and writes to `sort.json`. |
+| Board sorting | Fixed priority/matrix order | Removes title/date/manual modes and `sort.json` writes; pick-next recommendation remains independently governed by its exact rule. |
 | Deletion | Retain soft delete | `x` confirms and moves one visible ticket to `.trash/`; permanent deletion is not exposed. |
 | Malformed tickets | Load valid files and warn | Invalid files remain untouched and cannot block the rest of the board. |
 | Column colors | Preserve data only | Rust ignores legacy color values and omits the palette, setter, rendering override, and planned picker. |
@@ -54,10 +54,10 @@ The repo ships one Rust `tickcats` binary. Existing `.tickcats/` boards load wit
 | Pick path output | `pick-next --print-path` | Replaces the unreachable conflicting `pick-next --path` while keeping script-friendly output. |
 | Board init | Four folders plus `.gitignore` | Explicit, idempotent setup preserves local/private-by-default behavior. |
 | Intro ticket | Guided ordinary ticket | It teaches help, editing/refinement, pick-next, and progression, but has no protection, regeneration, or hidden onboarding state. |
-| CLI ticket creation | `feat|task|bug`, P2, `[to refine]`, optional `--ac` | Removes undocumented kind/AC aliases and aligns CLI/TUI readiness defaults. |
+| CLI ticket creation | `feat\|task\|bug`, P2, `[to refine]`, optional `--ac` | Removes undocumented kind/AC aliases and aligns CLI/TUI readiness defaults. |
 | CLI list | Retain four-column text output | Keeps noninteractive human/agent inspection with stable filenames, IDs, priorities, titles, and warnings. |
 | CLI help | `help`, `--help`, and `-h` | Keeps conventional global/command discovery and explicit unknown-command errors. |
-| Pick display | Mark recommended Ready card(s), no hotkey | Exact ties mark every tied card; navigation stays ordinary and CLI `pick-next` handles scripts.
+| Pick display | Mark recommended Ready card(s), no hotkey | Exact ties mark every tied card; navigation stays ordinary and CLI `pick-next` handles scripts. |
 | Navigation | Vim keys plus arrows, no counts | Retains `h/j/k/l`, arrows, and `d/u`, but removes numeric motion-prefix state. |
 | Narrow layout | Sliding full-width columns | Shows as many readable columns as fit and labels hidden sides instead of compressing all four. |
 | Ticket detail | Side panel with narrow fallback | Wide terminals keep the board visible; narrow terminals use full-screen detail for readability. |
@@ -85,7 +85,7 @@ The repo ships one Rust `tickcats` binary. Existing `.tickcats/` boards load wit
 
 **Out of scope:**
 
-- New product features or data format.
+- New product features beyond the approved first-board intro ticket, or a new data format.
 - Sync, collaboration, metrics, auth, AI, dashboards, or hosted services.
 - Pixel-perfect TUI output.
 - crates.io/cargo-install, Scoop, plugins, or public library APIs.
@@ -109,17 +109,17 @@ Go removal
 
 | Phase | What it delivers | Key risk |
 |---|---|---|
-| 0. Approve scope | Final feature and defect decisions | Porting starts before all Review rows are resolved. |
+| 0. Approve scope | Completed feature and defect decisions | Complete; no Review rows remain. |
 | 1. Freeze + scaffold | Rust package, fixtures, process harness, dual CI | Golden tests preserve an accidental bug. |
-| 2. Ticket + data | Parser/domain/config/sort compatibility | A rewrite silently erases optional data. |
+| 2. Ticket + data | Parser/domain/config compatibility; untouched sort file | An intentional config write erases legacy fields. |
 | 3. Store + CLI | Useful script-compatible Rust binary | Filesystem and output edge cases drift. |
 | 4. TUI | Only retained keyboard workflows | Terminal event/render differences. |
 | 5. Integrations + release | Completions, skills, five targets, Homebrew | Packaging succeeds locally but not for users. |
 | 6. Cutover | Rust-only repository | Go is removed before rollback evidence exists. |
 
-**Prerequisites:** Rust toolchain; Go retained through Phase 5; user approval of all Phase 0 rows.
+**Prerequisites:** Rust toolchain; Go retained through Phase 5; Phase 0 decisions complete.
 
-**Estimated effort:** Phase 0 is one focused review session. A near-full retention decision is roughly 10–16 focused implementation/QA sessions, dominated by TUI and release parity; dropping features reduces later phases directly.
+**Estimated effort:** Phase 0 is complete. The approved scope is roughly 10–16 focused implementation/QA sessions, dominated by TUI and release parity.
 
 ## Open Risks & Assumptions
 
@@ -130,6 +130,6 @@ Go removal
 
 ## Success Criteria Summary
 
-- All feature and defect Review rows are resolved before Rust implementation.
+- Feature and defect Review rows are resolved; contract fixtures can now be frozen.
 - Existing boards and every known persisted field survive Rust read/write operations.
 - Retained CLI/TUI/integration checks and five-platform release proof pass before Go deletion.

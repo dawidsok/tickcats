@@ -89,20 +89,20 @@ The cutover is complete when:
 
 | ID | Current feature and evidence | Baseline | Data impact | Decision / owner | Rust acceptance check |
 |---|---|---|---|---|---|
-| CORE-01 | Repo-local, offline, single-user board; no auth/server (`context/foundation/prd.md`) | Shipped | Entire `.tickcats/` tree | Retain (contract) | Core workflows run with network disabled and no account/config outside the repo. |
-| CORE-02 | Status comes from configured column folders, never ticket frontmatter (`internal/store/board.go`) | Shipped | Folder paths | Retain (contract) | Moving a file changes status; a frontmatter `status` key has no effect. |
-| CORE-03 | Exact pick-next eligibility and ranking (`internal/store/pick.go`) | Shipped | Reads Ready tickets | Retain (contract) | Shared fixtures cover eligibility, priority, oldest-created ordering, filename order, and exact ties. |
-| CORE-04 | Plain Markdown tickets editable outside TickCats (`internal/ticket/markdown.go`) | Shipped | Ticket bytes | Retain (contract) | Existing real tickets load before and after external edits. |
+| CORE-01 | Repo-local, offline, single-user board; no auth/server (`context/foundation/prd.md`) | Shipped | Entire `.tickcats/` tree | Retain — product contract confirmed by user (2026-08-06) | Core workflows run with network disabled and no account/config outside the repo. |
+| CORE-02 | Status comes from configured column folders, never ticket frontmatter (`internal/store/board.go`) | Shipped | Folder paths | Retain — product contract confirmed by user (2026-08-06) | Moving a file changes status; a frontmatter `status` key has no effect. |
+| CORE-03 | Exact pick-next eligibility and ranking (`internal/store/pick.go`) | Shipped | Reads Ready tickets | Retain — product contract confirmed by user (2026-08-06) | Shared fixtures cover eligibility, priority, oldest-created ordering, filename order, exact ties, and a matrix-order disagreement case. |
+| CORE-04 | Plain Markdown tickets editable outside TickCats (`internal/ticket/markdown.go`) | Shipped | Ticket bytes | Retain — product contract confirmed by user (2026-08-06) | Existing real tickets load before and after external edits. |
 | CORE-05 | Five default columns: Backlog, Ready, Doing, Done, Won't Do (`internal/store/config.go:29-41`) | Shipped; exceeds PRD | Folders/config | Replace — fixed Backlog/Ready/WIP/Done; WIP displays from `doing/` and has no enforced capacity (user, 2026-08-06) | Fresh init creates only `backlog/`, `ready/`, `doing/`, and `done/`; UI labels `doing/` as WIP and accepts any ticket count. |
 | CORE-06 | Arbitrary configured columns and display-name/slug resolution (`internal/store/config.go`; `internal/store/state.go`) | Shipped | Folders/config | Drop — Rust board supports only Backlog/Ready/WIP/Done; legacy folders remain untouched and emit ticket-count warnings (user, 2026-08-06) | `wont-do/` and custom folders are excluded without file/config mutation and reported with ticket counts. |
 | CORE-07 | Config reconciles with folders: remove missing, append discovered, ignore dot-folders (`internal/store/config.go:268-327`) | Shipped; partly undocumented | May rewrite config | Replace — fixed-column loading never reconciles folder state into config (user, 2026-08-06) | Loading a board does not rewrite `config.json`; only four fixed folders are actionable. |
 | CORE-08 | Stable `TC-XXXXXX` IDs and missing/invalid/duplicate warnings (`internal/ticket/id.go`; `internal/store/board.go`) | Shipped | `id` | Retain — every new ticket gets a stable ID independent of filename/title (user, 2026-08-06) | New IDs match the approved alphabet/length, remain unchanged across edits/moves, and duplicate/invalid IDs warn. |
 | CORE-09 | Optional deadline/SLA metadata and mutation (`internal/store/deadline.go`) | Shipped; post-PRD | `deadline`, `updated` | Replace — show deadline read-only and use it for matrix urgency; remove direct editing and deadline sort (user, 2026-08-06) | Existing values survive rewrites, appear on cards/detail, and affect matrix ordering; no mutation command/dialog exists. |
 | CORE-10 | Optional important flag and urgency/importance matrix (`internal/store/important.go`; `internal/tui/sort.go`) | Shipped; post-PRD | `important`, config | Retain — full urgency/importance matrix, including important toggle and config switch (user, 2026-08-06) | Matrix buckets use preserved deadlines plus `important`; enabled/disabled ordering and persistence match approved fixtures. |
-| CORE-11 | Priority/title/date/deadline/manual sort and per-column manual order (`internal/store/sort.go`; `internal/tui/actions.go`) | Shipped; post-PRD | `sort.json` | Replace — one fixed order: matrix when enabled, otherwise P0–P3, then oldest created and filename (user, 2026-08-06) | Board order is deterministic and aligned with pick-next; existing `sort.json` remains untouched but is ignored. |
+| CORE-11 | Priority/title/date/deadline/manual sort and per-column manual order (`internal/store/sort.go`; `internal/tui/actions.go`) | Shipped; post-PRD | `sort.json` | Replace — one fixed order: matrix when enabled, otherwise P0–P3, then oldest created and filename (user, 2026-08-06) | Non-matrix order matches pick-next; matrix board order may differ, while CORE-03 alone determines recommendation markers; `sort.json` remains byte-untouched. |
 | CORE-12 | Soft delete into `.trash` with collision refusal (`internal/store/delete.go`) | Shipped; undocumented | `.trash/` | Retain — visible fixed-column tickets move to `.trash/`, never permanent deletion (user, 2026-08-06) | Delete validates the ticket, refuses collisions, preserves bytes, and never touches unsupported legacy folders. |
 | CORE-13 | Invalid tickets and IDs produce non-fatal board warnings (`internal/store/board.go:62-110`) | Shipped | No rewrite | Retain — load valid tickets, skip invalid files, and warn without rewriting them (user, 2026-08-06) | CLI/TUI identify each skipped path and reason while the rest of the board remains usable. |
-| CORE-14 | Column color field, 216-color palette, validation, and setter; no current picker/render use (`internal/store/color.go`; `internal/store/config.go:242-264`) | Undocumented | `columns[].color` | Preserve-data-only — ignore legacy values and omit palette/validation/setter (user, 2026-08-06) | Existing color fields remain byte/semantically untouched because Rust does not rewrite legacy column config. |
+| CORE-14 | Column color field, 216-color palette, validation, and setter; no current picker/render use (`internal/store/color.go`; `internal/store/config.go:242-264`) | Undocumented | `columns[].color` | Preserve-data-only — ignore legacy values and omit palette/validation/setter (user, 2026-08-06) | Reads leave config byte-identical; intentional `M` writes preserve known legacy color/column fields semantically. |
 
 ### Scriptable CLI
 
@@ -115,19 +115,19 @@ The cutover is complete when:
 | CLI-05 | `new --ac\|--acceptance` joins remaining text into one Acceptance Criteria bullet (`cmd/tickcats/main.go:234-244`) | Shipped; alias undocumented | Ticket body | Replace — retain documented `--ac` only (user, 2026-08-06) | Process tests cover absent/blank/multiword `--ac`, reject `--acceptance`, and keep `[to refine]` regardless of supplied text. |
 | CLI-06 | `list` prints configured columns, filenames, ID/emdash, priority/title, and warnings (`cmd/tickcats/main.go:102-122`) | Shipped | Read-only | Retain — text output for four fixed columns, including empty columns and warnings (user, 2026-08-06) | Script contract freezes Backlog/Ready/WIP/Done headings, filename/ID/priority/title rows, stderr warnings, and zero read-side writes. |
 | CLI-07 | `move <ticket> <from> <to>` accepts IDs/display names, validates paths, and refuses collisions (`cmd/tickcats/main.go:124-148`) | Shipped | Renames file | Replace — allow only adjacent Backlog↔Ready↔WIP↔Done moves (user, 2026-08-06) | Golden cases accept both directions between adjacent folders and reject skipped-column moves without mutation. |
-| CLI-08 | Human `pick-next` output, no-ticket success, and tie candidate list (`cmd/tickcats/main.go:150-182`) | Shipped | Config may reconcile | Retain (contract) | Exact approved stdout/stderr/exit for none, one, warning, and tie. |
+| CLI-08 | Human `pick-next` output, no-ticket success, and tie candidate list (`cmd/tickcats/main.go:150-182`) | Shipped | Read-only | Retain — script/product contract confirmed by user (2026-08-06) | Exact approved stdout/stderr/exit for none, one, warning, and tie, with zero filesystem writes. |
 | CLI-09 | Intended `pick-next --path` path-only mode (`cmd/tickcats/main.go:206-231`) | Shipped but unreachable via normal dispatch | None | Replace — `pick-next --print-path`; global `--path <dir>` remains board selection (user, 2026-08-06) | Process tests cover one pick, no pick, ties, and composition with global `--path`; skills/completions use the new flag. |
 | CLI-10 | `ids migrate` rewrites IDs and filenames and prints mappings (`cmd/tickcats/main.go:184-197`) | Shipped | Many tickets | Retain — explicit, fixed-column-only, fully preflighted, and safely resumable (user, 2026-08-06) | Validate all known failures before mutation; report completed/skipped legacy work; rerun safely after an unexpected partial I/O failure. |
-| CLI-11 | Hidden `__complete tickets\|columns` emits live completion candidates (`cmd/tickcats/main.go:256-297`) | Shipped | Config may reconcile | Retain (distribution) | Exact candidate output works on copied dynamic-column boards. |
+| CLI-11 | Hidden `__complete tickets\|columns` emits live completion candidates (`cmd/tickcats/main.go:256-297`) | Shipped | Read-only | Retain — completion/distribution contract confirmed by user (2026-08-06) | Ticket candidates come from four fixed folders; column candidates are `backlog`, `ready`, `doing`, `done`; legacy folders are excluded and no files are written. |
 | CLI-12 | Static `help`, aliases `help\|--help\|-h`, unknown-command errors (`cmd/tickcats/main.go:63-68,305-321`) | Shipped | None | Retain — support `help`, `--help`, and `-h`, plus command help where the parser provides it (user, 2026-08-06) | Process tests cover all entry points, approved command vocabulary, unknown commands, streams, and exit status. |
-| CLI-13 | Returned errors render as `Error: …` on stderr with exit 1; warnings use `Warning: …` (`cmd/tickcats/main.go:21-26,299-303`) | Shipped | None | Retain (script contract) | Process harness captures exact prefixes, streams, and status. |
+| CLI-13 | Returned errors render as `Error: …` on stderr with exit 1; warnings use `Warning: …` (`cmd/tickcats/main.go:21-26,299-303`) | Shipped | None | Retain — script contract confirmed by user (2026-08-06) | Process harness captures exact prefixes, streams, and status. |
 | CLI-14 | Introductory instruction ticket on initialization | Approved addition | New backlog ticket | Retain — first new board gets one guided, completely ordinary ticket; never recreate or protect it (user, 2026-08-06) | Fixture asserts `[to refine] Task: Learn TickCats` teaches help, editing/refinement, pick-next, and adjacent progression; it can be edited/moved/deleted like any ticket. |
 
 ### TUI workflows
 
 | ID | Current feature and evidence | Baseline | Data impact | Decision / owner | Rust acceptance check |
 |---|---|---|---|---|---|
-| TUI-01 | Board shows pick-next banner, configured columns, focused ticket, status/warnings, and footer (`internal/tui/render_board.go`) | Shipped | None | Replace — remove top banner; mark every top-ranked Ready card and show “choose one” status for exact ties (user, 2026-08-06) | Recommendation markers are non-color and distinct from focus/selection; unique and tied fixtures render without extra dialogs. |
+| TUI-01 | Board shows pick-next banner, configured columns, focused ticket, status/warnings, and footer (`internal/tui/render_board.go`) | Shipped | None | Replace — remove top banner; mark every CORE-03 recommendation and show “choose one” status for exact ties (user, 2026-08-06) | Markers are non-color and distinct from focus; fixtures prove matrix board position never changes which Ready card(s) CORE-03 marks. |
 | TUI-02 | Vim/arrow column-row navigation, clamped cursors, `d/u` half pages (`internal/tui/update.go:89-116`; `navigation.go`) | Shipped | None | Retain — `h/j/k/l`, arrows, and `d/u` half-page movement (user, 2026-08-06) | State-transition tests cover aliases, boundaries, per-column cursor/scroll, and half-page movement. |
 | TUI-03 | Up to six-digit count prefixes for `h/j/k/l`; leading zero and non-motion consumption rules (`internal/tui/update.go:89-197`) | Shipped; undocumented | None | Drop — every motion key is one step; `d/u` provide larger jumps (user, 2026-08-06) | Digits have no hidden prefix state and never consume the following non-motion action. |
 | TUI-04 | Horizontal column window, hidden-column indicators, wrapping, narrow-width safety (`internal/tui/layout.go`; `render_board.go`) | Shipped | None | Retain — show as many full columns as fit and slide with `h/l`, naming hidden sides (user, 2026-08-06) | Narrow/medium/wide snapshots assert readable wrapping, no overflow, stable focus, and correct hidden-column indicators. |
@@ -161,18 +161,18 @@ The cutover is complete when:
 
 | ID | Current feature and evidence | Baseline | Data impact | Decision / owner | Rust acceptance check |
 |---|---|---|---|---|---|
-| OPS-01 | GitHub release on semantic-version-shaped tags (`.github/workflows/release.yml`) | Shipped | Release metadata | Retain (decided) | Rust release workflow triggers on the same tag class with required permissions/secrets. |
-| OPS-02 | Five targets: macOS amd64/arm64, Linux amd64/arm64, Windows amd64 (`.goreleaser.yml`) | Shipped | Artifact names | Retain (decided) | Matrix produces exactly the five approved installable binaries. |
-| OPS-03 | tar.gz except Windows zip; `tickcats_<version>_<os>_<arch>`; README/LICENSE/completions; `checksums.txt` (`.goreleaser.yml`) | Shipped | Artifact contract | Retain (decided) | Archive-content and checksum assertions pass. |
-| OPS-04 | Homebrew tap formula installs binary/completions and runs init smoke test (`.goreleaser.yml:60-80`) | Shipped | External tap | Retain (decided) | Generated formula/cask equivalent passes the same install test. |
-| OPS-05 | Direct GitHub archive download (`README.md`) | Shipped | None | Retain (decided) | Install docs and artifact smoke test cover direct download. |
-| OPS-06 | `go install` installation (`README.md`) | Shipped | None | Drop at cutover (decided) | No post-cutover docs claim a Go install path. |
-| OPS-07 | Bash, Zsh, Fish static/dynamic completions (`completions/`) | Shipped | Calls CLI helpers | Retain (decided) | Syntax/package checks and live ticket/column candidates pass for all three scripts. |
+| OPS-01 | GitHub release on semantic-version-shaped tags (`.github/workflows/release.yml`) | Shipped | Release metadata | Retain — initial planning interview (user, 2026-08-06) | Rust release workflow triggers on the same tag class with required permissions/secrets. |
+| OPS-02 | Five targets: macOS amd64/arm64, Linux amd64/arm64, Windows amd64 (`.goreleaser.yml`) | Shipped | Artifact names | Retain — initial planning interview (user, 2026-08-06) | Matrix produces exactly the five approved installable binaries. |
+| OPS-03 | tar.gz except Windows zip; `tickcats_<version>_<os>_<arch>`; README/LICENSE/completions; `checksums.txt` (`.goreleaser.yml`) | Shipped | Artifact contract | Retain — initial planning interview (user, 2026-08-06) | Archive-content and checksum assertions pass. |
+| OPS-04 | Homebrew tap formula installs binary/completions and runs init smoke test (`.goreleaser.yml:60-80`) | Shipped | External tap | Retain — initial planning interview (user, 2026-08-06) | Generated formula/cask equivalent passes the same install test. |
+| OPS-05 | Direct GitHub archive download (`README.md`) | Shipped | None | Retain — initial planning interview (user, 2026-08-06) | Install docs and artifact smoke test cover direct download. |
+| OPS-06 | `go install` installation (`README.md`) | Shipped | None | Drop at cutover — initial planning interview (user, 2026-08-06) | No post-cutover docs claim a Go install path. |
+| OPS-07 | Bash, Zsh, Fish static/dynamic completions (`completions/`) | Shipped | Calls CLI helpers | Retain — initial planning interview (user, 2026-08-06) | Syntax/package checks and fixed-folder live ticket/column candidates pass for all three scripts. |
 | OPS-08 | Bundled `tc-*` and roadmap Agent Skills invoke exact CLI/path/folder contracts (`skills/`) | Repo tooling | May mutate boards/gitignore | Retain and update — fixed columns, adjacent moves, CLI `[to refine]`, and `--print-path` are supported contracts (user, 2026-08-06) | Representative shape→ticket→plan→implement workflow passes against Rust without stale Go/custom-column assumptions. |
 | OPS-09 | Interactive multi-harness skill installer (`scripts/install-skills.sh`; unstaged README change) | In flight | User home dirs | Retain — keep as Bash repository tooling, not a Rust subcommand (user, 2026-08-06) | Shell/static checks and temporary-HOME tests cover one, multiple, all, invalid, and quit selections without touching the real home directory. |
 | OPS-10 | Generated changelog groups/filters in GoReleaser (`.goreleaser.yml:40-58`) | Shipped; operational | Release notes | Replace — use standard GitHub-generated release notes; drop custom grouping/filter regexes (user, 2026-08-06) | Release dry run creates notes through GitHub configuration without GoReleaser-specific changelog logic. |
-| OPS-11 | Public README, installation, architecture, flow docs, and completion instructions (`README.md`; `docs/`) | Shipped; some stale | None | Retain (decided) | Docs describe only approved Rust behavior/install paths and distinguish deferred features. |
-| OPS-12 | Single standalone binary with no runtime and offline core workflows (`README.md`) | Shipped | Distribution | Retain (contract) | Fresh-machine artifact smoke test needs no Go/Rust/runtime/network. |
+| OPS-11 | Public README, installation, architecture, flow docs, and completion instructions (`README.md`; `docs/`) | Shipped; some stale | None | Retain — initial planning interview (user, 2026-08-06) | Docs describe only approved Rust behavior/install paths and remove dropped/PRD-only claims. |
+| OPS-12 | Single standalone binary with no runtime and offline core workflows (`README.md`) | Shipped | Distribution | Retain — product contract confirmed by user (2026-08-06) | Fresh-machine artifact smoke test needs no Go/Rust/runtime/network. |
 
 ### Feature decision gate
 
@@ -202,7 +202,7 @@ These rows are already **Preserve (decided)**. A feature may be dropped while it
 | DATA-09 | Ticket filenames | ID/title slug names; filename is stable reference for CLI/completions/manual order | Move-only operations preserve names; approved migration collision suffixes are deterministic. |
 | DATA-10 | Config preferences | `editor`, `theme`, `skip_editor_prompt`, `disable_matrix_prioritisation` | Deserialize/save cycle retains every known field. |
 | DATA-11 | Config columns | Ordered `{id,name,color}` entries | Existing custom columns and colors survive every config write. |
-| DATA-12 | Sort config | `mode` and per-column `manual_order` filename arrays | Existing mode/order survive load, reconciliation, and save. |
+| DATA-12 | Sort config | `mode` and per-column `manual_order` filename arrays | Rust ignores `sort.json` and leaves it byte-identical across every command. |
 | DATA-13 | Trash | `.trash/<ticket>.md` soft-delete storage | Existing trash is not treated as a column or deleted at cutover. |
 | DATA-14 | Git ignore entry | Init appends `<board-basename>/` idempotently | Default/custom board path fixtures preserve newline and duplicate behavior. |
 | DATA-15 | Warnings and malformed files | Bad files remain on disk and are skipped with warnings | Rust never deletes or rewrites a malformed ticket merely by loading a board. |
@@ -214,13 +214,13 @@ Each row must be explicitly Preserve, Fix-before-freeze, Fix-in-Rust-with-contra
 
 | ID | Current inconsistency | Evidence | Decision | Required resolution |
 |---|---|---|---|---|
-| DEF-01 | Global `--path <dir>` consumes `pick-next --path`, making path-only output unreachable through the real binary | `cmd/tickcats/main.go:28-39,150-165` | Fix contract with `--print-path` (user, 2026-08-06) | Rust reserves `--path` for board selection and uses `pick-next --print-path` for path-only output. |
-| DEF-02 | `ids migrate` scans only legacy states and silently misses custom columns | `internal/store/ids.go:41-42` | Resolve with fixed-column scope (user, 2026-08-06) | Scan Backlog/Ready/WIP/Done only and emit skipped legacy-folder ticket counts instead of silently ignoring them. |
-| DEF-03 | Soft delete accepts only legacy states while move accepts configured columns | `internal/store/delete.go:17-19` | Drop with custom-column feature (user, 2026-08-06) | Rust delete applies only to visible fixed-column tickets; unsupported legacy folders are never mutated. |
-| DEF-04 | Watcher subscribes only to columns present at startup | `internal/tui/watcher.go:31-42` | Drop with file-watcher feature (user, 2026-08-06) | Rust uses explicit `r` and post-editor reload only, so no watcher lifecycle remains. |
-| DEF-05 | Column deletion and ID migration can partially mutate files before a later error | `internal/store/config.go:219-239`; `internal/store/ids.go` | Fix with preflight + resumable migration (user, 2026-08-06) | Column deletion is dropped; ID migration validates tickets/IDs/targets/collisions first, applies deterministically, reports completed work, and is idempotent on rerun. |
-| DEF-06 | Read-like commands can rewrite `config.json` during reconciliation | `internal/store/config.go:55-79` | Fix in Rust: reads never write (derived from fixed-column decision, 2026-08-06) | `list`, pick-next, completion, and TUI load leave ticket/config/sort files byte-identical. |
-| DEF-07 | External editor command uses whitespace splitting, not shell quoting | `internal/tui/editor.go` | Fix in Rust with contract (user, 2026-08-06) | Parse shell words for quoted arguments, launch directly without a shell, and append the ticket path as one argument. |
+| DEF-01 | Global `--path <dir>` consumes `pick-next --path`, making path-only output unreachable through the real binary | `cmd/tickcats/main.go:28-39,150-165` | Fix-in-Rust-with-contract — `--print-path` (user, 2026-08-06) | Rust reserves `--path` for board selection and uses `pick-next --print-path` for path-only output. |
+| DEF-02 | `ids migrate` scans only legacy states and silently misses custom columns | `internal/store/ids.go:41-42` | Fix-in-Rust-with-contract — fixed-column scope (user, 2026-08-06) | Scan Backlog/Ready/WIP/Done only and emit skipped legacy-folder ticket counts instead of silently ignoring them. |
+| DEF-03 | Soft delete accepts only legacy states while move accepts configured columns | `internal/store/delete.go:17-19` | Drop-with-feature — custom columns (user, 2026-08-06) | Rust delete applies only to visible fixed-column tickets; unsupported legacy folders are never mutated. |
+| DEF-04 | Watcher subscribes only to columns present at startup | `internal/tui/watcher.go:31-42` | Drop-with-feature — file watcher (user, 2026-08-06) | Rust uses explicit `r` and post-editor reload only, so no watcher lifecycle remains. |
+| DEF-05 | Column deletion and ID migration can partially mutate files before a later error | `internal/store/config.go:219-239`; `internal/store/ids.go` | Fix-in-Rust-with-contract — preflight + resumable migration (user, 2026-08-06) | Column deletion is dropped; ID migration validates tickets/IDs/targets/collisions first, applies deterministically, reports completed work, and is idempotent on rerun. |
+| DEF-06 | Read-like commands can rewrite `config.json` during reconciliation | `internal/store/config.go:55-79` | Fix-in-Rust-with-contract — reads never write (derived, 2026-08-06) | `list`, pick-next, completion, and TUI load leave ticket/config/sort files byte-identical. |
+| DEF-07 | External editor command uses whitespace splitting, not shell quoting | `internal/tui/editor.go` | Fix-in-Rust-with-contract — shell-word parsing (user, 2026-08-06) | Parse shell words for quoted arguments, launch directly without a shell, and append the ticket path as one argument. |
 
 ## Implementation Approach
 
@@ -238,15 +238,15 @@ completions/skills/release proof
 Rust cutover and Go deletion
 ```
 
-Prefer one Rust package and the fewest modules needed by retained features. Select dependencies only after Phase 0; likely categories are JSON serialization, date/time, terminal UI/events, filesystem watching, temp directories, and ID randomness. Do not add a full YAML parser, plugin framework, service layer, or one-implementation traits.
+Prefer one Rust package and the fewest modules needed by retained features. Select dependencies only after Phase 0; likely categories are JSON handling, date/time, terminal UI/events, shell-word parsing, temp directories, and ID randomness. Do not add filesystem watching, an async runtime, a full YAML parser, plugin framework, service layer, or one-implementation traits.
 
 Golden comparisons apply only where current Go behavior is approved. When a defect is fixed, both binaries need not match; the fixture records the approved intended contract and the plan documents whether Go is fixed first or Rust intentionally differs.
 
 ## Critical Implementation Details
 
-The data-preservation gate is independent from feature retention. Dropping deadlines, matrix sorting, custom colors, or manual ordering from the Rust UI does not permit erasing their existing ticket/config/sort values.
+The data-preservation gate is independent from feature retention. Dropping direct deadline editing, sort customisation, custom colors, or manual ordering does not permit erasing their existing ticket/config/sort values.
 
-Fixture boards must be copied before each command because config reconciliation and mutations can write during tests. Compare filesystem side effects as well as stdout, stderr, and exit status.
+Fixture boards must be copied before each mutating command. Read-only contracts assert byte-identical trees; mutating contracts compare filesystem side effects as well as stdout, stderr, and exit status.
 
 ## Phase 0: Approve Migration Scope
 
@@ -367,13 +367,13 @@ Port parsing, domain values, and semantic round-trip behavior before filesystem 
 
 **Contract**: Required/optional fields, RFC3339 timestamps, date/bool parsing, body retention, Acceptance Criteria detection, title labels/kinds, priorities, and ID validation match approved fixtures.
 
-#### 2. Config and sort models
+#### 2. Minimal config compatibility
 
-**File**: `src/store/config.rs`, `src/store/sort.rs`
+**File**: `src/store/config.rs`
 
-**Intent**: Preserve DATA-10 through DATA-12 independently of retained UI features.
+**Intent**: Read and toggle matrix mode without reviving dropped configuration features.
 
-**Contract**: Every known config/sort field survives load/save; custom column colors and manual order are never erased.
+**Contract**: Read-only operations leave `config.json` byte-identical. An intentional `M` write changes only matrix mode while preserving every known legacy editor/theme/prompt/column/color field semantically. Rust never parses or writes `sort.json`; DATA-12 is satisfied by byte preservation.
 
 #### 3. Compatibility tests
 
@@ -388,8 +388,8 @@ Port parsing, domain values, and semantic round-trip behavior before filesystem 
 #### Automated Verification
 
 - Rust ticket/data tests pass for every DATA row.
-- Existing `.tickcats-test/**/*.md`, `config.json`, and `sort.json` fixtures load successfully.
-- Semantic round-trip tests prove no known persisted field is erased.
+- Existing `.tickcats-test/**/*.md` and `config.json` fixtures load successfully; existing `sort.json` remains byte-identical.
+- Matrix-toggle round-trip tests prove no known config field is erased.
 - `go test ./internal/ticket ./internal/store` still passes.
 
 #### Manual Verification
@@ -412,7 +412,7 @@ Build a useful non-interactive Rust binary by implementing approved board operat
 
 **Intent**: Implement retained CORE features and DATA-01, DATA-09, DATA-13 through DATA-16.
 
-**Contract**: Folder scanning, warnings, init/gitignore, create, move, configured columns, reconciliation, pick-next, trash, metadata updates, sort persistence, and ID migration exist only where retained; defect decisions define edge behavior.
+**Contract**: Scan only `backlog/`, `ready/`, `doing/`, and `done/`; warn/count but never mutate other folders. Implement init/gitignore plus the one-time intro ticket, create, adjacent move, pick-next, trash, important toggle, fixed matrix/priority board order, and preflighted resumable ID migration. No column reconciliation or sort persistence exists.
 
 #### 2. CLI dispatch
 
@@ -428,7 +428,7 @@ Build a useful non-interactive Rust binary by implementing approved board operat
 
 **Intent**: Keep hidden helpers and script consumers working.
 
-**Contract**: `__complete tickets|columns` emits approved live candidates without extra output.
+**Contract**: `__complete tickets` emits files from the four fixed folders; `__complete columns` emits `backlog`, `ready`, `doing`, `done`; neither includes legacy folders or writes files.
 
 ### Success Criteria
 
@@ -436,7 +436,7 @@ Build a useful non-interactive Rust binary by implementing approved board operat
 
 - `cargo test` passes all retained CORE/CLI feature mappings.
 - Process contract harness passes for approved `init`, `new`, `list`, `move`, `pick-next`, ID, completion, help, warning, and error cases.
-- Filesystem snapshots pass for init, create, move, metadata mutation, reconciliation, collisions, and malformed files.
+- Filesystem snapshots pass for first/repeat init and intro-ticket non-regeneration, create, adjacent move, important mutation, fixed-folder warnings, collisions, malformed files, and ID migration preflight/partial-report/idempotent rerun.
 - `go test ./...` still passes.
 
 #### Manual Verification
@@ -458,9 +458,9 @@ Implement only retained TUI rows with workflow parity: preserve approved keys, s
 
 **File**: `src/tui/model.rs`, `src/tui/update.rs`
 
-**Intent**: Represent approved views, overlays, cursor/scroll state, selection, notifications, and watcher messages.
+**Intent**: Represent the fixed board, focused-ticket cursor/scroll state, create/search/help/delete/move interactions, responsive detail panel, persistent status line, and matrix mode.
 
-**Contract**: Each retained TUI row maps to a model transition test; dropped modes have no speculative scaffolding.
+**Contract**: Each retained TUI row maps to a model transition test. There is no multi-selection, config view, sort mode, deadline dialog, quit dialog, notification timer, watcher message, command palette, or metadata editor state.
 
 #### 2. Board/detail/forms/dialog rendering
 
@@ -468,15 +468,15 @@ Implement only retained TUI rows with workflow parity: preserve approved keys, s
 
 **Intent**: Render approved workflows with Ratatui/Crossterm or the smallest selected equivalent.
 
-**Contract**: Retained board/detail/create/config/search/help/dialog elements fit agreed narrow and medium widths; terminal library differences may change borders/glyphs.
+**Contract**: Fixed board, recommendation markers, create/search/help/delete interactions, persistent status, and detail content fit agreed widths. Detail is a side panel when wide and full-screen when narrow; terminal library differences may change borders/glyphs.
 
-#### 3. Store/editor/watcher integration
+#### 3. Store, editor, and explicit reload integration
 
-**File**: `src/tui/actions.rs`, `src/tui/editor.rs`, `src/tui/watcher.rs`
+**File**: `src/tui/actions.rs`, `src/tui/editor.rs`
 
-**Intent**: Route every retained mutation through tested store operations and preserve approved reload/editor behavior.
+**Intent**: Route retained focused-ticket mutations through tested store operations and preserve safe editor/manual reload behavior.
 
-**Contract**: Defect decisions determine dynamic-column delete/watching and editor argument semantics.
+**Contract**: `p/b` and move-mode `h/l` move one adjacent column; `i`, `x`, `M`, `e`, and `r` follow approved contracts. Editor arguments use shell-word parsing without a shell; editor exit and `r` reload while preserving focus/detail identity. No watcher exists.
 
 ### Success Criteria
 
@@ -484,14 +484,14 @@ Implement only retained TUI rows with workflow parity: preserve approved keys, s
 
 - Every retained TUI ID has a state-transition, render-bound, or action integration check.
 - `cargo test` passes TUI and CLI contracts.
-- Narrow/medium terminal render checks do not exceed agreed dimensions.
+- Narrow/medium/wide render checks cover sliding columns, recommendation-versus-matrix disagreement, read-only deadline/urgency, wide side panel, narrow full-screen detail, and persistent status without overflow.
 - Dropped/deferred TUI IDs have no unreachable implementation scaffolding.
 
 #### Manual Verification
 
 - Run the Rust TUI against a copied `.tickcats-test/` board and execute every retained TUI matrix scenario.
 - Confirm muscle-memory keys and external-editor handoff work in a real terminal.
-- Confirm file reload and terminal restoration behave correctly on exit/error.
+- Confirm `M` persistence, manual/post-editor reload, and terminal restoration behave correctly on exit/error.
 
 ---
 
@@ -613,15 +613,16 @@ Make Rust the sole implementation only after the release-proof gate is green.
 ### Focused unit tests
 
 - Parser dialect, title labels/kinds, priorities, IDs, Acceptance Criteria.
-- Config/sort semantic preservation.
-- Pick-next eligibility/ranking/ties.
-- Approved path validation, collision, and multi-file preflight behavior.
-- Retained TUI state transitions and width bounds.
+- Matrix config mutation with semantic preservation of known legacy fields; byte preservation of ignored `sort.json`.
+- Pick-next eligibility/ranking/ties, including disagreement with matrix board ordering.
+- Intro-ticket first-init/non-regeneration and ID-migration preflight/report/idempotent rerun.
+- Approved path validation, adjacent movement, collision, and malformed/legacy-folder warning behavior.
+- Retained TUI state transitions, `M` persistence, and wide/narrow detail bounds.
 
 ### Manual tests
 
 - Real terminal interaction for every retained TUI row.
-- External editor and file-watcher behavior.
+- External editor plus manual/post-editor reload behavior.
 - Shell completion in Bash/Zsh/Fish.
 - Release artifact and Homebrew install smoke tests.
 
@@ -633,7 +634,7 @@ The PRD defines small local boards. Use straightforward directory scans and sort
 
 ## Migration and Rollback Notes
 
-There is no user-data migration. Existing folders, tickets, config, sort order, trash, IDs, deadlines, importance, and column colors must survive unchanged semantically.
+There is no automatic user-data migration. Fixed-column tickets remain actionable; unsupported legacy folders remain byte-untouched and warned. Tickets, config, trash, IDs, deadlines, importance, and column colors survive semantically, while ignored `sort.json` remains byte-identical.
 
 Before Phase 6, rollback is selecting the Go binary/release. Phase 6 should be one isolated Conventional Commit so reverting it restores the Go reference and release tooling without reverting the Rust implementation.
 
@@ -687,8 +688,8 @@ Before Phase 6, rollback is selecting the Go binary/release. Phase 6 should be o
 #### Automated
 
 - [ ] 2.1 Rust ticket/data tests pass for every DATA row.
-- [ ] 2.2 Existing ticket/config/sort fixtures load successfully.
-- [ ] 2.3 Round-trip checks preserve every known field.
+- [ ] 2.2 Existing ticket/config fixtures load and ignored sort fixtures remain byte-identical.
+- [ ] 2.3 Matrix-toggle round trips preserve every known config field.
 - [ ] 2.4 Go ticket/store tests still pass.
 
 #### Manual
@@ -715,13 +716,13 @@ Before Phase 6, rollback is selecting the Go binary/release. Phase 6 should be o
 
 - [ ] 4.1 Every retained TUI ID has an automated state/render/action check.
 - [ ] 4.2 Rust TUI and CLI contracts pass.
-- [ ] 4.3 Agreed narrow/medium terminal bounds pass.
+- [ ] 4.3 Agreed narrow/medium/wide board and responsive-detail bounds pass.
 - [ ] 4.4 No scaffolding remains for dropped/deferred TUI rows.
 
 #### Manual
 
 - [ ] 4.5 Every retained TUI matrix scenario passes in a real terminal.
-- [ ] 4.6 External editor, watcher, and terminal restoration pass.
+- [ ] 4.6 External editor, manual/post-editor reload, and terminal restoration pass.
 
 ### Phase 5: Prove Integrations and Distribution
 
