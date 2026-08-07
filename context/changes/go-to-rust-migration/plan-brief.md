@@ -60,7 +60,7 @@ The repo ships one Rust `tickcats` binary. Existing `.tickcats/` boards load wit
 | Pick display | Mark recommended Ready card(s) | Removes the top banner; exact ties mark every tied card and show “choose one” without forcing a dialog. |
 | Navigation | Vim keys plus arrows, no counts | Retains `h/j/k/l`, arrows, and `d/u`, but removes numeric motion-prefix state. |
 | Narrow layout | Sliding full-width columns | Shows as many readable columns as fit and labels hidden sides instead of compressing all four. |
-| Ticket detail | Scrollable side panel | Keeps the board visible while showing highlighted Markdown, metadata, and external-editor access. |
+| Ticket detail | Side panel with narrow fallback | Wide terminals keep the board visible; narrow terminals use full-screen detail for readability. |
 
 ## Scope
 
