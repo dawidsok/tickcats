@@ -46,7 +46,7 @@ The repo ships one Rust `tickcats` binary. Existing `.tickcats/` boards load wit
 | Deletion | Retain soft delete | `x` confirms and moves one visible ticket to `.trash/`; permanent deletion is not exposed. |
 | Malformed tickets | Load valid files and warn | Invalid files remain untouched and cannot block the rest of the board. |
 | Column colors | Preserve data only | Rust ignores legacy color values and omits the palette, setter, rendering override, and planned picker. |
-| Themes | One fixed palette | Legacy theme values survive but are ignored; theme selection and gradient generation are removed. |
+| Themes | Neutral with semantic accents | Legacy theme values are ignored; color is reserved for focus, urgency, warnings, and success/error, never as the only signal. |
 
 ## Scope
 
