@@ -155,7 +155,7 @@ The cutover is complete when:
 | TUI-26 | Three-second generation-safe success/error/info notifications (`internal/tui/model.go:199-224`) | Shipped; undocumented | None | Replace — one persistent status line until the next action/result replaces it (user, 2026-08-06) | Success, warning, and error styling is non-color-redundant; no timer/generation messages exist. |
 | TUI-27 | Command palette with create/move/edit/pick actions (`context/foundation/prd.md:139-149`) | PRD-only | None | Drop — direct hotkeys plus `?` help are sufficient; update PRD at cutover (user, 2026-08-06) | Rust contains no palette/action-search state and docs no longer claim it as a requirement. |
 | TUI-28 | Direct in-TUI ticket metadata editing (`context/foundation/prd.md:99-105,136`) | PRD-only | Ticket metadata | Drop — existing tickets are edited through `$EDITOR`/Markdown; update PRD at cutover (user, 2026-08-06) | Rust has no metadata edit form/frontmatter mutation path beyond retained important toggle; `e` remains available from board/detail. |
-| TUI-29 | Direct pick-next hotkey, separate from the always-visible recommendation (`context/foundation/prd.md:164-170`) | PRD-only | None | Review — user | If retained, define whether it focuses, opens, or only announces the recommendation before porting. |
+| TUI-29 | Direct pick-next hotkey, separate from the always-visible recommendation (`context/foundation/prd.md:164-170`) | PRD-only | None | Drop — recommendation markers plus CLI `pick-next` are sufficient; update PRD at cutover (user, 2026-08-06) | No jump/open pick action or tie-navigation state exists in Rust. |
 
 ### Distribution, documentation, and repository integrations
 
