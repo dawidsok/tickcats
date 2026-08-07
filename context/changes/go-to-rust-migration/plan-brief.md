@@ -12,7 +12,7 @@ TickCats has 6,191 lines of non-test Go and 5,878 lines of Go tests across CLI, 
 
 Current matrix state:
 
-- **68 feature/integration rows:** 24 retained, 9 replaced, 1 preserve-data-only, 7 dropped, 27 awaiting review.
+- **68 feature/integration rows:** 23 retained, 10 replaced, 1 preserve-data-only, 7 dropped, 27 awaiting review.
 - **16 persisted-data rows:** all preservation is mandatory.
 - **7 known defect/ambiguity rows:** 4 resolved, 3 awaiting review.
 
@@ -41,7 +41,7 @@ The repo ships one Rust `tickcats` binary. Existing `.tickcats/` boards load wit
 | Ticket identity | Stable `TC-XXXXXX` IDs | IDs survive filename/title changes and remain usable by prerequisites, skills, and commit references. |
 | Legacy ID repair | Explicit `ids migrate` command | Migration touches only four fixed columns, warns about skipped legacy folders, and never runs during load. |
 | Deadlines | Read-only matrix input | Dates appear on cards/detail and drive matrix urgency; editing and deadline sorting are removed. |
-| Importance matrix | Retain full feature | Important toggle, urgency buckets from preserved deadlines, and matrix config remain user-facing. |
+| Importance matrix | Retain with direct `M` toggle | Important toggle and urgency buckets remain; `M` replaces the config screen and persists the mode immediately. |
 | Board sorting | Fixed priority/matrix order | Removes title/date/manual modes, sort cycling, reorder prompts, and writes to `sort.json`. |
 | Deletion | Retain soft delete | `x` confirms and moves one visible ticket to `.trash/`; permanent deletion is not exposed. |
 | Malformed tickets | Load valid files and warn | Invalid files remain untouched and cannot block the rest of the board. |
