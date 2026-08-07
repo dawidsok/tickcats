@@ -53,7 +53,7 @@ The repo ships one Rust `tickcats` binary. Existing `.tickcats/` boards load wit
 | Board path | Retain global `--path` | Every command and TUI launch can target an explicit board directory. |
 | Pick path output | `pick-next --print-path` | Replaces the unreachable conflicting `pick-next --path` while keeping script-friendly output. |
 | Board init | Four folders plus `.gitignore` | Explicit, idempotent setup preserves local/private-by-default behavior. |
-| Intro ticket | First new board only | `init` creates one instruction ticket only when creating a genuinely new board and never resurrects it. |
+| Intro ticket | Guided first-board workflow | One ordinary `[to refine] Task: Learn TickCats` ticket teaches help, editing/refinement, pick-next, and Backlog→Ready→WIP→Done progression. |
 
 ## Scope
 
