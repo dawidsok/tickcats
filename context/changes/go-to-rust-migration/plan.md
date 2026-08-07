@@ -219,7 +219,7 @@ Each row must be explicitly Preserve, Fix-before-freeze, Fix-in-Rust-with-contra
 | DEF-03 | Soft delete accepts only legacy states while move accepts configured columns | `internal/store/delete.go:17-19` | Drop with custom-column feature (user, 2026-08-06) | Rust delete applies only to visible fixed-column tickets; unsupported legacy folders are never mutated. |
 | DEF-04 | Watcher subscribes only to columns present at startup | `internal/tui/watcher.go:31-42` | Resolve via fixed columns (user, 2026-08-06) | If file watching is retained, subscribe only to the four fixed folders; no dynamic subscription exists. |
 | DEF-05 | Column deletion and ID migration can partially mutate files before a later error | `internal/store/config.go:219-239`; `internal/store/ids.go` | Review | Preserve partial behavior or specify preflight/rollback semantics. |
-| DEF-06 | Read-like commands can rewrite `config.json` during reconciliation | `internal/store/config.go:55-79` | Review | Preserve, separate sync from reads, or constrain side effects explicitly. |
+| DEF-06 | Read-like commands can rewrite `config.json` during reconciliation | `internal/store/config.go:55-79` | Fix in Rust: reads never write (derived from fixed-column decision, 2026-08-06) | `list`, pick-next, completion, and TUI load leave ticket/config/sort files byte-identical. |
 | DEF-07 | External editor command uses whitespace splitting, not shell quoting | `internal/tui/editor.go` | Fix in Rust with contract (user, 2026-08-06) | Parse shell words for quoted arguments, launch directly without a shell, and append the ticket path as one argument. |
 
 ## Implementation Approach
