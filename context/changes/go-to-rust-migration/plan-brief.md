@@ -12,7 +12,7 @@ TickCats has 6,191 lines of non-test Go and 5,878 lines of Go tests across CLI, 
 
 Current matrix state:
 
-- **68 feature/integration rows:** 21 retained, 7 replaced, 5 dropped, 35 awaiting review.
+- **68 feature/integration rows:** 23 retained, 7 replaced, 5 dropped, 33 awaiting review.
 - **16 persisted-data rows:** all preservation is mandatory.
 - **7 known defect/ambiguity rows:** 3 resolved, 4 awaiting review.
 
@@ -43,6 +43,7 @@ The repo ships one Rust `tickcats` binary. Existing `.tickcats/` boards load wit
 | Deadlines | Read-only matrix input | Dates appear on cards/detail and drive matrix urgency; editing and deadline sorting are removed. |
 | Importance matrix | Retain full feature | Important toggle, urgency buckets from preserved deadlines, and matrix config remain user-facing. |
 | Board sorting | Fixed priority/matrix order | Removes title/date/manual modes, sort cycling, reorder prompts, and writes to `sort.json`. |
+| Deletion | Retain soft delete | `x` confirms and moves one visible ticket to `.trash/`; permanent deletion is not exposed. |
 
 ## Scope
 
@@ -101,6 +102,6 @@ Go removal
 
 ## Success Criteria Summary
 
-- All 35 feature and 4 defect Review rows are resolved before Rust implementation.
+- All 33 feature and 4 defect Review rows are resolved before Rust implementation.
 - Existing boards and every known persisted field survive Rust read/write operations.
 - Retained CLI/TUI/integration checks and five-platform release proof pass before Go deletion.
