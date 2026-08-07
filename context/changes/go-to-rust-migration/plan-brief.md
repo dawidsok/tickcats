@@ -57,7 +57,7 @@ The repo ships one Rust `tickcats` binary. Existing `.tickcats/` boards load wit
 | CLI ticket creation | `feat|task|bug`, P2, `[to refine]`, optional `--ac` | Removes undocumented kind/AC aliases and aligns CLI/TUI readiness defaults. |
 | CLI list | Retain four-column text output | Keeps noninteractive human/agent inspection with stable filenames, IDs, priorities, titles, and warnings. |
 | CLI help | `help`, `--help`, and `-h` | Keeps conventional global/command discovery and explicit unknown-command errors. |
-| Pick display | Highlight the Ready card | Removes the separate top banner while keeping recommendation visible with a non-color marker distinct from focus. |
+| Pick display | Mark recommended Ready card(s) | Removes the top banner; exact ties mark every tied card and show “choose one” without forcing a dialog. |
 
 ## Scope
 

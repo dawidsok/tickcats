@@ -127,7 +127,7 @@ The cutover is complete when:
 
 | ID | Current feature and evidence | Baseline | Data impact | Decision / owner | Rust acceptance check |
 |---|---|---|---|---|---|
-| TUI-01 | Board shows pick-next banner, configured columns, focused ticket, status/warnings, and footer (`internal/tui/render_board.go`) | Shipped | None | Replace — remove top banner and mark the recommendation directly on its Ready card (user, 2026-08-06) | Recommended card remains visible through a non-color marker/style distinct from keyboard focus; tie treatment is specified separately. |
+| TUI-01 | Board shows pick-next banner, configured columns, focused ticket, status/warnings, and footer (`internal/tui/render_board.go`) | Shipped | None | Replace — remove top banner; mark every top-ranked Ready card and show “choose one” status for exact ties (user, 2026-08-06) | Recommendation markers are non-color and distinct from focus/selection; unique and tied fixtures render without extra dialogs. |
 | TUI-02 | Vim/arrow column-row navigation, clamped cursors, `d/u` half pages (`internal/tui/update.go:89-116`; `navigation.go`) | Shipped | None | Review — user | State-transition tests cover boundaries and scroll offsets. |
 | TUI-03 | Up to six-digit count prefixes for `h/j/k/l`; leading zero and non-motion consumption rules (`internal/tui/update.go:89-197`) | Shipped; undocumented | None | Review — user | Focused tests freeze approved count semantics. |
 | TUI-04 | Horizontal column window, hidden-column indicators, wrapping, narrow-width safety (`internal/tui/layout.go`; `render_board.go`) | Shipped | None | Review — user | Snapshot/property checks assert no overflow at agreed terminal sizes. |
