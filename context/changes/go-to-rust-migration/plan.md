@@ -107,7 +107,7 @@ The cutover is complete when:
 
 | ID | Current feature and evidence | Baseline | Data impact | Decision / owner | Rust acceptance check |
 |---|---|---|---|---|---|
-| CLI-01 | No command opens TUI; explicit `tui` does the same (`cmd/tickcats/main.go:42-62`) | Shipped | TUI may mutate | Review — user | Both approved entry forms launch the same model against `--path`. |
+| CLI-01 | No command opens TUI; explicit `tui` does the same (`cmd/tickcats/main.go:42-62`) | Shipped | TUI may mutate | Retain — both `tickcats` and `tickcats tui` launch the same board (user, 2026-08-06) | Both forms honor the board path and produce identical TUI initialization/error behavior. |
 | CLI-02 | Global `--path <dir>` may appear before dispatch and selects board root (`cmd/tickcats/main.go:28-45`) | Shipped | Selects all files | Review — user | Position, missing-value, custom basename, and default cases have process tests. |
 | CLI-03 | `init` creates defaults and idempotently adds `<board-basename>/` to adjacent `.gitignore` (`internal/store/init.go`) | Shipped | Folders, `.gitignore` | Review — user | Temp-repo fixture covers first run, repeat run, existing board, and custom path. |
 | CLI-04 | `new feat\|feature\|task\|bug\|fix`, P2 default, generated ID, backlog destination (`cmd/tickcats/main.go:79-100`; `internal/store/create.go`) | Shipped; aliases undocumented | New ticket | Review — user | Golden cases cover every approved kind/alias and exact printed path. |
