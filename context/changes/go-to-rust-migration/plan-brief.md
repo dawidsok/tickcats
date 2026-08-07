@@ -54,7 +54,7 @@ The repo ships one Rust `tickcats` binary. Existing `.tickcats/` boards load wit
 | Pick path output | `pick-next --print-path` | Replaces the unreachable conflicting `pick-next --path` while keeping script-friendly output. |
 | Board init | Four folders plus `.gitignore` | Explicit, idempotent setup preserves local/private-by-default behavior. |
 | Intro ticket | Guided ordinary ticket | It teaches help, editing/refinement, pick-next, and progression, but has no protection, regeneration, or hidden onboarding state. |
-| CLI ticket kinds | `feat|task|bug` only | Removes undocumented `feature`/`fix` aliases while retaining P2/backlog/ID/path behavior. |
+| CLI ticket creation | `feat|task|bug`, P2, `[to refine]` | Removes undocumented aliases and aligns CLI/TUI readiness defaults while retaining backlog/ID/path behavior. |
 
 ## Scope
 
