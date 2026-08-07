@@ -12,7 +12,7 @@ TickCats has 6,191 lines of non-test Go and 5,878 lines of Go tests across CLI, 
 
 Current matrix state:
 
-- **69 feature/integration rows:** 36 retained, 20 replaced, 1 preserve-data-only, 12 dropped, 0 awaiting review.
+- **69 feature/integration rows:** 36 retained, 19 replaced, 1 preserve-data-only, 13 dropped, 0 awaiting review.
 - **16 persisted-data rows:** all preservation is mandatory.
 - **7 known defect/ambiguity rows:** all resolved.
 
@@ -37,7 +37,7 @@ The repo ships one Rust `tickcats` binary. Existing `.tickcats/` boards load wit
 | Cutover | Release proof first | Go stays until product, integration, and artifact checks all pass. |
 | Workflow columns | Fixed Backlog/Ready/WIP/Done, no WIP limit | Drops Won't Do from the new default; WIP keeps `doing/` and remains a label rather than an enforced capacity. |
 | Legacy columns | Leave untouched and warn | Custom and `wont-do/` folders stay on disk but are excluded from the fixed board and reported with ticket counts. |
-| Workflow transitions | Adjacent only, both directions | CLI and TUI allow Backlog↔Ready↔WIP↔Done; direct first/last shortcuts are removed. |
+| Workflow transitions | Adjacent only, both directions | CLI uses adjacent `move`; TUI uses only `p/b`, with no direct shortcuts or separate move mode. |
 | Ticket identity | Stable `TC-XXXXXX` IDs | IDs survive filename/title changes and remain usable by prerequisites, skills, and commit references. |
 | Legacy ID repair | Explicit `ids migrate` command | Migration touches only four fixed columns, warns about skipped legacy folders, and never runs during load. |
 | Deadlines | Read-only matrix input | Dates appear on cards/detail and drive matrix urgency; editing and deadline sorting are removed. |

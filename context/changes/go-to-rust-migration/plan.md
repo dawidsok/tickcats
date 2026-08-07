@@ -136,9 +136,9 @@ The cutover is complete when:
 | TUI-07 | Post-create editor prompt with yes/no/don't-ask and persisted skip preference (`internal/tui/create.go:128-179`) | Shipped | Config | Replace — return to board, focus the new ticket, and show success; use `e` explicitly (user, 2026-08-06) | No post-create overlay or skip preference write exists; legacy `skip_editor_prompt` remains untouched. |
 | TUI-08 | External editor command: config, `$EDITOR`, then `vi`; whitespace-split args; board reload (`internal/tui/editor.go`; `actions.go`) | Shipped | Ticket/config | Replace — use `$EDITOR`/`vi`, parse shell words without invoking a shell, and ignore legacy editor config (user, 2026-08-06) | `e` supports quoted arguments, appends the ticket path as one argument, restores the terminal, and reloads on exit. |
 | TUI-09 | `p` progress and `b` move back one column (`internal/tui/update.go:124-136`) | Shipped; `b` undocumented in README | Renames ticket | Retain — these are the primary adjacent workflow actions (user, 2026-08-06) | `p`/`b` move exactly one column, stop at board edges, and preserve focus. |
-| TUI-10 | Move mode `m`, `h/l`, `H/L`, and cancel (`internal/tui/update.go:199-223`) | Shipped | Renames tickets | Replace — retain adjacent `h/l` and cancel; drop direct `H/L` first/last shortcuts (user, 2026-08-06) | Move mode permits one adjacent step per action and rejects/skips no workflow columns. |
+| TUI-10 | Move mode `m`, `h/l`, `H/L`, and cancel (`internal/tui/update.go:199-223`) | Shipped | Renames tickets | Drop — `p/b` are the only TUI movement actions; no separate move mode (user, 2026-08-06) | Rust has no move-mode state/status/Esc handling or `m/h/l/H/L` movement bindings. |
 | TUI-11 | Cross-column multi-select `v` and ordered bulk moves; delete remains single-ticket (`internal/tui/actions.go:312-465`) | Shipped; partly undocumented | Renames tickets | Drop — every action targets only the focused ticket (user, 2026-08-06) | Rust has no selection mode/markers/maps/bulk ordering; repeated adjacent actions handle multiple tickets. |
-| TUI-12 | Manual `j/k` reorder; non-manual modes prompt to switch (`internal/tui/update.go:224-247`; `actions.go`) | Shipped | `sort.json` | Drop — fixed ordering has no manual reorder or mode prompt (user, 2026-08-06) | Move mode reserves `j/k` for navigation or no action; no manual-order state is written. |
+| TUI-12 | Manual `j/k` reorder; non-manual modes prompt to switch (`internal/tui/update.go:224-247`; `actions.go`) | Shipped | `sort.json` | Drop — fixed ordering has no manual reorder or mode prompt (user, 2026-08-06) | No move/reorder mode exists and no manual-order state is written. |
 | TUI-13 | `x` soft-delete confirmation for focused ticket (`internal/tui/actions.go:22-58`) | Shipped | `.trash/` | Retain — focused-ticket soft delete with confirmation (user, 2026-08-06) | Confirm moves one ticket to `.trash/`; cancel and collision leave all files unchanged. |
 | TUI-14 | Deadline display and dialog: today, tomorrow, +7 days, custom date, clear (`internal/tui/deadline_dialog.go`; renderers) | Shipped | Ticket metadata | Replace — keep read-only date/urgency on cards and detail; drop deadline key/dialog/date sort (user, 2026-08-06) | Matrix urgency is visible and explainable, while deadline changes require editing ticket markdown. |
 | TUI-15 | `i` important toggle and matrix-aware priority display/order (`internal/tui/actions.go:77-97`; `sort.go`) | Shipped | Ticket/config | Retain — full matrix behavior remains user-facing (user, 2026-08-06) | Toggle, urgent threshold, buckets, and P-label suppression pass using preserved deadline values. |
@@ -458,7 +458,7 @@ Implement only retained TUI rows with workflow parity: preserve approved keys, s
 
 **File**: `src/tui/model.rs`, `src/tui/update.rs`
 
-**Intent**: Represent the fixed board, focused-ticket cursor/scroll state, create/search/help/delete/move interactions, responsive detail panel, persistent status line, and matrix mode.
+**Intent**: Represent the fixed board, focused-ticket cursor/scroll state, create/search/help/delete interactions, responsive detail panel, persistent status line, and matrix mode.
 
 **Contract**: Each retained TUI row maps to a model transition test. There is no multi-selection, config view, sort mode, deadline dialog, quit dialog, notification timer, watcher message, command palette, or metadata editor state.
 
@@ -476,7 +476,7 @@ Implement only retained TUI rows with workflow parity: preserve approved keys, s
 
 **Intent**: Route retained focused-ticket mutations through tested store operations and preserve safe editor/manual reload behavior.
 
-**Contract**: `p/b` and move-mode `h/l` move one adjacent column; `i`, `x`, `M`, `e`, and `r` follow approved contracts. Editor arguments use shell-word parsing without a shell; editor exit and `r` reload while preserving focus/detail identity. No watcher exists.
+**Contract**: `p/b` are the only TUI movement actions and move one adjacent column; `i`, `x`, `M`, `e`, and `r` follow approved contracts. Editor arguments use shell-word parsing without a shell; editor exit and `r` reload while preserving focus/detail identity. No move mode or watcher exists.
 
 ### Success Criteria
 
