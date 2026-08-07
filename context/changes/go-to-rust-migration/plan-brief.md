@@ -12,9 +12,9 @@ TickCats has 6,191 lines of non-test Go and 5,878 lines of Go tests across CLI, 
 
 Current matrix state:
 
-- **68 feature/integration rows:** 17 retained by contract/interview, 4 replaced, 3 dropped, 44 awaiting review.
+- **68 feature/integration rows:** 18 retained by contract/interview, 4 replaced, 3 dropped, 43 awaiting review.
 - **16 persisted-data rows:** all preservation is mandatory.
-- **7 known defect/ambiguity rows:** 2 resolved, 5 awaiting review.
+- **7 known defect/ambiguity rows:** 3 resolved, 4 awaiting review.
 
 ## Desired End State
 
@@ -39,6 +39,7 @@ The repo ships one Rust `tickcats` binary. Existing `.tickcats/` boards load wit
 | Legacy columns | Leave untouched and warn | Custom and `wont-do/` folders stay on disk but are excluded from the fixed board and reported with ticket counts. |
 | Workflow transitions | Adjacent only, both directions | CLI and TUI allow Backlog↔Ready↔WIP↔Done; direct first/last shortcuts are removed. |
 | Ticket identity | Stable `TC-XXXXXX` IDs | IDs survive filename/title changes and remain usable by prerequisites, skills, and commit references. |
+| Legacy ID repair | Explicit `ids migrate` command | Migration touches only four fixed columns, warns about skipped legacy folders, and never runs during load. |
 
 ## Scope
 
@@ -91,12 +92,12 @@ Go removal
 ## Open Risks & Assumptions
 
 - TUI and release parity will cost more than ticket/store porting.
-- `pick-next --path`, custom-column ID migration, and partial multi-file failures still need intended-behavior decisions.
+- `pick-next --path` and partial multi-file failures still need intended-behavior decisions.
 - Agent Skills consume CLI paths/output and may expose contracts absent from unit tests.
 - Existing unknown config/frontmatter fields are not preserved more strongly than current Go behavior; all **known** fields are.
 
 ## Success Criteria Summary
 
-- All 44 feature and 5 defect Review rows are resolved before Rust implementation.
+- All 43 feature and 4 defect Review rows are resolved before Rust implementation.
 - Existing boards and every known persisted field survive Rust read/write operations.
 - Retained CLI/TUI/integration checks and five-platform release proof pass before Go deletion.
