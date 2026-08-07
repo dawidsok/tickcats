@@ -14,7 +14,7 @@ Current matrix state:
 
 - **69 feature/integration rows:** 36 retained, 20 replaced, 1 preserve-data-only, 12 dropped, 0 awaiting review.
 - **16 persisted-data rows:** all preservation is mandatory.
-- **7 known defect/ambiguity rows:** 6 resolved, 1 awaiting review.
+- **7 known defect/ambiguity rows:** all resolved.
 
 ## Desired End State
 
@@ -124,12 +124,12 @@ Go removal
 ## Open Risks & Assumptions
 
 - TUI and release parity will cost more than ticket/store porting.
-- Partial multi-file failure handling remains the only unresolved defect decision.
+- ID migration preflights all known failures and is deterministic/idempotent, but an unexpected filesystem failure can still leave a clearly reported resumable partial result.
 - Agent Skills consume CLI paths/output and may expose contracts absent from unit tests.
 - Existing unknown config/frontmatter fields are not preserved more strongly than current Go behavior; all **known** fields are.
 
 ## Success Criteria Summary
 
-- All feature Review rows are resolved; the final defect decision is still pending.
+- All feature and defect Review rows are resolved before Rust implementation.
 - Existing boards and every known persisted field survive Rust read/write operations.
 - Retained CLI/TUI/integration checks and five-platform release proof pass before Go deletion.
