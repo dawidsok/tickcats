@@ -12,7 +12,7 @@ TickCats has 6,191 lines of non-test Go and 5,878 lines of Go tests across CLI, 
 
 Current matrix state:
 
-- **68 feature/integration rows:** 27 retained, 12 replaced, 1 preserve-data-only, 7 dropped, 21 awaiting review.
+- **69 feature/integration rows:** 28 retained, 12 replaced, 1 preserve-data-only, 7 dropped, 21 awaiting review.
 - **16 persisted-data rows:** all preservation is mandatory.
 - **7 known defect/ambiguity rows:** 5 resolved, 2 awaiting review.
 
@@ -53,6 +53,7 @@ The repo ships one Rust `tickcats` binary. Existing `.tickcats/` boards load wit
 | Board path | Retain global `--path` | Every command and TUI launch can target an explicit board directory. |
 | Pick path output | `pick-next --print-path` | Replaces the unreachable conflicting `pick-next --path` while keeping script-friendly output. |
 | Board init | Four folders plus `.gitignore` | Explicit, idempotent setup preserves local/private-by-default behavior. |
+| Intro ticket | First new board only | `init` creates one instruction ticket only when creating a genuinely new board and never resurrects it. |
 
 ## Scope
 

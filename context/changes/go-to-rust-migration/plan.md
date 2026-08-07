@@ -70,6 +70,7 @@ The cutover is complete when:
 - **PRD-only** — required by the PRD but not implemented.
 - **In flight** — present only in the planning working tree or an uncommitted plan.
 - **Repo tooling** — integration around the binary rather than compiled product behavior.
+- **Approved addition** — new behavior explicitly added during migration refinement.
 
 ### Allowed feature decisions
 
@@ -120,6 +121,7 @@ The cutover is complete when:
 | CLI-11 | Hidden `__complete tickets\|columns` emits live completion candidates (`cmd/tickcats/main.go:256-297`) | Shipped | Config may reconcile | Retain (distribution) | Exact candidate output works on copied dynamic-column boards. |
 | CLI-12 | Static `help`, aliases `help\|--help\|-h`, unknown-command errors (`cmd/tickcats/main.go:63-68,305-321`) | Shipped | None | Review — user | Approved command vocabulary and exit statuses have process tests. |
 | CLI-13 | Returned errors render as `Error: …` on stderr with exit 1; warnings use `Warning: …` (`cmd/tickcats/main.go:21-26,299-303`) | Shipped | None | Retain (script contract) | Process harness captures exact prefixes, streams, and status. |
+| CLI-14 | Introductory instruction ticket on initialization | Approved addition | New backlog ticket | Retain — create only when `init` creates a genuinely new board; never recreate on repeat init (user, 2026-08-06) | First init creates exactly one approved intro ticket; repeat init and existing/legacy boards create none. |
 
 ### TUI workflows
 
