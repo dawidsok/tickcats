@@ -660,14 +660,14 @@ Before Phase 6, rollback is selecting the Go binary/release. Phase 6 should be o
 
 #### Automated
 
-- [ ] 0.1 Zero feature or defect matrix rows remain Review.
-- [ ] 0.2 Every retained feature ID maps to a later acceptance check.
-- [ ] 0.3 Every DATA row remains Preserve.
+- [x] 0.1 Zero feature or defect matrix rows remain Review. — fc0c94a
+- [x] 0.2 Every retained feature ID maps to a later acceptance check. — fc0c94a
+- [x] 0.3 Every DATA row remains Preserve. — fc0c94a
 
 #### Manual
 
-- [ ] 0.4 User approves feature counts, rationales, and defect dispositions.
-- [ ] 0.5 User confirms shipped, PRD-only, and in-flight classifications.
+- [x] 0.4 User approves feature counts, rationales, and defect dispositions. — fc0c94a
+- [x] 0.5 User confirms shipped, PRD-only, and in-flight classifications. — fc0c94a
 
 ### Phase 1: Freeze Approved Contracts and Scaffold Rust
 
