@@ -61,7 +61,7 @@ The repo ships one Rust `tickcats` binary. Existing `.tickcats/` boards load wit
 | Pick display | Mark recommended Ready card(s), no hotkey | Exact ties mark every tied card; navigation stays ordinary and CLI `pick-next` handles scripts. |
 | Navigation | Vim keys plus arrows, no counts | Retains `h/j/k/l`, arrows, and `d/u`, but removes numeric motion-prefix state. |
 | Narrow layout | Sliding full-width columns | Shows as many readable columns as fit and labels hidden sides instead of compressing all four. |
-| Ticket detail | Side panel with narrow fallback | Wide terminals keep the board visible; narrow terminals use full-screen detail for readability. |
+| Ticket detail | Right-side ~40% panel, narrow fallback | Wide terminals keep the board on the left; narrow terminals use full-screen detail for readability. |
 | Multi-select | Drop | Every action targets one focused ticket; selection state, markers, and bulk-move failure handling disappear. |
 | Search | Retain current fuzzy model | Keeps priority/title/body subsequence matching, typing/navigation phases, counts, and cross-column results. |
 | TUI help | Retain `?` overlay | Keeps the reduced mode-specific keymap discoverable after the first-run ticket is gone. |
