@@ -67,7 +67,7 @@ The repo ships one Rust `tickcats` binary. Existing `.tickcats/` boards load wit
 | TUI help | Retain `?` overlay | Keeps the reduced mode-specific keymap discoverable after the first-run ticket is gone. |
 | Quit | Immediate `q`/Ctrl-C | Removes confirmation state because the TUI has no unsaved edits; terminal restoration remains mandatory. |
 | File reload | Manual `r` plus post-editor | Removes filesystem watching, debounce, async lifecycle, and related dependency. |
-| Status messages | Persistent latest result | Replaces three-second timers with one status line updated by the next action. |
+| Footer | Persistent status + common keys | Uses two rows for latest feedback and context-sensitive hints; `?` contains the full key reference. |
 | Command palette | Drop PRD-only feature | Direct hotkeys and `?` help remain; Rust does not add an interaction that Go never shipped. |
 | Existing-ticket edits | External Markdown only | Drops the PRD-only metadata form; creation form and retained important toggle are the only structured edits. |
 | Agent Skills | Retain and update | Fixed columns, adjacent moves, automatic refinement labels, and `--print-path` become tested skill contracts. |
