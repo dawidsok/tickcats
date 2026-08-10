@@ -53,7 +53,7 @@ The repo ships one Rust `tickcats` binary. Existing `.tickcats/` boards load wit
 | Board path | Retain global `--path` | Every command and TUI launch can target an explicit board directory. |
 | Pick path output | `pick-next --print-path` | Replaces the unreachable conflicting `pick-next --path` while keeping script-friendly output. |
 | Board init | Four folders plus `.gitignore` | Explicit, idempotent setup preserves local/private-by-default behavior. |
-| Intro ticket | Guided ordinary ticket | It teaches help, editing/refinement, pick-next, and progression, but has no protection, regeneration, or hidden onboarding state. |
+| Intro ticket | Guided ordinary ticket | Default first init creates it once; `init --no-intro` keeps Agent Skills/tests clean; no protection or regeneration exists. |
 | CLI ticket creation | `feat\|task\|bug`, P2, `[to refine]`, optional `--ac` | Removes undocumented kind/AC aliases and aligns CLI/TUI readiness defaults. |
 | CLI list | Retain four-column text output | Keeps noninteractive human/agent inspection with stable filenames, IDs, priorities, titles, and warnings. |
 | CLI help | `help`, `--help`, and `-h` | Keeps conventional global/command discovery and explicit unknown-command errors. |
@@ -70,7 +70,7 @@ The repo ships one Rust `tickcats` binary. Existing `.tickcats/` boards load wit
 | Footer | Persistent status + common keys | Uses two rows for latest feedback and context-sensitive hints; `?` contains the full key reference. |
 | Command palette | Drop PRD-only feature | Direct hotkeys and `?` help remain; Rust does not add an interaction that Go never shipped. |
 | Existing-ticket edits | External Markdown only | Drops the PRD-only metadata form; creation form and retained important toggle are the only structured edits. |
-| Agent Skills | Retain and update | Fixed columns, adjacent moves, automatic refinement labels, and `--print-path` become tested skill contracts. |
+| Agent Skills | Retain and update | Fixed columns, adjacent moves, refinement labels, `--print-path`, and `init --no-intro` become tested contracts. |
 | Skill installer | Retain Bash tooling | Multi-harness installation stays outside the Rust binary and is tested with a temporary HOME. |
 | Release notes | GitHub-generated | Drops GoReleaser-specific grouping/filter regexes while retaining tagged GitHub releases. |
 
