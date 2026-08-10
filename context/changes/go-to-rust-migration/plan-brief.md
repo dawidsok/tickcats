@@ -35,7 +35,7 @@ The repo ships one Rust `tickcats` binary. Existing `.tickcats/` boards load wit
 | Testing | Feature-to-contract matrix | Verifies behavior without translating every Go test. |
 | Distribution | Current surface | Retains five targets, GitHub archives/checksums, completions, and Homebrew. |
 | Cutover | Release proof first | Go stays until product, integration, and artifact checks all pass. |
-| Workflow columns | Fixed Backlog/Ready/WIP/Done, no WIP limit | Drops Won't Do from the new default; WIP keeps `doing/` and remains a label rather than an enforced capacity. |
+| Workflow columns | Fixed Backlog/Ready/WIP/Done, no WIP limit | WIP keeps `doing/`; CLI advertises `wip` and accepts `doing` only as a compatibility alias. |
 | Legacy columns | Leave untouched and warn | Custom and `wont-do/` folders stay on disk but are excluded from the fixed board and reported with ticket counts. |
 | Workflow transitions | Adjacent only, both directions | CLI uses adjacent `move`; TUI uses only `p/b`, with no direct shortcuts or separate move mode. |
 | Ticket identity | Stable `TC-XXXXXX` IDs | IDs survive filename/title changes and remain usable by prerequisites, skills, and commit references. |
