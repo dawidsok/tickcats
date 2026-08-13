@@ -673,15 +673,15 @@ Before Phase 6, rollback is selecting the Go binary/release. Phase 6 should be o
 
 #### Automated
 
-- [x] 1.1 Go baseline tests pass.
-- [x] 1.2 Rust format, lint, and skeleton tests pass.
-- [x] 1.3 Fixture manifest covers all approved feature IDs and DATA rows.
-- [x] 1.4 Process harness captures streams, status, and copied-tree side effects.
+- [x] 1.1 Go baseline tests pass. — 91d8f6a
+- [x] 1.2 Rust format, lint, and skeleton tests pass. — 91d8f6a
+- [x] 1.3 Fixture manifest covers all approved feature IDs and DATA rows. — 91d8f6a
+- [x] 1.4 Process harness captures streams, status, and copied-tree side effects. — 91d8f6a
 
 #### Manual
 
-- [x] 1.5 Rust modules/dependencies contain nothing for dropped/deferred features.
-- [x] 1.6 Fixture expectations match approved intent.
+- [x] 1.5 Rust modules/dependencies contain nothing for dropped/deferred features. — 91d8f6a
+- [x] 1.6 Fixture expectations match approved intent. — 91d8f6a
 
 ### Phase 2: Port Ticket and Persisted Data Contracts
 
