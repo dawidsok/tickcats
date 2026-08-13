@@ -687,14 +687,14 @@ Before Phase 6, rollback is selecting the Go binary/release. Phase 6 should be o
 
 #### Automated
 
-- [x] 2.1 Rust ticket/data tests pass for every DATA row.
-- [x] 2.2 Existing ticket/config fixtures load and ignored sort fixtures remain byte-identical.
-- [x] 2.3 Matrix-toggle round trips preserve every known config field.
-- [x] 2.4 Go ticket/store tests still pass.
+- [x] 2.1 Rust ticket/data tests pass for every DATA row. — 36a2109
+- [x] 2.2 Existing ticket/config fixtures load and ignored sort fixtures remain byte-identical. — 36a2109
+- [x] 2.3 Matrix-toggle round trips preserve every known config field. — 36a2109
+- [x] 2.4 Go ticket/store tests still pass. — 36a2109
 
 #### Manual
 
-- [x] 2.5 Representative real tickets and config/sort files match in Go and Rust.
+- [x] 2.5 Representative real tickets and config/sort files match in Go and Rust. — 36a2109
 
 ### Phase 3: Port Retained Store and CLI Features
 
