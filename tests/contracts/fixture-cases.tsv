@@ -20,6 +20,7 @@ missing-updated	tickets/missing-updated.md	missing-updated
 blank-updated	tickets/blank-updated.md	blank-updated
 invalid-updated	tickets/invalid-updated.md	invalid-updated
 lowercase-priority	tickets/lowercase-priority.md	lowercase-priority
+padded-required	tickets/padded-required.md	padded-required
 duplicate-last-wins	tickets/duplicate-last-wins.md	duplicate-last-wins,unknown-frontmatter
 feature-alias	tickets/title-feature-alias.md	title-feature-alias
 fix-alias	tickets/title-fix-alias.md	title-fix-alias

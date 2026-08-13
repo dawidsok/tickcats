@@ -1,14 +1,4 @@
-//! Rust migration scaffold for TickCats.
+//! Rust implementation of TickCats, built alongside the Go reference during migration.
 
-/// Identifies the pre-port scaffold in tests and local builds.
-pub const MIGRATION_SCAFFOLD: &str = "TickCats Rust migration scaffold";
-
-#[cfg(test)]
-mod tests {
-    use super::MIGRATION_SCAFFOLD;
-
-    #[test]
-    fn scaffold_is_identifiable() {
-        assert_eq!(MIGRATION_SCAFFOLD, "TickCats Rust migration scaffold");
-    }
-}
+pub mod store;
+pub mod ticket;

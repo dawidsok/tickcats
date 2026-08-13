@@ -1,3 +1,3 @@
 fn main() {
-    println!("{}", tickcats::MIGRATION_SCAFFOLD);
+    println!("TickCats Rust migration in progress");
 }

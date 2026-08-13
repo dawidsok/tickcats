@@ -113,6 +113,7 @@ fn fixture_corpus_covers_the_frozen_edge_cases() {
         "blank-updated",
         "invalid-updated",
         "lowercase-priority",
+        "padded-required",
         "duplicate-last-wins",
         "unknown-frontmatter",
         "title-feature-alias",
