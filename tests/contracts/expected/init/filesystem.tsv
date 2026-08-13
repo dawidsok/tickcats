@@ -1,0 +1,16 @@
+# operation	workspace-relative path	value
+dir	board/backlog	-
+dir	board/ready	-
+dir	board/doing	-
+dir	board/done	-
+not-exists	board/wont-do	-
+contains	.gitignore	board/
+glob-count	board/backlog/*.md	1
+glob-contains	board/backlog/*.md	title: [to refine] Task: Learn TickCats
+glob-contains	board/backlog/*.md	Backlog
+glob-contains	board/backlog/*.md	Ready
+glob-contains	board/backlog/*.md	WIP
+glob-contains	board/backlog/*.md	Done
+glob-contains	board/backlog/*.md	pick-next
+glob-contains	board/backlog/*.md	Press ? for help
+glob-contains	board/backlog/*.md	Press e to edit

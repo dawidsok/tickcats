@@ -1,0 +1,5 @@
+Warning: {BOARD}/backlog/malformed.md: missing frontmatter opening fence
+Warning: {BOARD}/backlog/tc-invalid-id.md: invalid ticket id "TC-IO1234": expected TC-XXXXXX
+Warning: {BOARD}/done/tc-duplicate-id.md: duplicate ticket id "TC-A2B3C4" also used by {BOARD}/ready/tc-a2b3c4-ship-rust-port.md
+Warning: {BOARD}/review: unsupported legacy column contains 1 ticket
+Warning: {BOARD}/wont-do: unsupported legacy column contains 1 ticket

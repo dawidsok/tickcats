@@ -1,0 +1,7 @@
+{
+  "mode": "manual",
+  "manual_order": {
+    "backlog": ["tc-d4e5f6-labeled-ticket.md"],
+    "ready": ["tc-a2b3c4-ship-rust-port.md"]
+  }
+}

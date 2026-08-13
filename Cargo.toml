@@ -1,0 +1,12 @@
+[package]
+name = "tickcats"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "tickcats"
+path = "src/main.rs"

@@ -1,0 +1,93 @@
+# id	phase	fixture	contract
+CORE-01	3	boards/compat	offline repo-local operation
+CORE-02	3	boards/compat	folder-derived fixed status
+CORE-03	3	boards/pick-tie	exact pick-next rule and ties
+CORE-04	2	boards/compat	external Markdown compatibility
+CORE-05	3	boards/clean	fixed Backlog Ready WIP Done workflow
+CORE-06	3	boards/compat	legacy folders untouched with count warnings
+CORE-07	3	boards/compat	board reads never reconcile config
+CORE-08	2	boards/compat	stable IDs and ID warnings
+CORE-09	4	boards/compat	read-only deadline display and urgency
+CORE-10	4	boards/compat	important flag and matrix toggle
+CORE-11	4	boards/compat	fixed matrix or priority board order
+CORE-12	3	boards/collision	soft delete and collision refusal
+CORE-13	3	boards/compat	nonfatal malformed ticket warnings
+CORE-14	2	boards/compat	legacy column colors preserved only
+CLI-01	4	boards/compat	implicit and explicit TUI launch
+CLI-02	3	boards/compat	global board path
+CLI-03	3	boards/clean	init folders gitignore and no-intro
+CLI-04	3	boards/clean	new feat task bug defaults
+CLI-05	3	boards/clean	new optional ac flag
+CLI-06	3	boards/compat	fixed-column text list
+CLI-07	3	boards/compat	adjacent move and WIP alias
+CLI-08	3	boards/compat	human pick-next output
+CLI-09	3	boards/compat	intentional print-path output
+CLI-10	3	boards/compat	preflighted resumable ID migration
+CLI-11	3	boards/compat	fixed ticket and column completions
+CLI-12	3	boards/compat	help entry points and errors
+CLI-13	3	boards/compat	stable error and warning streams
+CLI-14	3	boards/clean	one-time ordinary intro ticket
+TUI-01	4	boards/compat	compact cards and recommendation markers
+TUI-02	4	boards/compat	Vim arrows and half-page navigation
+TUI-03	4	boards/compat	no numeric motion state
+TUI-04	4	boards/compat	sliding responsive columns
+TUI-05	4	boards/compat	right detail panel and narrow fallback
+TUI-06	4	boards/clean	four-field ticket creation
+TUI-07	4	boards/clean	return to focused created ticket
+TUI-08	4	boards/compat	safe external editor handoff
+TUI-09	4	boards/compat	adjacent progress and back actions
+TUI-10	4	boards/compat	no move mode
+TUI-11	4	boards/compat	focused-ticket actions only
+TUI-12	4	boards/compat	no manual reorder
+TUI-13	4	boards/collision	focused soft-delete confirmation
+TUI-14	4	boards/compat	read-only deadline metadata
+TUI-15	4	boards/compat	important toggle and matrix display
+TUI-16	4	boards/compat	no sort mode
+TUI-17	4	boards/compat	fuzzy priority title body search
+TUI-18	4	boards/compat	no editor config view
+TUI-19	4	boards/compat	fixed neutral semantic palette
+TUI-20	4	boards/compat	direct matrix hotkey
+TUI-21	4	boards/compat	no column administration
+TUI-22	4	boards/compat	no column color picker
+TUI-23	4	boards/compat	mode-specific help overlay
+TUI-24	4	boards/compat	immediate safe quit
+TUI-25	4	boards/compat	manual and post-editor reload only
+TUI-26	4	boards/compat	persistent status and key footer
+TUI-27	4	boards/compat	no command palette
+TUI-28	4	boards/compat	existing ticket edits via Markdown
+TUI-29	4	boards/compat	no pick-next hotkey
+OPS-01	5	boards/clean	semantic tag release trigger
+OPS-02	5	boards/clean	five release targets
+OPS-03	5	boards/clean	archive names formats contents checksums
+OPS-04	5	boards/clean	Homebrew publication and smoke test
+OPS-05	5	boards/clean	direct archive installation
+OPS-06	6	boards/clean	remove Go install path
+OPS-07	5	boards/compat	Bash Zsh Fish completions
+OPS-08	5	boards/clean	updated Agent Skills workflow
+OPS-09	5	boards/clean	multi-harness skill installer
+OPS-10	5	boards/clean	GitHub-generated release notes
+OPS-11	5	boards/clean	approved Rust documentation
+OPS-12	5	boards/clean	standalone offline binary
+DATA-01	3	boards/compat	fixed and legacy folder preservation
+DATA-02	2	boards/compat	line-oriented frontmatter dialect
+DATA-03	2	boards/compat	required ticket fields
+DATA-04	2	boards/compat	optional ID deadline important fields
+DATA-05	2	boards/compat	body and Acceptance Criteria detection
+DATA-06	2	boards/compat	labels and kind prefixes
+DATA-07	2	boards/compat	P0 through P3 priorities
+DATA-08	2	boards/compat	ID alphabet validation and warnings
+DATA-09	3	boards/collision	stable filenames and collision suffixes
+DATA-10	2	boards/compat	legacy config preferences preserved
+DATA-11	2	boards/compat	legacy configured columns preserved
+DATA-12	2	boards/compat	sort config byte preservation
+DATA-13	3	boards/compat	trash excluded and preserved
+DATA-14	3	gitignore/existing-newline	idempotent gitignore entry
+DATA-15	3	boards/compat	malformed files untouched
+DATA-16	3	boards/collision	move and trash byte preservation
+DEF-01	3	boards/compat	print-path replaces conflicting flag
+DEF-02	3	boards/compat	ID migration reports legacy folders
+DEF-03	3	boards/compat	delete only fixed-column tickets
+DEF-04	4	boards/compat	no file watcher lifecycle
+DEF-05	3	boards/collision	preflighted resumable ID migration
+DEF-06	3	boards/compat	read-only commands never write
+DEF-07	4	boards/compat	shell-word editor parsing without shell

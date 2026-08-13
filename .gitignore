@@ -1,6 +1,7 @@
 .tickcats/
 /.tickcats-test
 /tickcats
+/target/
 /.env
 .DS_Store
 /plan

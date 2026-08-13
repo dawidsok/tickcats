@@ -1,0 +1,11 @@
+# name	fixture	policy	filesystem	arguments...
+unknown-command	boards/compat	parity	readonly	--path	{board}	unknown
+missing-path-value	boards/compat	parity	readonly	--path
+init	-	intent	mutation	--path	{board}	init
+list	boards/compat	intent	readonly	--path	{board}	list
+pick-next	boards/compat	intent	readonly	--path	{board}	pick-next
+pick-priority	boards/pick-priority	parity	readonly	--path	{board}	pick-next
+pick-oldest	boards/pick-oldest	parity	readonly	--path	{board}	pick-next
+pick-tie	boards/pick-tie	parity	readonly	--path	{board}	pick-next
+move-collision	boards/collision	parity	readonly	--path	{board}	move	tc-j4k5m6-same.md	backlog	ready
+pick-print-path	boards/compat	intent	readonly	--path	{board}	pick-next	--print-path

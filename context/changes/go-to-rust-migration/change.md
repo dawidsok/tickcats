@@ -1,6 +1,6 @@
 ---
 id: go-to-rust-migration
-status: planned
+status: implementing
 created: 2026-07-07
 updated: 2026-08-06
 ---

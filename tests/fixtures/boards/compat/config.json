@@ -1,0 +1,14 @@
+{
+  "editor": "code --wait",
+  "theme": 3,
+  "skip_editor_prompt": true,
+  "disable_matrix_prioritisation": false,
+  "columns": [
+    { "id": "backlog", "name": "Backlog", "color": "#88a" },
+    { "id": "ready", "name": "Ready", "color": "#0af" },
+    { "id": "doing", "name": "Doing", "color": "#f80" },
+    { "id": "done", "name": "Done", "color": "#8ad" },
+    { "id": "wont-do", "name": "Won't Do" },
+    { "id": "review", "name": "Review" }
+  ]
+}
