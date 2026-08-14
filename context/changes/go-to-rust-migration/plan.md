@@ -714,10 +714,10 @@ Before Phase 6, rollback is selecting the Go binary/release. Phase 6 should be o
 
 #### Automated
 
-- [ ] 4.1 Every retained TUI ID has an automated state/render/action check.
-- [ ] 4.2 Rust TUI and CLI contracts pass.
-- [ ] 4.3 Agreed narrow/medium/wide board and responsive-detail bounds pass.
-- [ ] 4.4 No scaffolding remains for dropped/deferred TUI rows.
+- [x] 4.1 Every retained TUI ID has a state/render/action check. — e64f9ca
+- [x] 4.2 Rust TUI and CLI contracts pass. — e64f9ca
+- [x] 4.3 Agreed narrow/medium/wide board and responsive-detail bounds pass. — e64f9ca
+- [x] 4.4 No scaffolding remains for dropped/deferred TUI rows. — e64f9ca
 
 #### Manual
 
