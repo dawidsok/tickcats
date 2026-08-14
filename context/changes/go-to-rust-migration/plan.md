@@ -728,12 +728,12 @@ Before Phase 6, rollback is selecting the Go binary/release. Phase 6 should be o
 
 #### Automated
 
-- [ ] 5.1 Bash, Zsh, and Fish completion checks pass.
-- [ ] 5.2 Retained Agent Skills smoke tests pass.
-- [ ] 5.3 Release dry run produces exactly five approved target artifacts and checksums.
-- [ ] 5.4 Archive names, formats, contents, and executable bits pass.
-- [ ] 5.5 Homebrew install smoke test passes.
-- [ ] 5.6 Rust checks/contracts and Go tests pass together.
+- [x] 5.1 Bash, Zsh, and Fish completion checks pass. — c60ad9b
+- [x] 5.2 Retained Agent Skills smoke tests pass. — c60ad9b
+- [x] 5.3 Release dry run produces exactly five approved target artifacts and checksums. — c60ad9b
+- [x] 5.4 Archive names, formats, contents, and executable bits pass. — c60ad9b
+- [x] 5.5 Homebrew install smoke test passes. — c60ad9b
+- [x] 5.6 Rust checks/contracts and Go tests pass together. — c60ad9b
 
 #### Manual
 
