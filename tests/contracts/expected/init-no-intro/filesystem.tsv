@@ -1,0 +1,6 @@
+dir	board/backlog	-
+dir	board/ready	-
+dir	board/doing	-
+dir	board/done	-
+glob-count	board/backlog/*.md	0
+contains	.gitignore	board/

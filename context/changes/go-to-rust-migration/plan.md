@@ -700,15 +700,15 @@ Before Phase 6, rollback is selecting the Go binary/release. Phase 6 should be o
 
 #### Automated
 
-- [ ] 3.1 Retained CORE/CLI mappings pass Rust tests.
-- [ ] 3.2 Process contracts pass for all retained commands and errors.
-- [ ] 3.3 Filesystem side-effect snapshots pass.
-- [ ] 3.4 Full Go suite still passes.
+- [x] 3.1 Retained CORE/CLI mappings pass Rust tests.
+- [x] 3.2 Process contracts pass for all retained commands and errors.
+- [x] 3.3 Filesystem side-effect snapshots pass.
+- [x] 3.4 Full Go suite still passes.
 
 #### Manual
 
-- [ ] 3.5 Retained Rust commands work against a copied real board.
-- [ ] 3.6 Dropped/deferred commands follow approved absence/error behavior.
+- [x] 3.5 Retained Rust commands work against a copied real board.
+- [x] 3.6 Dropped/deferred commands follow approved absence/error behavior.
 
 ### Phase 4: Port Retained TUI Workflows
 

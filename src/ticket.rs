@@ -67,6 +67,15 @@ pub enum Kind {
 }
 
 impl Kind {
+    pub fn parse_cli(raw: &str) -> Result<Self, ParseError> {
+        match raw.trim().to_ascii_lowercase().as_str() {
+            "feat" => Ok(Self::Feature),
+            "task" => Ok(Self::Task),
+            "bug" => Ok(Self::Bug),
+            _ => Err(ParseError::new(format!("unknown ticket kind {raw:?}"))),
+        }
+    }
+
     pub const fn prefix(self) -> &'static str {
         match self {
             Self::Feature => "Feat",
@@ -176,6 +185,24 @@ pub fn parse_markdown(data: &[u8]) -> Result<Ticket, ParseError> {
         body: body.to_owned(),
         has_acceptance_criteria: has_non_empty_section(body, "Acceptance Criteria"),
     })
+}
+
+pub fn new_markdown(
+    id: &str,
+    title: &str,
+    priority: Priority,
+    timestamp: DateTime<chrono::Utc>,
+    acceptance: Option<&str>,
+) -> Vec<u8> {
+    let timestamp = timestamp.to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    let acceptance = acceptance
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map_or_else(|| "-".to_owned(), |value| format!("- {value}"));
+    format!(
+        "---\ntitle: {title}\nid: {id}\npriority: {priority}\ncreated: {timestamp}\nupdated: {timestamp}\n---\n\n## Context\n\n## Acceptance Criteria\n{acceptance}\n"
+    )
+    .into_bytes()
 }
 
 pub fn valid_id(id: &str) -> bool {

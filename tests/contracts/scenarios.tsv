@@ -2,10 +2,27 @@
 unknown-command	boards/compat	parity	readonly	--path	{board}	unknown
 missing-path-value	boards/compat	parity	readonly	--path
 init	-	intent	mutation	--path	{board}	init
+init-no-intro	-	intent	mutation	--path	{board}	init	--no-intro
 list	boards/compat	intent	readonly	--path	{board}	list
+new-task	boards/clean	intent	mutation	--path	{board}	new	task	CLI ticket	--ac	Done
+new-feat-no-ac	boards/clean	intent	mutation	--path	{board}	new	feat	Feature ticket
+new-bug-blank-ac	boards/clean	intent	mutation	--path	{board}	new	bug	Bug ticket	--ac
+new-task-multiword-ac	boards/clean	intent	mutation	--path	{board}	new	task	Multiword	--ac	First	and	second
+new-feature-alias	boards/clean	intent	readonly	--path	{board}	new	feature	Alias
+new-acceptance-alias	boards/clean	intent	readonly	--path	{board}	new	task	Alias	--acceptance	Done
 pick-next	boards/compat	intent	readonly	--path	{board}	pick-next
 pick-priority	boards/pick-priority	parity	readonly	--path	{board}	pick-next
 pick-oldest	boards/pick-oldest	parity	readonly	--path	{board}	pick-next
 pick-tie	boards/pick-tie	parity	readonly	--path	{board}	pick-next
 move-collision	boards/collision	parity	readonly	--path	{board}	move	tc-j4k5m6-same.md	backlog	ready
+move-adjacent-wip	boards/pick-priority	intent	mutation	--path	{board}	move	tc-c3d4e5-p0-newer.md	ready	wip
+move-by-id	boards/pick-priority	intent	mutation	--path	{board}	move	TC-C3D4E5	ready	doing
+move-nonadjacent	boards/pick-priority	intent	readonly	--path	{board}	move	tc-c3d4e5-p0-newer.md	ready	done
 pick-print-path	boards/compat	intent	readonly	--path	{board}	pick-next	--print-path
+ids-migrate	boards/id-migration	intent	mutation	--path	{board}	ids	migrate
+ids-migrate-repeat	boards/id-migrated	intent	readonly	--path	{board}	ids	migrate
+complete-columns	boards/compat	intent	readonly	--path	{board}	__complete	columns
+complete-tickets	boards/pick-priority	intent	readonly	--path	{board}	__complete	tickets
+help-command	boards/compat	intent	readonly	help
+help-long	boards/compat	intent	readonly	--help
+help-short	boards/compat	intent	readonly	-h

@@ -77,6 +77,19 @@ run_command() {
   snapshot_tree "$workspace" "$output_dir/tree.after"
 }
 
+compare_regex() {
+  local label="$1" pattern_file="$2" actual_file="$3"
+  python3 - "$pattern_file" "$actual_file" <<'PY'
+from pathlib import Path
+import re
+import sys
+pattern, actual = sys.argv[1:]
+if not re.fullmatch(Path(pattern).read_text(), Path(actual).read_text()):
+    print(f"regex mismatch: {pattern} vs {actual}", file=sys.stderr)
+    raise SystemExit(1)
+PY
+}
+
 compare_file() {
   local label="$1" left="$2" right="$3"
   if cmp -s "$left" "$right"; then
@@ -97,7 +110,7 @@ check_filesystem_assertions() {
       dir) [[ -d "$workspace/$path" ]] || assertion_failed=1 ;;
       file) [[ -f "$workspace/$path" ]] || assertion_failed=1 ;;
       not-exists) [[ ! -e "$workspace/$path" ]] || assertion_failed=1 ;;
-      contains) [[ -f "$workspace/$path" ]] && grep -Fq "$value" "$workspace/$path" || assertion_failed=1 ;;
+      contains) [[ -f "$workspace/$path" ]] && grep -Fq -- "$value" "$workspace/$path" || assertion_failed=1 ;;
       glob-count|glob-contains)
         local -a matches=()
         shopt -s nullglob
@@ -109,7 +122,7 @@ check_filesystem_assertions() {
           local found=false match
           if ((${#matches[@]} > 0)); then
             for match in "${matches[@]}"; do
-              if grep -Fq "$value" "$match"; then found=true; break; fi
+              if grep -Fq -- "$value" "$match"; then found=true; break; fi
             done
           fi
           [[ "$found" == true ]] || assertion_failed=1
@@ -171,8 +184,12 @@ run_scenarios() {
         run_command "$rust_bin" "$rust_board" "$rust_workspace" "$scenario_dir/rust" "${args[@]}"
         local expected_dir="$expected/$name"
         for artifact in stdout stderr status; do
-          [[ -f "$expected_dir/$artifact" ]] || { echo "missing expectation: $expected_dir/$artifact" >&2; return 2; }
-          compare_file "$name $artifact" "$expected_dir/$artifact" "$scenario_dir/rust/$artifact" || failed=true
+          if [[ -f "$expected_dir/$artifact.regex" ]]; then
+            compare_regex "$name $artifact" "$expected_dir/$artifact.regex" "$scenario_dir/rust/$artifact" || failed=true
+          else
+            [[ -f "$expected_dir/$artifact" ]] || { echo "missing expectation: $expected_dir/$artifact" >&2; return 2; }
+            compare_file "$name $artifact" "$expected_dir/$artifact" "$scenario_dir/rust/$artifact" || failed=true
+          fi
         done
         if [[ -f "$expected_dir/tree" ]]; then
           compare_file "$name filesystem" "$expected_dir/tree" "$scenario_dir/rust/tree.after" || failed=true

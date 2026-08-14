@@ -1,0 +1,4 @@
+glob-count	board/backlog/*.md	1
+glob-contains	board/backlog/*.md	title: [to refine] Task: CLI ticket
+glob-contains	board/backlog/*.md	priority: P2
+glob-contains	board/backlog/*.md	- Done

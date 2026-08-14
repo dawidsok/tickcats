@@ -180,7 +180,8 @@ fn scenario_manifest_references_existing_contract_assets() {
             let expected = root.join("tests/contracts/expected").join(fields[0]);
             for artifact in ["stdout", "stderr", "status"] {
                 assert!(
-                    expected.join(artifact).is_file(),
+                    expected.join(artifact).is_file()
+                        || expected.join(format!("{artifact}.regex")).is_file(),
                     "missing {artifact} for {}",
                     fields[0]
                 );

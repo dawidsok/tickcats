@@ -1,0 +1,12 @@
+TickCats
+
+Usage: tickcats [--path <dir>] <command>
+
+Commands:
+  init [--no-intro]
+  new feat|task|bug <title> [--ac text]
+  list
+  move <ticket> <from> <to>
+  pick-next [--print-path]
+  ids migrate
+  tui

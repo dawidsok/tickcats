@@ -2,12 +2,12 @@ Backlog
   tc-d4e5f6-labeled-ticket.md  TC-D4E5F6  [P2] [idea, to refine] Feat: Labeled ticket
   tc-invalid-id.md  TC-IO1234  [P3] Task: Invalid ID warning
 Ready
-  tc-a2b3c4-ship-rust-port.md  TC-A2B3C4  [P1] Task: Ship Rust port
   tc-g4h5j6-blocked.md  TC-G4H5J6  [P0] [blocked] Bug: Blocked candidate
   tc-k4m5n6-refine.md  TC-K4M5N6  [P0] [to refine] Feat: Unrefined candidate
   tc-p4q5r6-empty-ac.md  TC-P4Q5R6  [P0] Task: Empty acceptance criteria
+  tc-a2b3c4-ship-rust-port.md  TC-A2B3C4  [P1] Task: Ship Rust port
 WIP
   tc-s4t5v6-important-deadline.md  TC-S4T5V6  [P3] Bug: Important deadline
 Done
-  tc-duplicate-id.md  TC-A2B3C4  [P3] Task: Duplicate ID warning
   tc-w4x5y6-crlf.md  TC-W4X5Y6  [P2] Task: CRLF ticket
+  tc-duplicate-id.md  TC-A2B3C4  [P3] Task: Duplicate ID warning

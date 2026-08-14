@@ -208,9 +208,9 @@ Press `c` in the TUI to open the config page. Settings are saved to `.tickcats/c
 | Matrix | Toggle urgency/importance matrix prioritisation for priority sort. On by default; when enabled, board cards hide raw P0-P3 labels. |
 | Columns | Add, rename, reorder, or delete board columns. Backlog and Done are locked default columns. Deleted column tickets move to the first column. |
 
-## Claude Code skills
+## Agent skills
 
-[`skills/`](skills/) ships a set of Claude Code skills that drive a full idea-to-implementation workflow on a tickcats board — each ticket becomes a self-contained, human-readable implementation spec (requirements, mermaid architecture, phased plan, progress tracking):
+[`skills/`](skills/) ships Agent Skills for Claude Code, OpenAI Codex CLI, Pi, and other compatible harnesses. They drive a full idea-to-implementation workflow on a tickcats board — each ticket becomes a self-contained, human-readable implementation spec (requirements, mermaid architecture, phased plan, progress tracking):
 
 | Skill | Job |
 |---|---|
@@ -223,7 +223,15 @@ Press `c` in the TUI to open the config page. Settings are saved to `.tickcats/c
 | `tc-implement` | Execute the ticket: `ready → doing → done`, per-phase commits, unblocks dependents |
 | `tickcats-from-roadmap` | Convert an existing 10x `roadmap.md` into tickets |
 
-Install by copying (or symlinking) the directories into `~/.config/skills/` or a project's `.claude/skills/`. Note: the tc-* workflow commits `.tickcats/` (tickets double as shared specs) — the skills remove it from `.gitignore` on first run.
+Install interactively:
+
+```bash
+./scripts/install-skills.sh
+```
+
+The installer offers Claude Code (`~/.claude/skills`), OpenAI Codex CLI (`~/.codex/skills`), Pi (`~/.pi/agent/skills`), and the shared Agent Skills location (`~/.agents/skills`). You can still copy or symlink `skills/*` manually if your harness uses another path.
+
+Note: the tc-* workflow commits `.tickcats/` (tickets double as shared specs) — the skills remove it from `.gitignore` on first run.
 
 ## Philosophy
 

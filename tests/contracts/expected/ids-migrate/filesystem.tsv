@@ -1,0 +1,4 @@
+not-exists	board/ready/legacy.md	-
+glob-count	board/ready/tc-*-task-legacy-migration.md	1
+glob-contains	board/ready/tc-*-task-legacy-migration.md	id: TC-
+file	board/review/legacy.md	-

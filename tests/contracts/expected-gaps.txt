@@ -1,12 +1,1 @@
-# Phase 1 Rust scaffold intentionally implements no product contracts yet.
-# Remove a scenario as soon as its Rust contract lands; stale entries fail CI.
-unknown-command
-missing-path-value
-init
-list
-pick-next
-pick-priority
-pick-oldest
-pick-tie
-move-collision
-pick-print-path
+# All Phase 1-3 scriptable contract scenarios currently pass.

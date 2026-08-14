@@ -1,0 +1,3 @@
+glob-count	board/backlog/*.md	1
+glob-contains	board/backlog/*.md	title: [to refine] Task: Multiword
+glob-contains	board/backlog/*.md	- First and second

@@ -1,0 +1,4 @@
+glob-count	board/backlog/*.md	1
+glob-contains	board/backlog/*.md	title: [to refine] Bug: Bug ticket
+glob-contains	board/backlog/*.md	## Acceptance Criteria
+glob-contains	board/backlog/*.md	-
