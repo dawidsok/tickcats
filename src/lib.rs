@@ -3,3 +3,4 @@
 pub mod cli;
 pub mod store;
 pub mod ticket;
+pub mod tui;

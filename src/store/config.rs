@@ -45,6 +45,13 @@ impl Config {
             .unwrap_or(false)
     }
 
+    pub fn default_for(board_root: &Path) -> Self {
+        Self {
+            path: board_root.join("config.json"),
+            value: serde_json::Value::Object(serde_json::Map::new()),
+        }
+    }
+
     pub fn toggle_matrix(&mut self) -> Result<bool, ConfigError> {
         let enabled = !self.matrix_enabled();
         let object = self

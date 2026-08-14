@@ -11,7 +11,7 @@ pub fn run(raw_args: impl IntoIterator<Item = OsString>) -> Result<(), StoreErro
     let mut raw: Vec<OsString> = raw_args.into_iter().collect();
     let board = extract_board_path(&mut raw)?;
     if raw.is_empty() {
-        return Err(StoreError::new("TUI is not implemented yet"));
+        return crate::tui::run(&board).map_err(|e| StoreError::new(e.to_string()));
     }
     let command = raw[0]
         .to_str()
@@ -40,7 +40,7 @@ pub fn run(raw_args: impl IntoIterator<Item = OsString>) -> Result<(), StoreErro
             print_help();
             Ok(())
         }
-        "tui" => Err(StoreError::new("TUI is not implemented yet")),
+        "tui" => crate::tui::run(&board).map_err(|e| StoreError::new(e.to_string())),
         command => Err(StoreError::new(format!("unknown command {command:?}"))),
     }
 }
