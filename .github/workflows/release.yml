@@ -9,21 +9,166 @@ permissions:
   contents: write
 
 jobs:
+  build:
+    name: Build ${{ matrix.archive_os }}-${{ matrix.archive_arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archive_os: linux
+            archive_arch: amd64
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            archive_os: linux
+            archive_arch: arm64
+            cross: true
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            archive_os: darwin
+            archive_arch: amd64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            archive_os: darwin
+            archive_arch: arm64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            archive_os: windows
+            archive_arch: amd64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross
+        if: matrix.cross
+        run: cargo install cross --locked
+
+      - name: Build
+        run: ${{ matrix.cross && 'cross' || 'cargo' }} build --release --target ${{ matrix.target }}
+
+      - name: Package (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          VERSION: ${{ github.ref_name }}
+          TARGET: ${{ matrix.target }}
+          ARCHIVE_OS: ${{ matrix.archive_os }}
+          ARCHIVE_ARCH: ${{ matrix.archive_arch }}
+        run: |
+          NAME="tickcats_${VERSION}_${ARCHIVE_OS}_${ARCHIVE_ARCH}"
+          mkdir "$NAME"
+          cp "target/${TARGET}/release/tickcats" "$NAME/"
+          cp LICENSE README.md "$NAME/"
+          cp -r completions "$NAME/"
+          tar czf "${NAME}.tar.gz" "$NAME"
+          echo "ASSET=${NAME}.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          VERSION: ${{ github.ref_name }}
+          TARGET: ${{ matrix.target }}
+          ARCHIVE_OS: ${{ matrix.archive_os }}
+          ARCHIVE_ARCH: ${{ matrix.archive_arch }}
+        run: |
+          NAME="tickcats_${VERSION}_${ARCHIVE_OS}_${ARCHIVE_ARCH}"
+          mkdir "$NAME"
+          cp "target/${TARGET}/release/tickcats.exe" "$NAME/"
+          cp LICENSE README.md "$NAME/"
+          cp -r completions "$NAME/"
+          7z a "${NAME}.zip" "$NAME"
+          echo "ASSET=${NAME}.zip" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive_os }}-${{ matrix.archive_arch }}
+          path: ${{ env.ASSET }}
+
   release:
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - uses: actions/setup-go@v5
+      - uses: actions/download-artifact@v4
         with:
-          go-version-file: go.mod
+          path: artifacts
+          merge-multiple: true
 
-      - uses: goreleaser/goreleaser-action@v6
+      - name: Verify archive contents
+        run: bash scripts/check-release-archive.sh artifacts/*.tar.gz
+
+      - name: Create checksums
+        run: |
+          cd artifacts
+          sha256sum * > checksums.txt
+
+      - uses: softprops/action-gh-release@v2
         with:
-          version: v2.15.2
-          args: release --clean
+          generate_release_notes: true
+          files: artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Homebrew tap
+        if: env.HOMEBREW_TAP_TOKEN != ''
+        env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME}"
+          REPO="https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/dawidsok/homebrew-tap.git"
+          SHA() { sha256sum "artifacts/tickcats_${VERSION}_${1}_${2}.tar.gz" | cut -d' ' -f1; }
+          DARWIN_AMD64=$(SHA darwin amd64)
+          DARWIN_ARM64=$(SHA darwin arm64)
+          LINUX_AMD64=$(SHA  linux  amd64)
+          LINUX_ARM64=$(SHA  linux  arm64)
+          git clone "$REPO" homebrew-tap
+          mkdir -p homebrew-tap/Formula
+          cat > homebrew-tap/Formula/tickcats.rb << FORMULA
+          class Tickcats < Formula
+            desc "Keyboard-first local kanban board for solo developers"
+            homepage "https://github.com/dawidsok/tickcats"
+            license "MIT"
+            version "${VERSION#v}"
+
+            if OS.mac? && Hardware::CPU.arm?
+              url "https://github.com/dawidsok/tickcats/releases/download/${VERSION}/tickcats_${VERSION}_darwin_arm64.tar.gz"
+              sha256 "${DARWIN_ARM64}"
+            elsif OS.mac?
+              url "https://github.com/dawidsok/tickcats/releases/download/${VERSION}/tickcats_${VERSION}_darwin_amd64.tar.gz"
+              sha256 "${DARWIN_AMD64}"
+            elsif Hardware::CPU.arm?
+              url "https://github.com/dawidsok/tickcats/releases/download/${VERSION}/tickcats_${VERSION}_linux_arm64.tar.gz"
+              sha256 "${LINUX_ARM64}"
+            else
+              url "https://github.com/dawidsok/tickcats/releases/download/${VERSION}/tickcats_${VERSION}_linux_amd64.tar.gz"
+              sha256 "${LINUX_AMD64}"
+            end
+
+            def install
+              bin.install "tickcats"
+              bash_completion.install "completions/tickcats.bash" => "tickcats"
+              zsh_completion.install "completions/_tickcats.zsh" => "_tickcats"
+              fish_completion.install "completions/tickcats.fish"
+            end
+
+            test do
+              system "#{bin}/tickcats", "--path", "#{testpath}/.tickcats", "init"
+              assert_predicate testpath/".tickcats/backlog", :directory?
+            end
+          end
+          FORMULA
+          cd homebrew-tap
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add Formula/tickcats.rb
+          git diff --staged --quiet || git commit -m "chore: bump tickcats to ${VERSION}"
+          git push

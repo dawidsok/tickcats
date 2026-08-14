@@ -26,3 +26,81 @@ jobs:
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
       - run: scripts/compare-go-rust.sh --allow-gaps
+
+  completions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bash syntax check
+        run: bash -n completions/tickcats.bash
+      - name: Bash — pick-next uses --print-path
+        run: grep -q '\-\-print-path' completions/tickcats.bash
+      - name: Zsh syntax check
+        run: zsh -n completions/_tickcats.zsh
+      - name: Zsh — pick-next uses --print-path
+        run: grep -q '\-\-print-path' completions/_tickcats.zsh
+      - name: Fish syntax check
+        run: fish --no-config -c 'source completions/tickcats.fish'
+        continue-on-error: true  # fish may not be installed on all CI runners
+      - name: Fish — pick-next uses --print-path
+        run: grep -q '\-\-print-path' completions/tickcats.fish
+
+  skills-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+      - name: Skills CLI smoke test
+        run: |
+          set -euo pipefail
+          BIN="./target/release/tickcats"
+          BOARD="$(mktemp -d)/.tickcats"
+
+          # init (no intro for automation — OPS-09 contract)
+          "$BIN" --path "$BOARD" init --no-intro
+          [[ -d "$BOARD/backlog" && -d "$BOARD/ready" && -d "$BOARD/doing" && -d "$BOARD/done" ]]
+
+          # new feat|task|bug (not feature/fix — CLI-04)
+          FILE=$("$BIN" --path "$BOARD" new task "Skills test" --ac "Done")
+          [[ -f "$FILE" ]]
+          NAME="$(basename "$FILE")"
+
+          # move backlog → ready (adjacent — CLI-07)
+          "$BIN" --path "$BOARD" move "$NAME" backlog ready
+
+          # pick-next returns correctly (ticket has [to refine] so no pick is expected)
+          "$BIN" --path "$BOARD" pick-next
+
+          # Write an eligible ready ticket directly (no [to refine], has AC)
+          ID=$("$BIN" --path "$BOARD" new task "Eligible" --ac "Done" | xargs basename)
+          # Remove [to refine] by editing the file directly
+          sed -i 's/\[to refine\] //' "$BOARD/backlog/$ID"
+          "$BIN" --path "$BOARD" move "$ID" backlog ready
+
+          # pick-next --print-path (CLI-09 / DEF-01 fix)
+          PATH_OUT=$("$BIN" --path "$BOARD" pick-next --print-path)
+          [[ -f "$PATH_OUT" ]]
+
+          # __complete columns emits wip (CLI-11)
+          COLS=$("$BIN" --path "$BOARD" __complete columns)
+          echo "$COLS" | grep -q "wip"
+
+          echo "Skills smoke: all checks passed"
+
+  release-archive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+      - name: Build snapshot archive and verify
+        run: |
+          set -euo pipefail
+          VERSION="v0.0.0-snapshot"
+          NAME="tickcats_${VERSION}_linux_amd64"
+          mkdir -p "${NAME}/completions"
+          cp target/release/tickcats LICENSE README.md "${NAME}/"
+          cp completions/tickcats.bash completions/_tickcats.zsh completions/tickcats.fish "${NAME}/completions/"
+          tar czf "${NAME}.tar.gz" "${NAME}"
+          bash scripts/check-release-archive.sh "${NAME}.tar.gz"

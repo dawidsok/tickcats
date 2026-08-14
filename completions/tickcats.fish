@@ -11,4 +11,4 @@ complete -c tickcats -n "__fish_seen_subcommand_from new" -f -a "feat task bug"
 complete -c tickcats -n "__fish_seen_subcommand_from move" -f -a "(tickcats __complete tickets 2>/dev/null)"
 complete -c tickcats -n "__fish_seen_subcommand_from move" -f -a "(tickcats __complete columns 2>/dev/null)"
 complete -c tickcats -n "__fish_seen_subcommand_from ids" -f -a migrate
-complete -c tickcats -n "__fish_seen_subcommand_from pick-next" -f -a --path
+complete -c tickcats -n "__fish_seen_subcommand_from pick-next" -f -a --print-path

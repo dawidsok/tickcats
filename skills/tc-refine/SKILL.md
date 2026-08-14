@@ -41,7 +41,7 @@ Use AskUserQuestion when the question has 2-4 discrete options (mark your recomm
 
 ## Tickcats facts (memorize before touching the board)
 
-- Columns are folders: `.tickcats/{backlog,ready,doing,done,wont-do}/`. **State = folder, never frontmatter.**
+- Columns are folders: `.tickcats/{backlog,ready,doing,done}/`. **State = folder, never frontmatter.** A `wont-do/` folder may exist on legacy boards; the Rust CLI does not move tickets there — use `mv` directly.
 - `tickcats new feat|task|bug "<title>"` creates a ticket in backlog and prints the created file path — capture it.
 - `tickcats move <bare-filename> <from> <to>` moves between columns.
 - Labels are square brackets in the title: `[to refine]`, `[blocked]`.
@@ -114,9 +114,9 @@ Each ticket exits through exactly one gate:
 **Split** — user agrees it's more than one deliverable. Mechanics, in order:
 1. For each part: `tickcats new feat|task|bug "<change-id>a: <part title>"` (siblings `a`, `b`, …; NO labels or kind prefix in the argument — the CLI adds the prefix and ignores labels). Capture each printed path, then edit each file's frontmatter `title:` to prepend `[to refine]` (single leading bracket group) unless the grill already fully refined that part.
 2. Write each sibling's `## Context` and draft `## Acceptance Criteria` from the session's decisions; wire `Prerequisites:` between siblings and carry over the original's external prerequisites; set priorities (they may differ — argue each).
-3. Append `Split into: TC-AAAA, TC-BBBB` to the original's body, then `tickcats move <bare-filename-of-original> backlog wont-do`.
+3. Append `Split into: TC-AAAA, TC-BBBB` to the original's body, then `mkdir -p .tickcats/wont-do && mv .tickcats/backlog/<bare-filename-of-original> .tickcats/wont-do/`.
 
-**Killed** — user decides it's not worth doing. Append a one-line rationale to the body (e.g. `Killed: superseded by s-07 after PRD v2 dropped offline mode.`), then `tickcats move <bare-filename> backlog wont-do`.
+**Killed** — user decides it's not worth doing. Append a one-line rationale to the body (e.g. `Killed: superseded by s-07 after PRD v2 dropped offline mode.`), then `mkdir -p .tickcats/wont-do && mv .tickcats/backlog/<bare-filename> .tickcats/wont-do/`.
 
 After each ticket, print a one-line verdict (`s-03 → refined, moved to ready` / `s-05 → split into s-05a, s-05b` / `s-09 → killed`) and move to the next in the queue. The user may stop the session at any ticket boundary — everything processed so far is already written.
 

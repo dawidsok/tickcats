@@ -29,7 +29,7 @@ _tickcats_complete() {
             ;;
         pick-next)
             if [[ ${COMP_CWORD} -eq 2 ]]; then
-                COMPREPLY=( $(compgen -W "--path" -- "${cur}") )
+                COMPREPLY=( $(compgen -W "--print-path" -- "${cur}") )
             fi
             ;;
     esac

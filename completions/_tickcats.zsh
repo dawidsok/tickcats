@@ -50,7 +50,7 @@ _tickcats() {
           ;;
         pick-next)
           if (( CURRENT == 2 )); then
-            _values 'pick-next option' '--path[print only the ticket path]'
+            _values 'pick-next option' '--print-path[print only the ticket path]'
           fi
           ;;
       esac

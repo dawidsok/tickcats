@@ -26,7 +26,7 @@ The finished ticket must be readable by a human developer who has **never seen t
 
 ## Tickcats Board Facts
 
-- Columns are folders: `.tickcats/{backlog,ready,doing,done,wont-do}/`. **State = folder location, never frontmatter.**
+- Columns are folders: `.tickcats/{backlog,ready,doing,done}/`. **State = folder location, never frontmatter.** A `wont-do/` folder may exist on legacy boards; the Rust CLI does not move tickets there — use `mv` directly.
 - Ticket frontmatter keys: `title`, `id` (TC-XXXXXX), `priority` (P0–P3), `created`, `updated`.
 - Labels live as square brackets in the title: `[to refine]`, `[blocked]`. Title format: `[labels] Feat|Task: <change-id>: <human title>`.
 - Dependencies are a convention, not a CLI feature: `Prerequisites: TC-XXX, TC-YYY` line inside `## Context` + `[blocked]` label on the dependent ticket.
@@ -95,7 +95,7 @@ Run this AFTER research, BEFORE the deep interview. With codebase reality in han
 
 1. Create sibling tickets via `tickcats new feat|task "<change-id>a: <title>"`, then `<change-id>b`, … (kind matches the original; NO labels or kind prefix in the argument — the CLI adds the prefix and ignores labels; it prints each created file path — capture it). Edit each sibling's frontmatter `title:` to prepend `[to refine]` as a single leading bracket group, and stub each body with `## Context` (PRD refs, outcome sentence, scope carved from the original) + draft `## Acceptance Criteria`.
 2. Wire ordering: add `Prerequisites: TC-<sibling-a-id>` to sibling b's Context (and so on down the chain), and add `blocked` to the label group of every sibling after the first (one group, comma-separated: `[blocked, to refine]` — never two bracket groups).
-3. Retire the original: append `Split into: TC-<a>, TC-<b>, …` to its body, then `tickcats move <bare-filename-of-original> backlog wont-do`.
+3. Retire the original: append `Split into: TC-<a>, TC-<b>, …` to its body, then `mkdir -p .tickcats/wont-do && mv .tickcats/backlog/<bare-filename-of-original> .tickcats/wont-do/`.
 4. **Continue planning the FIRST unblocked sibling** — it becomes "the ticket" for the rest of this session.
 
 ## Step 4: Complexity-Scaled Interview

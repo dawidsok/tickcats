@@ -3,13 +3,14 @@
 A keyboard-first, local kanban board for solo developers. Tickets are plain markdown files stored in `.tickcats/` inside your repo — no accounts, no sync, no servers.
 
 ```
-┌─ Next: [P1] Add dark mode support ───────────────────────────────────────┐
-│                                                                           │
-├─ BACKLOG ──────┬─ READY ────────┬─ DOING ────────┬─ DONE ─────────────── │
-│ > [P1] Auth    │   [P0] Login   │   [P1] Dark    │   [P2] Init flow      │
-│   [P2] Tests   │   [P2] Signup  │                │   [P3] Readme         │
-└────────────────┴────────────────┴────────────────┴───────────────────────┘
-BOARD MODE: h/l col  j/k/d/u ticket  v select  m move  s sort  n new  q quit
+┌─ BACKLOG ─────────────────┐  ┌─ READY ──────────────────┐
+│ > ★ Task: Auth refactor   │  │   Feat: Dark mode         │
+│   TC-A7K9Q2  P1           │  │   TC-B8L0R3  P2           │
+│──────────────────────────  │  │──────────────────────────  │
+│   Feat: Dashboard         │  │                           │
+│   TC-C1M2N3  P2           │  │                           │
+└───────────────────────────┘  └───────────────────────────┘
+h/l cols  j/k rows  enter detail  n new  p/b move  i !  x del  q quit
 ```
 
 ## Installation
@@ -25,20 +26,11 @@ or
 
 ```sh
 brew install dawidsok/tap/tickcats
-
 ```
 
 ### Direct download
 
 Download the `tickcats_<version>_<os>_<arch>` archive for your platform from the [GitHub Releases](https://github.com/dawidsok/tickcats/releases) page, extract, and move the `tickcats` binary to a directory on your `$PATH`.
-
-### go install
-
-```sh
-go install github.com/dawidsok/tickcats/cmd/tickcats@latest
-```
-
-Requires Go installed. The binary lands in `$GOPATH/bin/tickcats`.
 
 ## Quick start
 
@@ -55,20 +47,20 @@ tickcats                # open the board (no command defaults to tui)
 
 | Command | Description |
 |---|---|
-| `tickcats init` | Create board folders and update `.gitignore` |
-| `tickcats new feat\|task\|bug <title>` | Create a ticket in backlog |
-| `tickcats list` | List tickets grouped by configured column |
-| `tickcats move <ticket> <from> <to>` | Move a ticket between columns; accepts folder IDs (`code-review`) or display names (`Code Review`) |
-| `tickcats pick-next` | Print the next recommended ready ticket |
-| `tickcats ids migrate` | Add IDs to existing tickets and rename migrated files |
+| `tickcats init [--no-intro]` | Create board folders and update `.gitignore` |
+| `tickcats new feat\|task\|bug <title> [--ac <text>]` | Create a ticket in backlog |
+| `tickcats list` | List tickets grouped by column |
+| `tickcats move <ticket> <from> <to>` | Move a ticket one adjacent column; accepts filename or `TC-XXXXXX` id |
+| `tickcats pick-next [--print-path]` | Print the next recommended ready ticket |
+| `tickcats ids migrate` | Add IDs to existing tickets and rename files |
 | `tickcats` | Open the terminal board (default when no command given) |
 | `tickcats tui` | Open the terminal board (explicit) |
 
-All commands accept `--path <dir>` to target a board other than `.tickcats`.
+All commands accept `--path <dir>` before the subcommand to target a board other than `.tickcats`.
 
 ## Shell completion
 
-Homebrew installs shell completions automatically. If you installed with `go install`, copy or source the scripts from `completions/` yourself:
+Homebrew installs shell completions automatically. For direct-download installs, copy the scripts from `completions/`:
 
 ```sh
 # bash: source directly or copy into your bash-completion directory
@@ -91,43 +83,29 @@ The completion scripts call hidden helpers (`tickcats __complete tickets` and `t
 
 | Key | Action |
 |---|---|
-| `h` / `l` | Move between columns (`3l` moves three columns) |
-| `j` / `k` | Move between tickets (`10j` moves ten tickets) |
+| `h` / `l` | Move between columns |
+| `j` / `k` | Move between tickets |
 | `d` / `u` | Half-page down / up |
-| `v` | Toggle selection on focused ticket |
-| `m` | Enter move mode |
-| `D` | Set or clear deadline/SLA |
-| `i` | Toggle important on focused ticket |
-| `p` | Progress focused ticket to the next column |
-| `enter` / `o` | Open detail view |
-| `e` | Open ticket in external editor |
+| `enter` / `o` | Open detail panel |
 | `n` | New ticket form |
-| `x` | Delete (with confirmation) |
-| `s` | Cycle sort: priority → title → date → deadline → manual |
+| `p` | Progress ticket → next column |
+| `b` | Move ticket back ← previous column |
+| `i` | Toggle important on focused ticket |
+| `x` | Soft-delete (with confirmation) |
+| `e` | Open ticket in `$EDITOR` |
 | `r` | Reload board from disk |
-| `c` | Open config (editor, theme, columns) |
-| `q` | Quit |
+| `M` | Toggle urgency/importance matrix prioritisation |
+| `/` | Fuzzy search across all columns |
+| `?` | Help overlay |
+| `q` / `Ctrl-C` | Quit |
 
-### Move mode (`m`)
-
-| Key | Action |
-|---|---|
-| `h` / `l` | Move focused / selected ticket one column |
-| `H` / `L` | Move to first / last column |
-| `j` / `k` | Reorder within column (manual sort only) |
-| `esc` | Return to board |
-
-Use `v` in board mode to build a multi-ticket selection before entering move mode.
-
-### Detail view
+### Detail panel (`enter`)
 
 | Key | Action |
 |---|---|
-| `j` / `k` | Scroll content |
-| `d` / `u` | Half-page scroll |
-| `D` | Set or clear deadline/SLA |
-| `i` | Toggle important on open ticket |
-| `e` | Open in external editor |
+| `j` / `k` / `d` / `u` | Scroll |
+| `i` | Toggle important |
+| `e` | Open in `$EDITOR` |
 | `esc` | Return to board |
 
 ## Ticket format
@@ -155,7 +133,7 @@ Users have requested a dark mode option for the dashboard.
 - Preference is persisted across sessions
 ```
 
-State is derived from which folder the file lives in — not from frontmatter. `id` is a stable ticket reference used in new filenames and commit references. `important` is optional and can be toggled with `i` in board/detail views. `deadline` is optional and, when present, uses `YYYY-MM-DD`; new tickets omit deadlines by default.
+State is derived from which folder the file lives in — not from frontmatter. `id` is a stable ticket reference. `important` is optional (toggle with `i`). `deadline` is optional (`YYYY-MM-DD`).
 
 ## Board layout
 
@@ -163,75 +141,44 @@ State is derived from which folder the file lives in — not from frontmatter. `
 .tickcats/
   backlog/   ← new tickets land here
   ready/     ← refined, unblocked, ready to start
-  doing/     ← active work
+  doing/     ← active work (displayed as WIP)
   done/      ← completed
-  wont-do/   ← intentionally rejected / not pursuing
   .trash/    ← soft-deleted tickets
   config.json
-  sort.json
 ```
 
-The `.tickcats/` directory is gitignored by default so the board stays local.
-
-## Custom columns
-
-Columns are folders under `.tickcats/`. The folder name is the column ID used on disk and by the CLI. Display names and order are stored in `.tickcats/config.json`:
-
-```json
-{
-  "columns": [
-    { "id": "backlog", "name": "Backlog" },
-    { "id": "ready", "name": "Ready" },
-    { "id": "code-review", "name": "Code Review" },
-    { "id": "done", "name": "Done" }
-  ]
-}
-```
-
-On load, TickCats reconciles config with folders on disk:
-
-- a folder on disk but missing from config is appended as a column,
-- a config column whose folder is missing is removed,
-- hidden/system folders such as `.trash` are ignored,
-- missing folders are not recreated just because config mentions them.
-
-`tickcats move` accepts both folder IDs and display names. The pick-next rule remains tied to `.tickcats/ready/`.
+The `.tickcats/` directory is gitignored by default.
 
 ## Configuration
 
-Press `c` in the TUI to open the config page. Settings are saved to `.tickcats/config.json`.
+`.tickcats/config.json` stores preferences:
 
 | Setting | Description |
 |---|---|
-| Editor | External editor command (`nvim`, `vim`, `nano`, `code`, …) or `$EDITOR` |
-| Theme | Color theme: mono, gradient, ocean, fire, forest, dim-sum |
-| Matrix | Toggle urgency/importance matrix prioritisation for priority sort. On by default; when enabled, board cards hide raw P0-P3 labels. |
-| Columns | Add, rename, reorder, or delete board columns. Backlog and Done are locked default columns. Deleted column tickets move to the first column. |
+| `disable_matrix_prioritisation` | Set `true` to disable the urgency/importance matrix. Default: matrix on. |
+
+Press `M` in the TUI to toggle the matrix and persist the change.
 
 ## Agent skills
 
-[`skills/`](skills/) ships Agent Skills for Claude Code, OpenAI Codex CLI, Pi, and other compatible harnesses. They drive a full idea-to-implementation workflow on a tickcats board — each ticket becomes a self-contained, human-readable implementation spec (requirements, mermaid architecture, phased plan, progress tracking):
+[`skills/`](skills/) ships Agent Skills for Claude Code, OpenAI Codex CLI, Pi, and other compatible harnesses. They drive a full idea-to-implementation workflow on a tickcats board — each ticket becomes a self-contained, human-readable implementation spec (requirements, architecture, phased plan, progress tracking):
 
 | Skill | Job |
 |---|---|
-| `tc-workflow` | Not sure where you are? Inspects the board + foundation docs, shows your pipeline position, recommends (and offers to run) the next skill |
-| `tc-shape` → `tc-prd` | Idea → discovery notes → PRD (`context/foundation/`) |
-| `tc-decompose` | PRD → ticket stubs (foundations = `task`, slices = `feat`), priorities + `[blocked]`/`Prerequisites:` wiring |
-| `tc-refine` | Grilling-style backlog refinement: sharpen, split, or kill tickets; turn vague pains into new tickets |
-| `tc-plan` | Refine one ticket into a full implementation plan written into the ticket body |
-| `tc-plan-review` / `tc-impl-review` | Review the plan / the implementation; findings appended to the ticket |
-| `tc-implement` | Execute the ticket: `ready → doing → done`, per-phase commits, unblocks dependents |
-| `tickcats-from-roadmap` | Convert an existing 10x `roadmap.md` into tickets |
+| `tc-workflow` | Inspects the board, shows pipeline position, recommends next skill |
+| `tc-shape` → `tc-prd` | Idea → discovery notes → PRD |
+| `tc-decompose` | PRD → ticket stubs |
+| `tc-refine` | Backlog refinement: sharpen, split, or kill tickets |
+| `tc-plan` | Refine one ticket into a full implementation plan |
+| `tc-plan-review` / `tc-impl-review` | Review plan / implementation |
+| `tc-implement` | Execute the ticket: `ready → doing → done` |
+| `tickcats-from-roadmap` | Convert a `roadmap.md` into tickets |
 
 Install interactively:
 
 ```bash
 ./scripts/install-skills.sh
 ```
-
-The installer offers Claude Code (`~/.claude/skills`), OpenAI Codex CLI (`~/.codex/skills`), Pi (`~/.pi/agent/skills`), and the shared Agent Skills location (`~/.agents/skills`). You can still copy or symlink `skills/*` manually if your harness uses another path.
-
-Note: the tc-* workflow commits `.tickcats/` (tickets double as shared specs) — the skills remove it from `.gitignore` on first run.
 
 ## Philosophy
 
