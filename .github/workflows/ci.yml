@@ -36,7 +36,7 @@ jobs:
       - name: Bash — pick-next uses --print-path
         run: grep -q '\-\-print-path' completions/tickcats.bash
       - name: Zsh syntax check
-        run: zsh -n completions/_tickcats.zsh
+        run: sudo apt-get install -y zsh && zsh -n completions/_tickcats.zsh
       - name: Zsh — pick-next uses --print-path
         run: grep -q '\-\-print-path' completions/_tickcats.zsh
       - name: Fish syntax check
