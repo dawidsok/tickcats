@@ -30,7 +30,7 @@ fn key_str(key: &KeyEvent) -> &'static str {
         KeyCode::Char('i') if key.modifiers.is_empty() => "i",
         KeyCode::Char('x') if key.modifiers.is_empty() => "x",
         KeyCode::Char('r') if key.modifiers.is_empty() => "r",
-        KeyCode::Char('M') if key.modifiers.is_empty() => "M",
+        KeyCode::Char('M') if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT => "M",
         KeyCode::Char('q') if key.modifiers.is_empty() => "q",
         KeyCode::Char('y') if key.modifiers.is_empty() => "y",
         KeyCode::Char('/') if key.modifiers.is_empty() => "/",
