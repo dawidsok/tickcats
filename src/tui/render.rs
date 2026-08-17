@@ -20,6 +20,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
 
     match &app.mode.clone() {
         Mode::Create(form) => render_create(frame, app, area, form),
+        Mode::Matrix => render_matrix(frame, app, area),
         Mode::Board | Mode::Detail => render_board_or_detail(frame, app, area),
     }
 }
@@ -469,6 +470,7 @@ fn hint_text(app: &App) -> &'static str {
         return "j/k scroll  ?/enter/esc close  q quit";
     }
     match &app.mode {
+        Mode::Matrix => "h/l cols  j/k rows  tab quad  enter detail  e edit  i important  M board  q quit",
         Mode::Detail => "j/k scroll  e edit  i important  esc back  q quit",
         Mode::Create(_) => "tab field  h/l change  space toggle  enter create  esc cancel",
         Mode::Board => {
@@ -612,6 +614,141 @@ fn render_create(frame: &mut Frame, _app: &App, area: Rect, form: &CreateForm) {
 }
 
 // ---------------------------------------------------------------------------
+// Eisenhower matrix view
+// ---------------------------------------------------------------------------
+
+/// Quadrant metadata: (label, subtitle, index)
+const QUADS: [(usize, usize, &str, &str); 4] = [
+    (0, 0, "SCHEDULE",  "Important · Not Urgent"),
+    (1, 0, "DO NOW",    "Important · Urgent"),
+    (0, 1, "DO LATER",  "Not Important · Not Urgent"),
+    (1, 1, "DELEGATE",  "Not Important · Urgent"),
+];
+// index mapping: quad 0=top-left 1=top-right 2=bottom-left 3=bottom-right
+
+fn render_matrix(frame: &mut Frame, app: &App, area: Rect) {
+    let vert = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(2)])
+        .split(area);
+    let grid_area = vert[0];
+    let footer_area = vert[1];
+
+    // Split grid into top and bottom rows
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)])
+        .split(grid_area);
+
+    // Each row split left / right
+    let top_cols = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)])
+        .split(rows[0]);
+    let bot_cols = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)])
+        .split(rows[1]);
+
+    // cell_area[quad_index]
+    let cell_areas = [
+        top_cols[0], // 0 top-left  Schedule
+        top_cols[1], // 1 top-right Do Now
+        bot_cols[0], // 2 bot-left  Do Later
+        bot_cols[1], // 3 bot-right Delegate
+    ];
+
+    let qs = app.matrix_quadrants();
+
+    for qi in 0..4 {
+        let (_, _, label, subtitle) = QUADS[qi];
+        let focused = qi == app.matrix_quad;
+        let border_style = if focused {
+            Style::default().fg(Color::Blue)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        };
+        let title_style = if focused {
+            Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        };
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(border_style)
+            .title(Span::styled(
+                format!(" {label} ({}) ", qs[qi].len()),
+                title_style,
+            ));
+        let inner = block.inner(cell_areas[qi]);
+        frame.render_widget(block, cell_areas[qi]);
+
+        // Render subtitle + tickets
+        let w = inner.width as usize;
+        let mut lines: Vec<Line> = vec![
+            Line::styled(truncate_str(subtitle, w).into_owned(),
+                Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC)),
+            Line::styled("─".repeat(w.max(1)), Style::default().fg(Color::DarkGray)),
+        ];
+
+        let tickets = &qs[qi];
+        let scroll = app.matrix_scroll[qi];
+        let visible_h = inner.height.saturating_sub(2) as usize; // subtract header lines
+        let cursor = app.matrix_rows[qi];
+
+        if tickets.is_empty() {
+            lines.push(Line::styled("  (empty)", Style::default().fg(Color::DarkGray)));
+        } else {
+            let start = scroll.min(tickets.len().saturating_sub(1));
+            if start > 0 {
+                lines.push(Line::styled(
+                    format!("  ↑ {start} above"),
+                    Style::default().fg(Color::DarkGray),
+                ));
+            }
+            let mut shown = 0usize;
+            for (i, t) in tickets[start..].iter().enumerate() {
+                let abs = start + i;
+                let is_focused = focused && abs == cursor;
+                let state_tag = match t.state {
+                    crate::store::board::State::Backlog => "B",
+                    crate::store::board::State::Ready   => "R",
+                    crate::store::board::State::Wip     => "W",
+                    crate::store::board::State::Done    => "D",
+                };
+                let imp = if t.ticket.important { "!" } else { " " };
+                let dl = t.ticket.deadline
+                    .map(|d| format!(" {d}"))
+                    .unwrap_or_default();
+                let prefix = if is_focused { ">" } else { " " };
+                let line1 = truncate_str(
+                    &format!("{prefix} [{state_tag}]{imp} {}", t.ticket.title),
+                    w,
+                ).into_owned();
+                let line2 = truncate_str(
+                    &format!("   {}  {}{dl}", t.ticket.id, t.ticket.priority),
+                    w,
+                ).into_owned();
+                let style = if is_focused {
+                    Style::default().add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default()
+                };
+                let muted = Style::default().fg(Color::DarkGray);
+                lines.push(Line::styled(line1, style));
+                lines.push(Line::styled(line2, muted));
+                shown += 2;
+                if shown >= visible_h { break; }
+            }
+        }
+
+        frame.render_widget(Paragraph::new(Text::from(lines)), inner);
+    }
+
+    render_footer(frame, app, footer_area);
+}
+
+// ---------------------------------------------------------------------------
 // Help overlay
 // ---------------------------------------------------------------------------
 
@@ -630,10 +767,26 @@ static HELP_LINES: &[&str] = &[
     "  i            toggle important",
     "  x            delete (soft) ticket",
     "  r            reload board",
-    "  M            toggle matrix prioritisation",
+    "  M            open Eisenhower matrix view",
     "  /            fuzzy search",
     "  ?            this help",
     "  q            quit",
+    "",
+    "MATRIX VIEW (M)",
+    "  h / l        move between left/right column",
+    "  j / k        move ticket cursor up/down",
+    "  tab          cycle quadrants clockwise",
+    "  shift+tab    cycle quadrants counter-clockwise",
+    "  enter        open detail",
+    "  e            edit in $EDITOR",
+    "  i            toggle important (re-quadrants ticket)",
+    "  M / esc      back to board",
+    "",
+    "  Quadrants:",
+    "  top-left   SCHEDULE   important, not urgent",
+    "  top-right  DO NOW     important, urgent (≤7 days)",
+    "  bot-left   DO LATER   not important / [to refine]",
+    "  bot-right  DELEGATE   not important, urgent",
     "",
     "DETAIL",
     "  j / k        scroll down / up",

@@ -63,6 +63,7 @@ pub enum Mode {
     Board,
     Detail,
     Create(CreateForm),
+    Matrix, // Eisenhower 2×2 grid view
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -88,6 +89,10 @@ pub struct App {
     pub col_offset: usize,
     pub detail_scroll: usize,
     pub detail_ticket: Option<OsString>,
+    // Matrix view state
+    pub matrix_quad: usize,       // focused quadrant 0-3
+    pub matrix_rows: [usize; 4],  // cursor row per quadrant
+    pub matrix_scroll: [usize; 4],// scroll offset per quadrant
     pub status: String,
     pub width: u16,
     pub height: u16,
@@ -108,6 +113,9 @@ impl App {
             col_offset: 0,
             detail_scroll: 0,
             detail_ticket: None,
+            matrix_quad: 0,
+            matrix_rows: [0; 4],
+            matrix_scroll: [0; 4],
             status: String::new(),
             width: 0,
             height: 0,
@@ -122,6 +130,46 @@ impl App {
 
     pub fn focused_ticket(&self) -> Option<&StoredTicket> {
         self.col_tickets(self.col).get(self.rows[self.col])
+    }
+
+    // --- Eisenhower matrix helpers ------------------------------------------
+
+    /// Quadrant index for a ticket (0-3).
+    /// Layout:  0=top-left(Schedule)  1=top-right(Do Now)
+    ///          2=bottom-left(Later)  3=bottom-right(Delegate)
+    /// [to refine] tickets always land in 2 (bottom-left).
+    pub fn ticket_quadrant(ticket: &crate::ticket::Ticket) -> usize {
+        use chrono::Utc;
+        if ticket.parsed_title.to_refine() {
+            return 2;
+        }
+        let now = Utc::now().date_naive();
+        let urgent = ticket
+            .deadline
+            .is_some_and(|d| d.signed_duration_since(now).num_days() <= 7);
+        match (ticket.important, urgent) {
+            (true, false) => 0,  // Schedule
+            (true, true)  => 1,  // Do Now
+            (false, false) => 2, // Do Later
+            (false, true)  => 3, // Delegate
+        }
+    }
+
+    /// All non-Done tickets grouped into the 4 quadrants.
+    pub fn matrix_quadrants(&self) -> [Vec<&StoredTicket>; 4] {
+        let mut qs: [Vec<&StoredTicket>; 4] = Default::default();
+        for col in 0..3 { // Backlog, Ready, WIP — skip Done
+            for t in self.col_tickets(col) {
+                qs[Self::ticket_quadrant(&t.ticket)].push(t);
+            }
+        }
+        qs
+    }
+
+    /// Focused ticket in the current matrix quadrant.
+    pub fn matrix_focused_ticket(&self) -> Option<&StoredTicket> {
+        let qs = self.matrix_quadrants();
+        qs[self.matrix_quad].get(self.matrix_rows[self.matrix_quad]).copied()
     }
 
     pub fn detail_ticket_ref(&self) -> Option<&StoredTicket> {

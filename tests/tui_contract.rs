@@ -535,18 +535,19 @@ fn tui_17_esc_clears_query_first_then_exits() {
 // ─── TUI-20: M matrix toggle ─────────────────────────────────────────────────
 
 #[test]
-fn tui_20_m_toggles_matrix_and_persists() {
+fn tui_20_m_opens_matrix_view() {
     let tmp = TempBoard::new();
     let mut app = make_app(&tmp.board());
-    let before = app.matrix();
+    assert_eq!(app.mode, Mode::Board);
     update(&mut app, char_key('M'));
-    assert_ne!(app.matrix(), before, "M should toggle matrix");
-    // Check it persisted to disk
-    let cfg_on_disk = Config::load(&tmp.board()).unwrap();
-    assert_eq!(cfg_on_disk.matrix_enabled(), app.matrix());
-    // Toggle back
+    assert_eq!(app.mode, Mode::Matrix, "M should switch to matrix view");
+    // M again returns to board
     update(&mut app, char_key('M'));
-    assert_eq!(app.matrix(), before, "second M should toggle back");
+    assert_eq!(app.mode, Mode::Board, "second M should return to board");
+    // esc also returns to board from matrix
+    update(&mut app, char_key('M'));
+    update(&mut app, key(KeyCode::Esc));
+    assert_eq!(app.mode, Mode::Board);
 }
 
 // ─── TUI-23: ? help overlay ───────────────────────────────────────────────────

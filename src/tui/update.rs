@@ -68,6 +68,11 @@ pub fn update(app: &mut App, key: KeyEvent) -> Action {
         return update_create(app, key);
     }
 
+    // Matrix view
+    if matches!(app.mode, Mode::Matrix) {
+        return update_matrix(app, key);
+    }
+
     // Search overlay (active on top of Board)
     if let Some(s) = &app.search {
         if s.typing {
@@ -80,7 +85,7 @@ pub fn update(app: &mut App, key: KeyEvent) -> Action {
     match &app.mode {
         Mode::Board => update_board(app, key),
         Mode::Detail => update_detail(app, key),
-        Mode::Create(_) => unreachable!(),
+        Mode::Matrix | Mode::Create(_) => unreachable!(),
     }
 }
 
@@ -109,7 +114,10 @@ fn update_board(app: &mut App, key: KeyEvent) -> Action {
             app.reload();
             app.status = "Reloaded".to_owned();
         }
-        "M" => do_toggle_matrix(app),
+        "M" => {
+            app.mode = Mode::Matrix;
+            app.status = String::new();
+        }
         "/" => app.search = Some(SearchState::new()),
         _ => {}
     }
@@ -150,6 +158,107 @@ fn update_detail(app: &mut App, key: KeyEvent) -> Action {
         _ => {}
     }
     Action::Continue
+}
+
+// --- Matrix view ------------------------------------------------------------
+
+fn update_matrix(app: &mut App, key: KeyEvent) -> Action {
+    match key_str(&key) {
+        "q" => return Action::Quit,
+        "M" | "esc" => {
+            app.mode = Mode::Board;
+            app.status = String::new();
+        }
+        "?" => app.overlay = Overlay::Help { scroll: 0 },
+        "tab" => {
+            // cycle quadrants clockwise: 0(top-left)→1(top-right)→3(bot-right)→2(bot-left)→0
+            app.matrix_quad = match app.matrix_quad {
+                0 => 1,
+                1 => 3,
+                3 => 2,
+                _ => 0,
+            };
+        }
+        "shift+tab" => {
+            app.matrix_quad = match app.matrix_quad {
+                0 => 2,
+                2 => 3,
+                3 => 1,
+                _ => 0,
+            };
+        }
+        "h" | "left" => {
+            // move to left column (quadrants 0,2 are left; 1,3 are right)
+            if app.matrix_quad == 1 { app.matrix_quad = 0; }
+            if app.matrix_quad == 3 { app.matrix_quad = 2; }
+        }
+        "l" | "right" => {
+            if app.matrix_quad == 0 { app.matrix_quad = 1; }
+            if app.matrix_quad == 2 { app.matrix_quad = 3; }
+        }
+        "k" | "up" => {
+            let q = app.matrix_quad;
+            let n = app.matrix_quadrants()[q].len();
+            if app.matrix_rows[q] > 0 {
+                app.matrix_rows[q] -= 1;
+            } else if q == 2 { app.matrix_quad = 0; }
+              else if q == 3 { app.matrix_quad = 1; }
+            let _ = n;
+        }
+        "j" | "down" => {
+            let q = app.matrix_quad;
+            let n = app.matrix_quadrants()[q].len();
+            if n > 0 && app.matrix_rows[q] + 1 < n {
+                app.matrix_rows[q] += 1;
+            } else if q == 0 { app.matrix_quad = 2; }
+              else if q == 1 { app.matrix_quad = 3; }
+        }
+        "enter" => open_detail_matrix(app),
+        "e" => return do_edit_matrix(app),
+        "i" => do_toggle_important_matrix(app),
+        _ => {}
+    }
+    // Clamp cursor after navigation
+    {
+        let lens: [usize; 4] = {
+            let qs = app.matrix_quadrants();
+            [qs[0].len(), qs[1].len(), qs[2].len(), qs[3].len()]
+        };
+        for q in 0..4 {
+            if lens[q] == 0 { app.matrix_rows[q] = 0; }
+            else { app.matrix_rows[q] = app.matrix_rows[q].min(lens[q] - 1); }
+        }
+    }
+    Action::Continue
+}
+
+fn open_detail_matrix(app: &mut App) {
+    if let Some(t) = app.matrix_focused_ticket() {
+        app.detail_ticket = Some(t.name.clone());
+        app.mode = Mode::Detail;
+        app.detail_scroll = 0;
+    }
+}
+
+fn do_edit_matrix(app: &mut App) -> Action {
+    if let Some(t) = app.matrix_focused_ticket() {
+        Action::Edit(t.path.clone())
+    } else {
+        Action::Continue
+    }
+}
+
+fn do_toggle_important_matrix(app: &mut App) {
+    if let Some(t) = app.matrix_focused_ticket() {
+        let name = t.name.clone();
+        let state = t.state;
+        let important = !t.ticket.important;
+        use chrono::Utc;
+        if crate::store::operations::set_important(&app.root, &name, state, important, Utc::now()).is_ok() {
+            app.reload();
+            app.status = if important { "Marked important".to_owned() } else { "Unmarked".to_owned() };
+        }
+    }
 }
 
 // --- Create form -------------------------------------------------------------
