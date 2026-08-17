@@ -277,7 +277,9 @@ fn parse_date(raw: Option<&String>, key: &str) -> Result<Option<NaiveDate>, Pars
     else {
         return Ok(None);
     };
-    NaiveDate::parse_from_str(raw, "%Y-%m-%d")
+    // Accept YYYY-MM-DD, or strip a trailing time component (e.g. 2026-08-15T00:00:00Z)
+    let date_part = raw.split('T').next().unwrap_or(raw);
+    NaiveDate::parse_from_str(date_part, "%Y-%m-%d")
         .map(Some)
         .map_err(|error| {
             ParseError::new(format!(
