@@ -568,17 +568,6 @@ fn do_toggle_important_detail(app: &mut App) {
     }
 }
 
-fn do_toggle_matrix(app: &mut App) {
-    if let Ok(enabled) = app.config.toggle_matrix() {
-        let _ = app.config.save();
-        app.reload();
-        app.status = if enabled {
-            "Matrix: on".to_owned()
-        } else {
-            "Matrix: off".to_owned()
-        };
-    }
-}
 
 fn enter_delete_confirm(app: &mut App) {
     if let Some(t) = app.focused_ticket() {
