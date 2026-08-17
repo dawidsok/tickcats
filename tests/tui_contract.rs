@@ -484,7 +484,7 @@ fn tui_15_matrix_p_label_suppression_in_render() {
     terminal
         .draw(|f| tickcats::tui::render_for_test(f, &mut app))
         .unwrap();
-    update(&mut app, char_key('M')); // toggle matrix
+    update(&mut app, char_key('m')); // toggle matrix
     terminal
         .draw(|f| tickcats::tui::render_for_test(f, &mut app))
         .unwrap();
@@ -539,13 +539,13 @@ fn tui_20_m_opens_matrix_view() {
     let tmp = TempBoard::new();
     let mut app = make_app(&tmp.board());
     assert_eq!(app.mode, Mode::Board);
-    update(&mut app, char_key('M'));
+    update(&mut app, char_key('m'));
     assert_eq!(app.mode, Mode::Matrix, "M should switch to matrix view");
     // M again returns to board
-    update(&mut app, char_key('M'));
+    update(&mut app, char_key('m'));
     assert_eq!(app.mode, Mode::Board, "second M should return to board");
     // esc also returns to board from matrix
-    update(&mut app, char_key('M'));
+    update(&mut app, char_key('m'));
     update(&mut app, key(KeyCode::Esc));
     assert_eq!(app.mode, Mode::Board);
 }
@@ -712,14 +712,12 @@ fn tui_01_two_line_card_render() {
 
 #[test]
 fn tui_dropped_no_move_mode() {
-    // TUI-10: m key should NOT enter a move mode overlay or mode
+    // TUI-10: m opens matrix view, not a multi-column move mode overlay
     let tmp = TempBoard::new();
     let mut app = make_app(&tmp.board());
-    let mode_before = format!("{:?}", app.mode);
-    let overlay_before = format!("{:?}", app.overlay);
     update(&mut app, char_key('m'));
-    assert_eq!(format!("{:?}", app.mode), mode_before);
-    assert_eq!(format!("{:?}", app.overlay), overlay_before);
+    assert_eq!(app.mode, Mode::Matrix, "m should open matrix view");
+    assert_eq!(app.overlay, Overlay::None, "m should not set any overlay");
 }
 
 #[test]

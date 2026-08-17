@@ -30,7 +30,7 @@ fn key_str(key: &KeyEvent) -> &'static str {
         KeyCode::Char('i') if key.modifiers.is_empty() => "i",
         KeyCode::Char('x') if key.modifiers.is_empty() => "x",
         KeyCode::Char('r') if key.modifiers.is_empty() => "r",
-        KeyCode::Char('M') if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT => "M",
+        KeyCode::Char('m') if key.modifiers.is_empty() => "m",
         KeyCode::Char('q') if key.modifiers.is_empty() => "q",
         KeyCode::Char('y') if key.modifiers.is_empty() => "y",
         KeyCode::Char('/') if key.modifiers.is_empty() => "/",
@@ -114,7 +114,7 @@ fn update_board(app: &mut App, key: KeyEvent) -> Action {
             app.reload();
             app.status = "Reloaded".to_owned();
         }
-        "M" => {
+        "m" => {
             app.mode = Mode::Matrix;
             app.status = String::new();
         }
@@ -165,7 +165,7 @@ fn update_detail(app: &mut App, key: KeyEvent) -> Action {
 fn update_matrix(app: &mut App, key: KeyEvent) -> Action {
     match key_str(&key) {
         "q" => return Action::Quit,
-        "M" | "esc" => {
+        "m" | "esc" => {
             app.mode = Mode::Board;
             app.status = String::new();
         }

@@ -470,7 +470,7 @@ fn hint_text(app: &App) -> &'static str {
         return "j/k scroll  ?/enter/esc close  q quit";
     }
     match &app.mode {
-        Mode::Matrix => "h/l cols  j/k rows  tab quad  enter detail  e edit  i important  M board  q quit",
+        Mode::Matrix => "h/l cols  j/k rows  tab quad  enter detail  e edit  i important  m board  q quit",
         Mode::Detail => "j/k scroll  e edit  i important  esc back  q quit",
         Mode::Create(_) => "tab field  h/l change  space toggle  enter create  esc cancel",
         Mode::Board => {
@@ -479,7 +479,7 @@ fn hint_text(app: &App) -> &'static str {
             } else if app.search.is_some() {
                 "type query  enter navigate  esc cancel"
             } else {
-                "h/l cols  j/k rows  enter detail  n new  p/b move  i !  x del  r reload  M matrix  / search  ? help  q"
+                "h/l cols  j/k rows  enter detail  n new  p/b move  i !  x del  r reload  m matrix  / search  ? help  q"
             }
         }
     }
@@ -767,7 +767,7 @@ static HELP_LINES: &[&str] = &[
     "  i            toggle important",
     "  x            delete (soft) ticket",
     "  r            reload board",
-    "  M            open Eisenhower matrix view",
+    "  m            open Eisenhower matrix view",
     "  /            fuzzy search",
     "  ?            this help",
     "  q            quit",
@@ -780,7 +780,7 @@ static HELP_LINES: &[&str] = &[
     "  enter        open detail",
     "  e            edit in $EDITOR",
     "  i            toggle important (re-quadrants ticket)",
-    "  M / esc      back to board",
+    "  m / esc      back to board",
     "",
     "  Quadrants:",
     "  top-left   SCHEDULE   important, not urgent",
